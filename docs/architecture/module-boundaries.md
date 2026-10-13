@@ -31,8 +31,6 @@ created as their phases land.
    another module's repository or schema internals.
 2. `import "server-only";` is the first line of every `src/server/**` file.
 3. Money is integer minor units (whole đồng), columns suffixed `_vnd`;
-   timestamps are integer unixepoch **seconds**, suffixed `_at`; ids are text
-   ULIDs. (Current Phase-2 tables predate the convention for millisecond expiry
-   fields on `sessions`/`password_reset_tokens` — migrate on the Postgres port;
-   new tables must follow the seconds convention.)
+   timestamps are integer unixepoch **milliseconds** (`Date.now()`-native),
+   suffixed `_at`; ids are text ULIDs.
 4. Route handlers stay thin: parse → authorize → delegate → serialize.

@@ -8,9 +8,8 @@ Planned per the roadmap.
 
 - **IDs:** `text` ULIDs (seed uses fixed readable ids like `usr_admin` for
   determinism).
-- **Timestamps:** `integer` unixepoch UTC, `_at` suffix, seconds convention
-  going forward (Phase-2 session/token expiry fields currently store ms — see
-  known limitations).
+- **Timestamps:** `integer` unixepoch **milliseconds** UTC, `_at` suffix
+  (`Date.now()`-native throughout, seed included).
 - **Money (planned):** `integer` whole đồng, `_vnd` suffix.
 - FKs are explicit; `PRAGMA foreign_keys=ON` and `journal_mode=WAL` set in
   `src/server/db/client.ts`.

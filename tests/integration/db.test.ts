@@ -17,5 +17,7 @@ describe("db", () => {
     const rows = db.select().from(users).all();
     expect(rows.filter((u) => u.email === "admin@marketflow.dev")).toHaveLength(1);
     expect(rows).toHaveLength(4);
+    // _at convention is unixepoch milliseconds — catch seconds-unit regressions.
+    expect(rows.every((u) => u.createdAt > 1e12)).toBe(true);
   });
 });

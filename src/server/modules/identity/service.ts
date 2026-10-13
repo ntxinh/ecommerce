@@ -11,7 +11,7 @@ import { passwordResetTokens, userRoles, users } from "@/server/db/schema";
 
 export type User = typeof users.$inferSelect;
 
-const TOKEN_TTL_MS = 60 * 60 * 1000; // password-reset / email-verify tokens live 1h
+const TOKEN_TTL_MS = 30 * 60 * 1000; // password-reset / email-verify tokens live 30min
 
 export async function register(
   db: DB,

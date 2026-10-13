@@ -49,7 +49,7 @@ Domain modules: `identity`, `profiles`, `sellers` (applications/shops/membership
 
 ## 3. Data model
 
-IDs: `text` ULIDs. Money: `integer` minor units, `_vnd` suffix, whole đồng. Timestamps: `integer` unixepoch UTC (`_at` suffix). All FKs explicit; `PRAGMA foreign_keys=ON` enforced at connection init.
+IDs: `text` ULIDs. Money: `integer` minor units, `_vnd` suffix, whole đồng. Timestamps: `integer` unixepoch **milliseconds** UTC (`_at` suffix), `Date.now()`-native. All FKs explicit; `PRAGMA foreign_keys=ON` enforced at connection init.
 
 Entity groups (full schema to `docs/database/data-model.md` at build time; decisions recorded here):
 
@@ -175,7 +175,7 @@ Commit order (risk-descending, phase numbers retained):
 | SQLite write contention during checkout tests | better-sqlite3 synchronous transactions serialize writers; WAL mode; concurrency tests prove the guard. |
 | Scope creep inside phases | Vertical slices only; per-slice DoD = spec §27. |
 | Spec↔code drift | Contract test for OpenAPI; docs written when feature lands, not after. |
-| ULID/int64 edge cases | All timestamps unixepoch seconds (53-bit safe); ULID text sort verified in test. |
+| ULID/int64 edge cases | All timestamps unixepoch milliseconds (53-bit safe); ULID text sort verified in test. |
 
 ## 13. Deliberate simplifications
 

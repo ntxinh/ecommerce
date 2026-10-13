@@ -11,7 +11,7 @@ import {
 } from "../schema";
 
 // Fixed text ids make the seed deterministic and idempotent on PK conflict.
-const SEEDED_AT = 1735689600; // 2025-01-01T00:00:00Z, stable across runs
+const SEEDED_AT = 1735689600000; // 2025-01-01T00:00:00Z in unixepoch ms, stable across runs
 
 export function seedIdentity(db: DB) {
   const passwordHash = hashSync("Marketflow123!");

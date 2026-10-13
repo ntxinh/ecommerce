@@ -28,7 +28,7 @@ written to port to PostgreSQL without redesign.
    (sessions → memberships loader) since `jsonb` returns parsed objects.
 4. Service-level `.run()`/`.get()`/`.all()` synchronous calls become awaited
    queries — the largest mechanical change.
-5. Re-verify timestamp convention: keep integer seconds; do not adopt
+5. Keep the integer unixepoch-milliseconds convention; do not adopt
    `timestamptz` columns without a decision.
 6. Update `DATABASE_URL` handling in `src/env.ts` (strip `file:` prefix logic).
 7. Rate limiter: in-memory Map is single-instance — move to Redis/DB-backed

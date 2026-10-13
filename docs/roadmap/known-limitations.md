@@ -37,12 +37,9 @@ the current implementation. Each entry names its ceiling and upgrade path.
 9. **Admin redirect has no feedback** — non-admin users hitting `/admin` are
    redirected away with no "not allowed" message; add a toast/interstitial
    when the admin console gains screens.
-10. **Timestamp unit drift** — `sessions.expiresAt`, `password_reset_tokens.*`,
-    and `users.*_at` store **milliseconds** (`Date.now()`) while the stated
-    convention is unixepoch **seconds**. Normalize on the PostgreSQL port.
-11. **`lsp.json` omitted** — no documented consumer schema in this toolchain;
+10. **`lsp.json` omitted** — no documented consumer schema in this toolchain;
     decision recorded in `docs/operations/local-development.md`.
-12. **`/api/v1/ready` not implemented** — only liveness exists today.
+11. **`/api/v1/ready` not implemented** — only liveness exists today.
 
 ## Deferred hardening (by phase)
 

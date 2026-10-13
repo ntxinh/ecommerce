@@ -27,8 +27,7 @@ are in-process mocks.
 ## Conventions
 
 - IDs: text ULIDs. Money: integer whole đồng, `_vnd` suffix. Timestamps:
-  integer unixepoch `_at` (seconds for new tables — identity tables still use
-  ms, see known-limitations).
+  integer unixepoch **milliseconds** `_at` (`Date.now()`-native).
 - Authorization: `requirePermission(actor, perm, {shopId})`;
   `requireAdmin()`/`requireSeller()` for shells. ADMIN bypasses all checks
   including shop-scoped (ADR-0001).

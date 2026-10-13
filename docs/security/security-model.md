@@ -7,7 +7,7 @@
 | Control | Where | Notes |
 |---|---|---|
 | Password hashing | `src/server/auth/passwords.ts` | argon2id via `@node-rs/argon2` |
-| Password reset / verify tokens | `src/server/auth/tokens.ts`, `src/server/modules/identity/service.ts` | sha256'd, single-use (`usedAt`), 1-hour expiry; reset response is indistinguishable whether the email exists |
+| Password reset / verify tokens | `src/server/auth/tokens.ts`, `src/server/modules/identity/service.ts` | sha256'd, single-use (`usedAt`), 30-minute expiry; reset response is indistinguishable whether the email exists |
 | Rate limiting | `src/server/auth/rate-limit.ts` | in-memory sliding window; login `login:{email}` 5/60s, reset `reset:{email}` 3/hr, verify resend `verify:{userId}` 3/hr |
 | Authorization | see [authorization.md](authorization.md) | role + membership matrix, ADMIN bypass |
 | Error hygiene | `src/server/api/errors.ts` | typed codes; unknown errors → `INTERNAL` 500, no internals |
