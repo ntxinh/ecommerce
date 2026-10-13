@@ -1,4 +1,4 @@
-// TODO(Task 3): add `import "server-only";` once the server-only package is installed.
+import "server-only";
 import { z } from "zod";
 
 const EnvSchema = z.object({

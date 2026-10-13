@@ -4,6 +4,10 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
+  resolve: {
+    // `server-only` throws outside an RSC bundler; stub it out in tests.
+    alias: { "server-only": new URL("./tests/server-only.stub.ts", import.meta.url).pathname },
+  },
   test: {
     passWithNoTests: true,
     environment: "node",
