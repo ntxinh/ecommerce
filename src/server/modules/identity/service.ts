@@ -17,31 +17,39 @@ export async function register(
   db: DB,
   input: { email: string; name: string; password: string },
 ): Promise<User> {
-  const taken = db.select({ id: users.id }).from(users).where(eq(users.email, input.email)).get();
+  const email = input.email.trim().toLowerCase();
+  const taken = db.select({ id: users.id }).from(users).where(eq(users.email, email)).get();
   if (taken) throw new AuthError("EMAIL_TAKEN");
 
-  const now = Date.now();
-  const user = db
-    .insert(users)
-    .values({
-      id: `usr_${ulid()}`,
-      email: input.email,
-      name: input.name,
-      passwordHash: await hashPassword(input.password),
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning()
-    .get();
-  db.insert(userRoles).values({ userId: user.id, role: "CUSTOMER" }).run();
-  return user;
+  const passwordHash = await hashPassword(input.password);
+  return db.transaction((tx) => {
+    const now = Date.now();
+    const user = tx
+      .insert(users)
+      .values({
+        id: `usr_${ulid()}`,
+        email,
+        name: input.name,
+        passwordHash,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning()
+      .get();
+    tx.insert(userRoles).values({ userId: user.id, role: "CUSTOMER" }).run();
+    return user;
+  });
 }
 
 export async function authenticate(
   db: DB,
   input: { email: string; password: string },
 ): Promise<User | null> {
-  const user = db.select().from(users).where(eq(users.email, input.email)).get();
+  const user = db
+    .select()
+    .from(users)
+    .where(eq(users.email, input.email.trim().toLowerCase()))
+    .get();
   if (user?.status !== "ACTIVE") return null;
   return (await verifyPassword(user.passwordHash, input.password)) ? user : null;
 }
@@ -72,7 +80,7 @@ export async function createPasswordReset(
   db: DB,
   email: string,
 ): Promise<{ token: string; user: User } | null> {
-  const user = db.select().from(users).where(eq(users.email, email)).get();
+  const user = db.select().from(users).where(eq(users.email, email.trim().toLowerCase())).get();
   if (!user) return null; // never leak whether the email exists
   const token = issueToken(db, user.id, "reset");
   deliverMail("reset", user.email, { token });
@@ -98,5 +106,8 @@ export async function sendVerification(db: DB, userId: string): Promise<void> {
 }
 
 export async function verifyEmail(db: DB, token: string): Promise<boolean> {
-  return consumeToken(db, token, "verify") !== null;
+  const row = consumeToken(db, token, "verify");
+  if (!row) return false;
+  db.update(users).set({ emailVerifiedAt: Date.now() }).where(eq(users.id, row.userId)).run();
+  return true;
 }

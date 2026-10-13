@@ -13,6 +13,7 @@ export const users = sqliteTable(
       .default("ACTIVE"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
+    emailVerifiedAt: integer("email_verified_at"),
   },
   (t) => [uniqueIndex("users_email_unique").on(t.email)],
 );

@@ -6,7 +6,9 @@ const buckets = new Map<string, number[]>();
 export function checkRateLimit(key: string, limit: number, windowSec: number): boolean {
   const cutoff = Date.now() - windowSec * 1000;
   const hits = (buckets.get(key) ?? []).filter((t) => t > cutoff);
-  if (hits.length >= limit) {
+  if (hits.length === 0)
+    buckets.delete(key); // prune fully-expired keys
+  else if (hits.length >= limit) {
     buckets.set(key, hits);
     return false;
   }

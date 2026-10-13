@@ -61,6 +61,15 @@ describe("identity service", () => {
     db.update(users).set({ status: "ACTIVE" }).where(eq(users.email, "a@b.dev")).run();
   });
 
+  it("normalizes email case and whitespace across boundaries", async () => {
+    const user = await register(db, { email: "  Case@Test.Dev ", name: "C", password: "pw" });
+    expect(user.email).toBe("case@test.dev");
+    expect((await authenticate(db, { email: "case@test.dev", password: "pw" }))?.id).toBe(user.id);
+    await expect(
+      register(db, { email: "CASE@test.dev", name: "C2", password: "x" }),
+    ).rejects.toThrowError(/EMAIL_TAKEN/);
+  });
+
   it("creates and resolves a session into an actor", async () => {
     const user = await authenticate(db, { email: "a@b.dev", password: "pw" });
     if (!user) throw new Error("expected user");
@@ -105,6 +114,8 @@ describe("identity service", () => {
     await createPasswordReset(db, "a@b.dev");
     expect(await verifyEmail(db, mailToken("reset", "a@b.dev"))).toBe(false);
     expect(await verifyEmail(db, mailToken("verify", "a@b.dev"))).toBe(true);
+    const refreshed = db.select().from(users).where(eq(users.id, user.id)).get();
+    expect(refreshed?.emailVerifiedAt).not.toBeNull();
     // consumed
     expect(await verifyEmail(db, mailToken("verify", "a@b.dev"))).toBe(false);
   });
