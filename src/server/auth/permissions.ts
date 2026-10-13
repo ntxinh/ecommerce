@@ -49,3 +49,22 @@ export function requirePermission(
   if (membership.permissions.some((g) => covers(g, perm))) return actor;
   throw new AuthError("FORBIDDEN", 403);
 }
+
+/**
+ * Seller-shell check on an Actor: passes when any membership grants
+ * `shop:manage` for that shop (OWNER implicitly). Throws UNAUTHORIZED when
+ * logged out, FORBIDDEN when no membership qualifies. ADMIN bypasses via
+ * requirePermission's global rule.
+ */
+export function sellerActor(actor: Actor | null): Actor {
+  if (!actor) throw new AuthError("UNAUTHORIZED", 401);
+  if (actor.roles.includes("ADMIN")) return actor; // same bypass as requirePermission
+  for (const m of actor.memberships) {
+    try {
+      return requirePermission(actor, "shop:manage", { shopId: m.shopId });
+    } catch (e) {
+      if (!(e instanceof AuthError && e.status === 403)) throw e;
+    }
+  }
+  throw new AuthError("FORBIDDEN", 403);
+}

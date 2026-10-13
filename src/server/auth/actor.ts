@@ -1,9 +1,8 @@
 import "server-only";
 import { connection } from "next/server";
-import { AuthError } from "@/server/api/errors";
 import { getDb } from "@/server/db/client";
 import { getSessionToken } from "./cookies";
-import { type Actor, requirePermission } from "./permissions";
+import { type Actor, requirePermission, sellerActor } from "./permissions";
 import { resolveSession } from "./sessions";
 
 /** Resolves the request's session cookie to an Actor; null when logged out/expired. */
@@ -23,10 +22,5 @@ export async function requireAdmin(): Promise<Actor> {
  * ADMIN bypasses via requirePermission's global rule.
  */
 export async function requireSeller(): Promise<Actor> {
-  const actor = await getActor();
-  if (!actor) throw new AuthError("UNAUTHORIZED", 401);
-  if (actor.roles.includes("ADMIN")) return actor;
-  const shopId = actor.memberships[0]?.shopId;
-  if (!shopId) throw new AuthError("FORBIDDEN", 403);
-  return requirePermission(actor, "shop:manage", { shopId });
+  return sellerActor(await getActor());
 }

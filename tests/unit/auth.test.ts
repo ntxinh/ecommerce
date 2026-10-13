@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hashPassword, verifyPassword } from "@/server/auth/passwords";
-import { type Actor, requirePermission } from "@/server/auth/permissions";
+import { type Actor, requirePermission, sellerActor } from "@/server/auth/permissions";
 import { generateToken, hashToken } from "@/server/auth/tokens";
 
 describe("passwords", () => {
@@ -31,5 +31,28 @@ describe("permissions", () => {
       /FORBIDDEN/,
     );
     expect(() => requirePermission(null, "product:write")).toThrowError(/UNAUTHORIZED/);
+  });
+
+  it("sellerActor passes on any qualifying membership, not just the first", () => {
+    const multiShop: Actor = {
+      userId: "u2",
+      roles: ["SELLER"],
+      memberships: [
+        { shopId: "s1", role: "STAFF", permissions: ["product:read"] },
+        { shopId: "s2", role: "OWNER", permissions: [] },
+      ],
+    };
+    expect(sellerActor(multiShop)).toBe(multiShop);
+
+    const noManage: Actor = {
+      userId: "u3",
+      roles: ["SELLER"],
+      memberships: [{ shopId: "s1", role: "STAFF", permissions: ["product:read"] }],
+    };
+    expect(() => sellerActor(noManage)).toThrowError(/FORBIDDEN/);
+    expect(() => sellerActor(null)).toThrowError(/UNAUTHORIZED/);
+    expect(sellerActor({ userId: "u4", roles: ["ADMIN"], memberships: [] })).toMatchObject({
+      userId: "u4",
+    });
   });
 });
