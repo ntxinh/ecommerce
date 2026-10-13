@@ -1,9 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Input } from "@/components/ui/input";
 import { requestResetAction } from "./actions";
 import { errorKey, fieldKey } from "./errors";
-import { Field, inputClass, Submit } from "./ui";
+import { Field, Submit } from "./ui";
 import { useAuthAction } from "./use-auth-action";
 
 export function ResetRequestForm() {
@@ -27,13 +28,12 @@ export function ResetRequestForm() {
         </p>
       ) : null}
       <Field id="email" label={t("email")} error={fe?.email ? t(fieldKey(fe.email)) : undefined}>
-        <input
+        <Input
           id="email"
           name="email"
           type="email"
           autoComplete="email"
           required
-          className={inputClass}
           aria-invalid={!!fe?.email}
         />
       </Field>

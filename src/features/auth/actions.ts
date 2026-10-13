@@ -8,7 +8,7 @@ import {
   ResetRequestInput,
 } from "@/server/api/contracts/auth";
 import { AuthError } from "@/server/api/errors";
-import { currentActor } from "@/server/auth/actor";
+import { getActor } from "@/server/auth/actor";
 import { clearSessionCookie, getSessionToken, setSessionCookie } from "@/server/auth/cookies";
 import { checkRateLimit } from "@/server/auth/rate-limit";
 import { createSession, revokeSession } from "@/server/auth/sessions";
@@ -106,7 +106,7 @@ export async function sendVerificationAction(
   _prev: ActionState,
   _formData: FormData,
 ): Promise<ActionResult> {
-  const actor = await currentActor();
+  const actor = await getActor();
   if (!actor) return { ok: false, error: "UNAUTHORIZED" };
   if (!checkRateLimit(`verify:${actor.userId}`, 3, 3600)) {
     return { ok: false, error: "RATE_LIMITED" };

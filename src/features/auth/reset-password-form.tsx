@@ -1,9 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Input } from "@/components/ui/input";
 import { resetPasswordAction } from "./actions";
 import { errorKey, fieldKey } from "./errors";
-import { Field, inputClass, Submit } from "./ui";
+import { Field, Submit } from "./ui";
 import { useAuthAction } from "./use-auth-action";
 
 export function ResetPasswordForm({ token }: { token: string }) {
@@ -24,14 +25,13 @@ export function ResetPasswordForm({ token }: { token: string }) {
         label={t("newPassword")}
         error={fe?.password ? t(fieldKey(fe.password)) : undefined}
       >
-        <input
+        <Input
           id="password"
           name="password"
           type="password"
           autoComplete="new-password"
           required
           minLength={8}
-          className={inputClass}
           aria-invalid={!!fe?.password}
         />
       </Field>

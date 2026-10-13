@@ -52,5 +52,16 @@
     "light": "Light",
     "dark": "Dark",
     "system": "System"
+  },
+  "shell": {
+    "planned": "Planned",
+    "searchPlaceholder": "Search products",
+    "footerTagline": "Buy and sell anything",
+    "catalogPlanned": "Planned: product catalog",
+    "metricsPlanned": "Planned: dashboard metrics",
+    "productsPlanned": "Planned: products",
+    "ordersPlanned": "Planned: orders",
+    "usersPlanned": "Planned: users",
+    "moderationPlanned": "Planned: seller applications"
   }
 }

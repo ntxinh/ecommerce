@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
 import { logoutAction } from "./actions";
 import { useAuthAction } from "./use-auth-action";
 
@@ -10,13 +11,9 @@ export function LogoutButton() {
 
   return (
     <form action={dispatch}>
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md border border-zinc-300 px-3 py-2 text-sm disabled:opacity-50 dark:border-zinc-700"
-      >
+      <Button type="submit" variant="outline" disabled={pending}>
         {pending ? "…" : tc("signOut")}
-      </button>
+      </Button>
     </form>
   );
 }

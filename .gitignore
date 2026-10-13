@@ -49,3 +49,7 @@ tests/.tmp/
 
 # dev mail adapter
 mailbox/
+
+# playwright
+test-results/
+playwright-report/

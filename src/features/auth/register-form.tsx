@@ -1,9 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Input } from "@/components/ui/input";
 import { registerAction } from "./actions";
 import { errorKey, fieldKey } from "./errors";
-import { Field, inputClass, Submit } from "./ui";
+import { Field, Submit } from "./ui";
 import { useAuthAction } from "./use-auth-action";
 
 export function RegisterForm() {
@@ -20,23 +21,15 @@ export function RegisterForm() {
         </p>
       ) : null}
       <Field id="name" label={t("name")} error={fe?.name ? t(fieldKey(fe.name)) : undefined}>
-        <input
-          id="name"
-          name="name"
-          autoComplete="name"
-          required
-          className={inputClass}
-          aria-invalid={!!fe?.name}
-        />
+        <Input id="name" name="name" autoComplete="name" required aria-invalid={!!fe?.name} />
       </Field>
       <Field id="email" label={t("email")} error={fe?.email ? t(fieldKey(fe.email)) : undefined}>
-        <input
+        <Input
           id="email"
           name="email"
           type="email"
           autoComplete="email"
           required
-          className={inputClass}
           aria-invalid={!!fe?.email}
         />
       </Field>
@@ -45,14 +38,13 @@ export function RegisterForm() {
         label={t("password")}
         error={fe?.password ? t(fieldKey(fe.password)) : undefined}
       >
-        <input
+        <Input
           id="password"
           name="password"
           type="password"
           autoComplete="new-password"
           required
           minLength={8}
-          className={inputClass}
           aria-invalid={!!fe?.password}
         />
       </Field>

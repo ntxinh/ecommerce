@@ -52,5 +52,16 @@
     "light": "Sáng",
     "dark": "Tối",
     "system": "Hệ thống"
+  },
+  "shell": {
+    "planned": "Dự kiến",
+    "searchPlaceholder": "Tìm sản phẩm",
+    "footerTagline": "Mua bán mọi thứ",
+    "catalogPlanned": "Dự kiến: danh mục sản phẩm",
+    "metricsPlanned": "Dự kiến: chỉ số tổng quan",
+    "productsPlanned": "Dự kiến: sản phẩm",
+    "ordersPlanned": "Dự kiến: đơn hàng",
+    "usersPlanned": "Dự kiến: người dùng",
+    "moderationPlanned": "Dự kiến: đơn đăng ký bán hàng"
   }
 }

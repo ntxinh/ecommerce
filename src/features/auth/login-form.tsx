@@ -1,9 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Input } from "@/components/ui/input";
 import { loginAction } from "./actions";
 import { errorKey, fieldKey } from "./errors";
-import { Field, inputClass, Submit } from "./ui";
+import { Field, Submit } from "./ui";
 import { useAuthAction } from "./use-auth-action";
 
 export function LoginForm() {
@@ -20,13 +21,12 @@ export function LoginForm() {
         </p>
       ) : null}
       <Field id="email" label={t("email")} error={fe?.email ? t(fieldKey(fe.email)) : undefined}>
-        <input
+        <Input
           id="email"
           name="email"
           type="email"
           autoComplete="email"
           required
-          className={inputClass}
           aria-invalid={!!fe?.email}
         />
       </Field>
@@ -35,13 +35,12 @@ export function LoginForm() {
         label={t("password")}
         error={fe?.password ? t(fieldKey(fe.password)) : undefined}
       >
-        <input
+        <Input
           id="password"
           name="password"
           type="password"
           autoComplete="current-password"
           required
-          className={inputClass}
           aria-invalid={!!fe?.password}
         />
       </Field>
