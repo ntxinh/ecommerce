@@ -1,0 +1,29 @@
+{
+  "common": {
+    "appName": "MarketFlow",
+    "signIn": "Đăng nhập",
+    "signOut": "Đăng xuất",
+    "register": "Tạo tài khoản"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Mật khẩu",
+    "loginTitle": "Đăng nhập vào MarketFlow",
+    "registerTitle": "Tạo tài khoản của bạn",
+    "invalidCredentials": "Email hoặc mật khẩu không đúng",
+    "resetTitle": "Đặt lại mật khẩu",
+    "resetSent": "Nếu email đó tồn tại, một liên kết đặt lại đã được tạo"
+  },
+  "nav": {
+    "storefront": "Cửa hàng",
+    "sellerCenter": "Kênh Người Bán",
+    "admin": "Quản trị",
+    "cart": "Giỏ hàng",
+    "account": "Tài khoản"
+  },
+  "theme": {
+    "light": "Sáng",
+    "dark": "Tối",
+    "system": "Hệ thống"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "common": {
+    "appName": "MarketFlow",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "register": "Create account"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password",
+    "loginTitle": "Sign in to MarketFlow",
+    "registerTitle": "Create your account",
+    "invalidCredentials": "Invalid email or password",
+    "resetTitle": "Reset password",
+    "resetSent": "If that email exists, a reset link was created"
+  },
+  "nav": {
+    "storefront": "Shop",
+    "sellerCenter": "Seller Center",
+    "admin": "Admin",
+    "cart": "Cart",
+    "account": "Account"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  }
+}
