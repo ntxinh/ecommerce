@@ -1,9 +1,9 @@
 import "server-only";
 import { eq } from "drizzle-orm";
 import { ulid } from "ulidx";
+import { AuthError } from "@/server/api/errors";
 import { deliverMail } from "@/server/auth/dev-mailbox";
 import { hashPassword, verifyPassword } from "@/server/auth/passwords";
-import { AuthError } from "@/server/auth/permissions";
 import { revokeAllSessions } from "@/server/auth/sessions";
 import { generateToken, hashToken } from "@/server/auth/tokens";
 import type { DB } from "@/server/db/client";
@@ -19,7 +19,7 @@ export async function register(
 ): Promise<User> {
   const email = input.email.trim().toLowerCase();
   const taken = db.select({ id: users.id }).from(users).where(eq(users.email, email)).get();
-  if (taken) throw new AuthError("EMAIL_TAKEN");
+  if (taken) throw new AuthError("EMAIL_TAKEN", 409);
 
   const passwordHash = await hashPassword(input.password);
   return db.transaction((tx) => {
