@@ -46,3 +46,6 @@ next-env.d.ts
 # local data + test artifacts
 data/
 tests/.tmp/
+
+# dev mail adapter
+mailbox/
