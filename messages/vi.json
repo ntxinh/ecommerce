@@ -1,0 +1,67 @@
+{
+  "common": {
+    "appName": "MarketFlow",
+    "signIn": "Đăng nhập",
+    "signOut": "Đăng xuất",
+    "register": "Tạo tài khoản"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Mật khẩu",
+    "loginTitle": "Đăng nhập vào MarketFlow",
+    "registerTitle": "Tạo tài khoản của bạn",
+    "invalidCredentials": "Email hoặc mật khẩu không đúng",
+    "resetTitle": "Đặt lại mật khẩu",
+    "resetSent": "Nếu email đó tồn tại, một liên kết đặt lại đã được tạo",
+    "name": "Tên",
+    "newPassword": "Mật khẩu mới",
+    "sendReset": "Gửi liên kết đặt lại",
+    "setNewPassword": "Đặt mật khẩu mới",
+    "backToSignIn": "Quay lại đăng nhập",
+    "forgot": "Quên mật khẩu?",
+    "haveAccount": "Đã có tài khoản? Đăng nhập",
+    "noAccount": "Chưa có tài khoản? Tạo mới",
+    "emailTaken": "Email này đã được đăng ký",
+    "invalidToken": "Liên kết không hợp lệ hoặc đã hết hạn",
+    "rateLimited": "Quá nhiều lần thử. Vui lòng thử lại sau một phút",
+    "unauthorized": "Vui lòng đăng nhập",
+    "forbidden": "Không được phép",
+    "invalidInput": "Vui lòng kiểm tra lại các trường",
+    "fieldTooSmall": "Trường này quá ngắn",
+    "fieldTooBig": "Trường này quá dài",
+    "fieldInvalidEmail": "Nhập địa chỉ email hợp lệ",
+    "fieldInvalid": "Trường này không hợp lệ",
+    "verifyTitle": "Xác minh email",
+    "verifyOk": "Email đã được xác minh",
+    "verifyFailed": "Xác minh thất bại hoặc liên kết đã hết hạn",
+    "sendVerification": "Gửi email xác minh",
+    "verifySent": "Email xác minh đã được tạo",
+    "verifyStatus": "Trạng thái email",
+    "verifyPending": "Chưa xác minh",
+    "accountTitle": "Tài khoản",
+    "toAccount": "Đi tới tài khoản"
+  },
+  "nav": {
+    "storefront": "Cửa hàng",
+    "sellerCenter": "Kênh Người Bán",
+    "admin": "Quản trị",
+    "cart": "Giỏ hàng",
+    "account": "Tài khoản"
+  },
+  "theme": {
+    "light": "Sáng",
+    "dark": "Tối",
+    "system": "Hệ thống"
+  },
+  "shell": {
+    "planned": "Dự kiến",
+    "searchPlaceholder": "Tìm sản phẩm",
+    "footerTagline": "Mua bán mọi thứ",
+    "catalogPlanned": "Dự kiến: danh mục sản phẩm",
+    "metricsPlanned": "Dự kiến: chỉ số tổng quan",
+    "productsPlanned": "Dự kiến: sản phẩm",
+    "ordersPlanned": "Dự kiến: đơn hàng",
+    "usersPlanned": "Dự kiến: người dùng",
+    "moderationPlanned": "Dự kiến: đơn đăng ký bán hàng"
+  }
+}
