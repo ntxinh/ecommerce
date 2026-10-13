@@ -48,7 +48,7 @@ export async function registerAction(
   try {
     const user = await register(getDb(), parsed.data);
     const session = await createSession(getDb(), user.id);
-    await setSessionCookie(session.token, session.expiresAt);
+    await setSessionCookie(session.token);
     return { ok: true, redirect: "/" };
   } catch (e) {
     if (e instanceof AuthError) return { ok: false, error: e.code };
@@ -67,7 +67,7 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
   if (!user) return { ok: false, error: "INVALID_CREDENTIALS" };
 
   const session = await createSession(getDb(), user.id);
-  await setSessionCookie(session.token, session.expiresAt);
+  await setSessionCookie(session.token);
   return { ok: true, redirect: "/" };
 }
 export async function logoutAction(_prev: ActionState, _formData: FormData): Promise<ActionResult> {

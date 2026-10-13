@@ -50,7 +50,7 @@ make dev                # http://localhost:3000 → /en
 | `make lint` / `make format` | Biome check / write fixes |
 | `make typecheck` | `next typegen` + `tsc --noEmit` |
 | `make test` | unit + integration (Vitest) |
-| `make test-e2e` | Playwright against `next start` |
+| `make test-e2e` | Playwright against `pnpm dev` (port 3100) |
 | `make check` | lint + typecheck + test |
 | `make verify` | `check` + build + e2e (full gate) |
 | `make db-generate` / `db-migrate` / `db-seed` / `db-reset` | Drizzle pipeline (db scripts need `NODE_OPTIONS=--conditions=react-server` — already in the Makefile) |

@@ -11,7 +11,7 @@ export const LoginInput = z.object({
   password: z.string().min(1).max(128),
 });
 
-export const ResetRequestInput = z.object({ email: z.email() });
+export const ResetRequestInput = z.object({ email: z.email().max(254) });
 
 export const ResetPasswordInput = z.object({
   token: z.string().min(10),

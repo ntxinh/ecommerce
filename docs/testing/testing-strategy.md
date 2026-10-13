@@ -8,7 +8,7 @@
 |---|---|---|---|
 | Unit | `tests/unit/` | Vitest (node env) | `make test-unit` |
 | Integration | `tests/integration/` | Vitest + real SQLite | `make test-integration` |
-| E2E | `tests/e2e/` | Playwright vs `next start` | `make test-e2e` |
+| E2E | `tests/e2e/` | Playwright vs `pnpm dev` | `make test-e2e` |
 
 `make check` = lint + typecheck + unit + integration; `make verify` adds the
 production build and Playwright.
@@ -22,10 +22,10 @@ production build and Playwright.
 - **Integration:** real-file SQLite (`tests/.tmp/*.db`, migrations applied):
   schema/FK integrity (`db.test.ts`), identity service + session lifecycle +
   rate limiter (`auth.test.ts`), contracts + session cookie options +
-  server-action flows incl. rate limits (`auth-actions.test.ts`).
+  server-action flows (`auth-actions.test.ts`).
 - **E2E:** `auth.spec.ts` — login/logout/register/reset/verify journeys against
-  `next start` with a dedicated seeded DB (`tests/.tmp/e2e.db`), plus shell
-  guards for seller/admin areas.
+  a `pnpm dev` server (port 3100) with a dedicated seeded DB
+  (`tests/.tmp/e2e.db`), plus shell guards for seller/admin areas.
 
 ## Harness details
 

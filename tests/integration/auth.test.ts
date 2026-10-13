@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -22,6 +22,7 @@ let db: DB;
 function mailToken(kind: "reset" | "verify", to: string): string {
   const file = readdirSync("mailbox")
     .filter((f) => f.endsWith(`-${to}.json`))
+    .sort((a, b) => statSync(join("mailbox", b)).mtimeMs - statSync(join("mailbox", a)).mtimeMs)
     .map(
       (f) =>
         JSON.parse(readFileSync(join("mailbox", f), "utf8")) as {
@@ -29,14 +30,14 @@ function mailToken(kind: "reset" | "verify", to: string): string {
           payload: { token: string };
         },
     )
-    .filter((m) => m.kind === kind)
-    .at(-1);
+    .find((m) => m.kind === kind);
   if (!file) throw new Error(`no ${kind} mail for ${to}`);
   return file.payload.token;
 }
 
 beforeAll(() => {
-  rmSync(PATH, { force: true });
+  rmSync("mailbox", { recursive: true, force: true });
+  for (const f of [PATH, `${PATH}-wal`, `${PATH}-shm`]) rmSync(f, { force: true });
   mkdirSync("./tests/.tmp", { recursive: true });
   db = getDb(PATH);
   migrateDb(db);

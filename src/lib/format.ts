@@ -6,8 +6,8 @@ export function formatVnd(minorUnits: number, locale = "vi-VN"): string {
   }).format(minorUnits);
 }
 
-export function formatDate(epochSeconds: number, locale = "en"): string {
+export function formatDate(epochMs: number, locale = "en"): string {
   return new Intl.DateTimeFormat(locale === "vi" ? "vi-VN" : "en-US", {
     dateStyle: "medium",
-  }).format(epochSeconds * 1000);
+  }).format(epochMs);
 }

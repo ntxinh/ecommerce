@@ -41,6 +41,11 @@ export async function register(
   });
 }
 
+// Argon2 hash of "dummy-password": keeps authenticate's timing constant for
+// unknown/suspended users, so responses can't probe email existence.
+const DUMMY_PASSWORD_HASH =
+  "$argon2id$v=19$m=19456,t=2,p=1$+1Q669kD8UlaZbLEQzGNEg$h4hT7ObJy7d0Lq6Cy9zpsztT/PTLJpkWELCRB3SE0KY";
+
 export async function authenticate(
   db: DB,
   input: { email: string; password: string },
@@ -50,8 +55,10 @@ export async function authenticate(
     .from(users)
     .where(eq(users.email, input.email.trim().toLowerCase()))
     .get();
-  if (user?.status !== "ACTIVE") return null;
-  return (await verifyPassword(user.passwordHash, input.password)) ? user : null;
+  // Always run the argon2 verify so non-ACTIVE/unknown users take the same path.
+  const ok = await verifyPassword(user?.passwordHash ?? DUMMY_PASSWORD_HASH, input.password);
+  if (!ok || !user || user.status !== "ACTIVE") return null;
+  return user;
 }
 
 function issueToken(db: DB, userId: string, kind: "reset" | "verify"): string {
@@ -88,14 +95,17 @@ export async function createPasswordReset(
 }
 
 export async function resetPassword(db: DB, token: string, newPassword: string): Promise<boolean> {
-  const row = consumeToken(db, token, "reset");
-  if (!row) return false;
-  db.update(users)
-    .set({ passwordHash: await hashPassword(newPassword), updatedAt: Date.now() })
-    .where(eq(users.id, row.userId))
-    .run();
-  revokeAllSessions(db, row.userId);
-  return true;
+  const passwordHash = await hashPassword(newPassword);
+  return db.transaction((tx) => {
+    const row = consumeToken(tx, token, "reset");
+    if (!row) return false;
+    tx.update(users)
+      .set({ passwordHash, updatedAt: Date.now() })
+      .where(eq(users.id, row.userId))
+      .run();
+    revokeAllSessions(tx, row.userId);
+    return true;
+  });
 }
 
 export async function sendVerification(db: DB, userId: string): Promise<void> {
@@ -106,10 +116,16 @@ export async function sendVerification(db: DB, userId: string): Promise<void> {
 }
 
 export async function verifyEmail(db: DB, token: string): Promise<boolean> {
-  const row = consumeToken(db, token, "verify");
-  if (!row) return false;
-  db.update(users).set({ emailVerifiedAt: Date.now() }).where(eq(users.id, row.userId)).run();
-  return true;
+  return db.transaction((tx) => {
+    const row = consumeToken(tx, token, "verify");
+    if (!row) return false;
+    const now = Date.now();
+    tx.update(users)
+      .set({ emailVerifiedAt: now, updatedAt: now })
+      .where(eq(users.id, row.userId))
+      .run();
+    return true;
+  });
 }
 
 /** A consumed verify-token whose user ended up verified — lets the page render success on repeat visits. */

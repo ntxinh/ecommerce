@@ -13,10 +13,15 @@ export function sessionCookieOptions() {
   };
 }
 
-export async function setSessionCookie(token: string, expiresAt: number): Promise<void> {
+// Long fixed browser window (90d): server-side session expiry + sliding
+// renewal are authoritative, so a short cookie expiry would log users out
+// while their DB session is still being renewed.
+const COOKIE_MAX_AGE_MS = 90 * 86400 * 1000;
+
+export async function setSessionCookie(token: string): Promise<void> {
   const store = await cookies();
   const { name, ...options } = sessionCookieOptions();
-  store.set(name, token, { ...options, expires: new Date(expiresAt) });
+  store.set(name, token, { ...options, expires: new Date(Date.now() + COOKIE_MAX_AGE_MS) });
 }
 
 export async function clearSessionCookie(): Promise<void> {
