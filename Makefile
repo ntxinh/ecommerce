@@ -1,12 +1,12 @@
 .PHONY: setup dev build lint format typecheck test test-unit test-integration test-e2e \
         db-generate db-migrate db-seed db-reset check verify
 
-setup: ; pnpm install
+setup: ; pnpm install && pnpm next typegen
 dev: ; pnpm dev
 build: ; pnpm build
 lint: ; pnpm biome check .
 format: ; pnpm biome check --write .
-typecheck: ; pnpm tsc --noEmit
+typecheck: ; pnpm next typegen && pnpm tsc --noEmit
 test: test-unit test-integration
 test-unit: ; pnpm vitest run tests/unit
 test-integration: ; pnpm vitest run tests/integration

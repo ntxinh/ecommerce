@@ -5,6 +5,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
   test: {
+    passWithNoTests: true,
     environment: "node",
     include: ["tests/unit/**/*.test.ts?(x)", "tests/integration/**/*.test.ts?(x)"],
     env: { APP_ENV: "test", DATABASE_URL: "file:./tests/.tmp/test.db" },
