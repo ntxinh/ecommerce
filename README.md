@@ -66,8 +66,8 @@ All server vars are Zod-validated in `src/env.ts`. `.env.example`:
 | `SESSION_COOKIE_NAME` | `marketflow_session` | |
 | `API_DOCS_ENABLED` | `false` | Planned: enables Scalar UI at `/api/docs` |
 | `INTERNAL_CRON_TOKEN` | `dev-cron-token` | Guards planned `/api/v1/internal/*` |
-| `LOG_LEVEL` | `info` | pino level |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset | set to enable OTel export |
+| `LOG_LEVEL` | `info` | pino level — read from `process.env` directly, not schema-validated |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | unset | set to enable OTel export — read from `process.env` directly, not schema-validated |
 
 ## Demo accounts
 
@@ -103,7 +103,7 @@ Planned — `docs/api/openapi.yaml` + Scalar at `/api/docs` behind
 ## Current limitations
 
 Single-instance in-memory rate limiting, dev-mailbox email delivery, URL-only
-image "uploads", ms-vs-second timestamp drift in identity tables, and more —
+image "uploads", and more —
 see [known-limitations](docs/roadmap/known-limitations.md).
 
 ## PostgreSQL migration

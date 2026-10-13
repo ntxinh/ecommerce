@@ -23,9 +23,11 @@ checkout, orders, seller/*, admin/*, reviews, notifications, internal cron
   REST routes.)*
 - **Errors:** `{error: {code, message}}` + HTTP status, produced by
   `toErrorResponse()` in `src/server/api/errors.ts`. Unknown errors serialize
-  to `INTERNAL`/`500` — internals never leak. Implemented codes:
-  `UNAUTHORIZED`(401), `FORBIDDEN`(403), `EMAIL_TAKEN`, `INVALID_CREDENTIALS`,
-  `INVALID_INPUT`, `INVALID_TOKEN`, `RATE_LIMITED`(429).
+  to `INTERNAL`/`500` — internals never leak. Codes used by the auth server
+  actions today (`ActionResult` envelope, not HTTP):
+  `UNAUTHORIZED`, `FORBIDDEN`, `EMAIL_TAKEN`, `INVALID_CREDENTIALS`,
+  `INVALID_INPUT`, `INVALID_TOKEN`, `RATE_LIMITED`. Intended HTTP mapping when
+  REST routes land: `UNAUTHORIZED` 401, `FORBIDDEN` 403, `RATE_LIMITED` 429.
 - **Pagination:** `?cursor&limit` cursor pagination, max limit 50. *(Planned.)*
 - **Idempotency:** mutating routes accept an idempotency-key header; records in
   `idempotency_records`. *(Planned.)*

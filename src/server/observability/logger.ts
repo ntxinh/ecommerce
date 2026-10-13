@@ -4,6 +4,8 @@ import pino from "pino";
 const options: pino.LoggerOptions = {
   level: process.env.LOG_LEVEL ?? "info",
   // Never log credentials, tokens, session material, or auth headers.
+  // pino `*` matches ONE path segment — cover bare, one-deep, and
+  // req.headers-style two-deep nests for cookie/authorization.
   redact: {
     paths: [
       "password",
@@ -17,8 +19,11 @@ const options: pino.LoggerOptions = {
       "session",
       "*.session",
       "cookie",
-      "headers.cookie",
-      "headers.authorization",
+      "*.cookie",
+      "*.*.cookie",
+      "authorization",
+      "*.authorization",
+      "*.*.authorization",
     ],
     censor: "[redacted]",
   },

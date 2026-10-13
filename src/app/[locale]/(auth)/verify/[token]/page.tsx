@@ -18,10 +18,10 @@ export default async function VerifyPage({
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">{t("verifyTitle")}</h1>
-      <p className={verified ? "text-green-700 dark:text-green-400" : "text-red-600"}>
+      <p className={verified ? "text-primary" : "text-destructive"}>
         {t(verified ? "verifyOk" : "verifyFailed")}
       </p>
-      <Link href="/account" className="block text-sm text-zinc-500 underline">
+      <Link href="/account" className="block text-sm text-muted-foreground underline">
         {t("toAccount")}
       </Link>
     </div>

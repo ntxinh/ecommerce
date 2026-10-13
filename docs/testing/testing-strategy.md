@@ -15,14 +15,14 @@ production build and Playwright.
 
 ## Implemented coverage
 
-- **Unit:** token hashing/generation, session cookie options, rate limiter
+- **Unit:** password hash/verify, token format, permission matrix
   (`auth.test.ts`), env schema defaults (`env.test.ts`), VND/date formatters
   (`format.test.ts`), en↔vi message key parity (`i18n-parity.test.ts`), pino
   redaction + request-id child (`logger.test.ts`).
 - **Integration:** real-file SQLite (`tests/.tmp/*.db`, migrations applied):
-  schema/FK integrity (`db.test.ts`), session lifecycle + permission matrix
-  (`auth.test.ts`), server-action auth flows incl. rate limits
-  (`auth-actions.test.ts`).
+  schema/FK integrity (`db.test.ts`), identity service + session lifecycle +
+  rate limiter (`auth.test.ts`), contracts + session cookie options +
+  server-action flows incl. rate limits (`auth-actions.test.ts`).
 - **E2E:** `auth.spec.ts` — login/logout/register/reset/verify journeys against
   `next start` with a dedicated seeded DB (`tests/.tmp/e2e.db`), plus shell
   guards for seller/admin areas.

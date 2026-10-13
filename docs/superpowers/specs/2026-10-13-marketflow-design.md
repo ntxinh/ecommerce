@@ -42,7 +42,7 @@ Domain modules: `identity`, `profiles`, `sellers` (applications/shops/membership
 - Passwords: argon2id via `@node-rs/argon2`.
 - Sessions: opaque token = `id.secret` (128-bit each); only `sha256(token)` stored in `sessions`. Cookie `marketflow_session`: HttpOnly, SameSite=Lax, Secure (non-dev), `path=/`. Absolute expiry 30d, sliding renewal past half-life; revocation = row delete. `sessions.user_id` indexed; admin can revoke all sessions for a user.
 - Password reset: `password_reset_tokens` (sha256'd token, single-use, 30min expiry). Delivery = dev adapter writing JSON to `mailbox/` plus a Pino log line. Same adapter for optional email verification.
-- Rate limiting: in-memory token bucket keyed `ip:route` on login/register/reset endpoints. **Known limitation:** single-instance only; documented in `docs/roadmap/known-limitations.md`.
+- Rate limiting: in-memory sliding-window Map keyed `login:{email}` (5/60s), `reset:{email}` (3/hr), `verify:{userId}` (3/hr); register is not rate-limited. **Known limitations:** single-instance only, lazy key pruning; documented in `docs/roadmap/known-limitations.md`.
 - Roles: `CUSTOMER`, `SELLER`, `ADMIN` via `user_roles` join (users may hold multiple). Shop access via `shop_memberships(role: owner|staff, permissions jsonb-as-text)`.
 - Authorization: `requirePermission(actor, permission, ctx)` in `src/server/auth/permissions.ts` backed by a declarative permission matrix; enforced at service entry and via `shop_id`/`user_id` predicates in repos. Matrix documented in `docs/security/authorization.md`.
 - Seed users: `admin@marketflow.dev`, `seller@marketflow.dev`, `customer@marketflow.dev` (+ a second seller for cross-tenant tests). Demo password documented; warning banner in README.

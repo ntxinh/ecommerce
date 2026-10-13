@@ -17,6 +17,6 @@ test-e2e: ; pnpm playwright test
 db-generate: ; NODE_OPTIONS="--conditions=react-server" pnpm drizzle-kit generate
 db-migrate: ; NODE_OPTIONS="--conditions=react-server" pnpm tsx scripts/db-migrate.ts
 db-seed: ; NODE_OPTIONS="--conditions=react-server" pnpm tsx scripts/db-seed.ts
-db-reset: ; rm -f data/marketflow.db && $(MAKE) db-migrate db-seed
+db-reset: ; rm -f data/marketflow.db* && $(MAKE) db-migrate db-seed
 check: lint typecheck test
 verify: check build test-e2e

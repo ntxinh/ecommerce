@@ -28,6 +28,7 @@ erDiagram
   users {
     text id PK
     text email UK
+    text name
     text password_hash
     text status "ACTIVE|SUSPENDED"
     integer email_verified_at
@@ -43,7 +44,7 @@ erDiagram
     text user_id FK
     text token_hash UK "sha256 of token; raw never stored"
     integer expires_at
-    integer created_at
+    integer created_at "sessions_user_idx on user_id"
   }
   password_reset_tokens {
     text id PK
@@ -57,6 +58,9 @@ erDiagram
     text id PK
     text slug UK
     text status "ACTIVE|SUSPENDED"
+    text name
+    text description
+    integer created_at
   }
   shop_memberships {
     text shop_id FK
@@ -68,7 +72,12 @@ erDiagram
     text id PK
     text user_id FK
     text status "PENDING|APPROVED|REJECTED|CHANGES_REQUESTED"
-    text decided_by "audit columns"
+    text shop_name
+    text business_info "JSON"
+    text decided_by
+    integer decided_at
+    text decision_note
+    integer created_at
   }
 ```
 
