@@ -23,7 +23,7 @@ export const vouchers = sqliteTable(
       .notNull()
       .default("ACTIVE"),
   },
-  (t) => [uniqueIndex("vouchers_code_unique").on(t.code), index("vouchers_code_idx").on(t.code)],
+  (t) => [uniqueIndex("vouchers_code_unique").on(t.code)],
 );
 
 export const promotions = sqliteTable(

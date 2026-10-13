@@ -153,7 +153,7 @@ CREATE TABLE `order_pricing_breakdowns` (
 	`line_type` text NOT NULL,
 	`amount_vnd` integer NOT NULL,
 	`meta_json` text DEFAULT '{}' NOT NULL,
-	FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE INDEX `order_pricing_order_idx` ON `order_pricing_breakdowns` (`order_id`);--> statement-breakpoint
@@ -182,7 +182,7 @@ CREATE TABLE `payment_attempts` (
 	`simulate` text,
 	`idempotency_key` text NOT NULL,
 	`created_at` integer NOT NULL,
-	FOREIGN KEY (`payment_id`) REFERENCES `payments`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`payment_id`) REFERENCES `payments`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE INDEX `payment_attempts_payment_idx` ON `payment_attempts` (`payment_id`);--> statement-breakpoint
@@ -271,5 +271,4 @@ CREATE TABLE `vouchers` (
 	FOREIGN KEY (`shop_id`) REFERENCES `shops`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `vouchers_code_unique` ON `vouchers` (`code`);--> statement-breakpoint
-CREATE INDEX `vouchers_code_idx` ON `vouchers` (`code`);
+CREATE UNIQUE INDEX `vouchers_code_unique` ON `vouchers` (`code`);

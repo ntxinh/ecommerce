@@ -20,15 +20,9 @@ describe("catalog schema + seed", () => {
     expect(db.select().from(shops).all().length).toBeGreaterThanOrEqual(2);
 
     const prods = db.select().from(products).all();
-    const variants = db.select().from(productVariants).all();
-    const variantCount: Record<string, number> = {};
-    for (const v of variants) {
-      variantCount[v.productId] = (variantCount[v.productId] ?? 0) + 1;
-    }
-    for (const p of prods) {
-      expect(variantCount[p.id] ?? 0).toBeGreaterThanOrEqual(1);
-    }
+    expect(prods.length).toBeGreaterThanOrEqual(6);
 
+    const variants = db.select().from(productVariants).all();
     const inv = db
       .select()
       .from(inventory)
@@ -39,8 +33,25 @@ describe("catalog schema + seed", () => {
         ),
       )
       .all();
-    expect(inv.length).toBe(variants.length);
-    expect(inv.every((r) => r.onHand - r.reserved >= 5)).toBe(true);
+    const invByVariant: Record<string, { onHand: number; reserved: number }> = {};
+    for (const r of inv) {
+      invByVariant[r.variantId] = r;
+    }
+    const variantsByProduct: Record<string, string[]> = {};
+    for (const v of variants) {
+      const list = variantsByProduct[v.productId] ?? [];
+      list.push(v.id);
+      variantsByProduct[v.productId] = list;
+    }
+    for (const p of prods) {
+      const pvars = variantsByProduct[p.id] ?? [];
+      expect(pvars.length).toBeGreaterThanOrEqual(1);
+      for (const vid of pvars) {
+        const row = invByVariant[vid];
+        expect(row).toBeDefined();
+        expect(row.onHand - row.reserved).toBeGreaterThanOrEqual(5);
+      }
+    }
 
     const welcome = db
       .select()

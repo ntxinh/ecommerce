@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1dbe9bd4-1958-42f2-b115-f46245f3220d",
+  "id": "4a7b8a03-7773-4347-914b-0ef575c3df0e",
   "prevId": "41a32447-3328-498f-9c8e-6ba7d26cf449",
   "tables": {
     "brands": {
@@ -1384,7 +1384,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -1586,7 +1586,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -2179,13 +2179,6 @@
             "code"
           ],
           "isUnique": true
-        },
-        "vouchers_code_idx": {
-          "name": "vouchers_code_idx",
-          "columns": [
-            "code"
-          ],
-          "isUnique": false
         }
       },
       "foreignKeys": {

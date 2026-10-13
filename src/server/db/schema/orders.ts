@@ -147,7 +147,7 @@ export const orderPricingBreakdowns = sqliteTable(
     id: text("id").primaryKey(),
     orderId: text("order_id")
       .notNull()
-      .references(() => orders.id, { onDelete: "cascade" }),
+      .references(() => orders.id),
     lineType: text("line_type").notNull(),
     amountVnd: integer("amount_vnd").notNull(),
     metaJson: text("meta_json").notNull().default("{}"),
@@ -181,7 +181,7 @@ export const paymentAttempts = sqliteTable(
     id: text("id").primaryKey(),
     paymentId: text("payment_id")
       .notNull()
-      .references(() => payments.id, { onDelete: "cascade" }),
+      .references(() => payments.id),
     status: text("status", {
       enum: ["PENDING", "AUTHORIZED", "PAID", "FAILED", "REFUNDED", "EXPIRED"],
     }).notNull(),
