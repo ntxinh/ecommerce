@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
 import { deliverMail } from "@/server/auth/dev-mailbox";
@@ -110,4 +110,20 @@ export async function verifyEmail(db: DB, token: string): Promise<boolean> {
   if (!row) return false;
   db.update(users).set({ emailVerifiedAt: Date.now() }).where(eq(users.id, row.userId)).run();
   return true;
+}
+
+/** A consumed verify-token whose user ended up verified — lets the page render success on repeat visits. */
+export function isConsumedVerifyToken(db: DB, token: string): boolean {
+  const row = db
+    .select({ usedAt: passwordResetTokens.usedAt, verified: users.emailVerifiedAt })
+    .from(passwordResetTokens)
+    .innerJoin(users, eq(users.id, passwordResetTokens.userId))
+    .where(
+      and(
+        eq(passwordResetTokens.tokenHash, hashToken(token)),
+        eq(passwordResetTokens.kind, "verify"),
+      ),
+    )
+    .get();
+  return Boolean(row && row.usedAt !== null && row.verified !== null);
 }

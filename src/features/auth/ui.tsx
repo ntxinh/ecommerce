@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
 
 export const inputClass =
   "mt-1 block w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm " +
@@ -17,12 +17,18 @@ export function Field({
   error?: string;
   children: ReactNode;
 }) {
+  const input = isValidElement(children)
+    ? cloneElement(children as ReactElement<Record<string, unknown>>, {
+        "aria-describedby": error ? `${id}-error` : undefined,
+      })
+    : children;
+
   return (
     <div>
       <label htmlFor={id} className="block text-sm font-medium">
         {label}
       </label>
-      {children}
+      {input}
       {error ? (
         <p id={`${id}-error`} className="mt-1 text-sm text-red-600">
           {error}

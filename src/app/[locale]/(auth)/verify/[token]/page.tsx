@@ -4,7 +4,7 @@ export const instant = false;
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getDb } from "@/server/db/client";
-import { verifyEmail } from "@/server/modules/identity/service";
+import { isConsumedVerifyToken, verifyEmail } from "@/server/modules/identity/service";
 
 export default async function VerifyPage({
   params,
@@ -12,7 +12,8 @@ export default async function VerifyPage({
   params: Promise<{ locale: string; token: string }>;
 }) {
   const { locale, token } = await params;
-  const verified = await verifyEmail(getDb(), token);
+  // One-shot token: a refresh after first consumption still shows success if the user is verified.
+  const verified = (await verifyEmail(getDb(), token)) || isConsumedVerifyToken(getDb(), token);
   const t = await getTranslations({ locale, namespace: "auth" });
   return (
     <div className="space-y-6">

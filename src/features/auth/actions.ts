@@ -83,8 +83,11 @@ export async function requestResetAction(
 ): Promise<ActionResult> {
   const parsed = ResetRequestInput.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return fieldErrors(parsed);
-  // Always ok — never reveal whether the email exists.
-  await createPasswordReset(getDb(), parsed.data.email);
+  // Always ok — never reveal whether the email exists; rate-limit quietly caps issuance.
+  const email = parsed.data.email.trim().toLowerCase();
+  if (checkRateLimit(`reset:${email}`, 3, 3600)) {
+    await createPasswordReset(getDb(), email);
+  }
   return { ok: true };
 }
 
