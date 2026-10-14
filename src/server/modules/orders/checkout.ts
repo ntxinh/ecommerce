@@ -173,7 +173,8 @@ export async function dispatchHostedPayment(
       .values({
         id: `aud_${ulid()}`,
         actorId: null,
-        action: `payment.${method.toLowerCase()}_checkout_failed`,
+        action:
+          method === "STRIPE" ? "payment.stripe_session_failed" : "payment.finix_checkout_failed",
         targetType: "order",
         targetId: orderId,
         metaJson: JSON.stringify({ detail: e instanceof Error ? e.message : String(e) }),

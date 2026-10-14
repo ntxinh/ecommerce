@@ -19,6 +19,7 @@ import {
   setFinixForTests,
   transferOutcome,
 } from "@/server/modules/payments/finix";
+import { paymentProviderFor } from "@/server/modules/payments/providers";
 
 const PATH = "./tests/.tmp/finix-test.db";
 const WHSEC = "whsec_finix_test";
@@ -29,11 +30,12 @@ let db: DB;
 let keySeq = 0;
 let lastCalls: { method: string; url: string; body?: unknown }[] = [];
 
-/** Real Finix-signature scheme: timestamp=<epoch>,sig=HMAC-SHA256("<ts>:<body>"). */
+/** Real Finix-signature scheme: `timestamp=<epoch>, sig=<hex>` (space after
+ *  the comma, as Finix emits) → HMAC-SHA256("<ts>:<body>"). */
 function sign(payload: string, secret: string): string {
   const t = Math.floor(Date.now() / 1000);
   const sig = createHmac("sha256", secret).update(`${t}:${payload}`).digest("hex");
-  return `timestamp=${t},sig=${sig}`;
+  return `timestamp=${t}, sig=${sig}`;
 }
 
 function finixTransfer(over: Record<string, unknown> = {}) {
@@ -247,22 +249,57 @@ describe("money path", () => {
     const transfer = finixTransfer({ amount: amountVnd, checkout_form_id: formId });
     applyFinixTransferOutcome(db, transfer, "PAID");
     expect(db.select().from(orders).where(eq(orders.id, orderId)).get()!.status).toBe("PAID");
-
-    const { finix, calls } = stubFinix({
-      transferAttempts: () => ({
-        _embedded: { transfer_attempts: [{ transfer_id: transfer.id }] },
-      }),
-      getTransfer: () => ({ ...transfer, state: "SUCCEEDED" }),
-    });
+    // settledPaymentRef now returns the settled transfer id (external_ref) —
+    // the reversal goes straight to /transfers/{id} with a stable idempotency key.
+    const { finix, calls } = stubFinix({});
     setFinixForTests(finix);
 
     await cancelOrder(db, CUSTOMER, orderId);
     const reversal = calls.find((c) => c.method === "POST" && c.url.includes("/reversals"));
     expect(reversal?.url).toContain(`/transfers/${transfer.id}/reversals`);
-    expect(reversal?.body).toMatchObject({ refund_amount: amountVnd });
+    expect(reversal?.body).toMatchObject({
+      refund_amount: amountVnd,
+      idempotency_id: `${transfer.id}:refund:${amountVnd}`,
+    });
     expect(db.select().from(payments).where(eq(payments.orderId, orderId)).get()!.status).toBe(
       "REFUNDED",
     );
+  });
+
+  it("refund by form id picks the SUCCEEDED transfer, not the latest attempt", async () => {
+    const failedTid = `TR${++keySeq}_fail`;
+    const okTid = `TR${++keySeq}_ok`;
+    const { finix, calls } = stubFinix({
+      // Declined retry AFTER the success — last-in-list must not win.
+      transferAttempts: () => ({
+        _embedded: { transfer_attempts: [{ transfer_id: okTid }, { transfer_id: failedTid }] },
+      }),
+      getTransfer: (id) =>
+        id === okTid
+          ? { id: okTid, state: "SUCCEEDED", amount: 50000 }
+          : { id: failedTid, state: "FAILED", amount: 50000 },
+    });
+    setFinixForTests(finix);
+    const status = await paymentProviderFor("FINIX").refund({
+      ref: "checkout_form_cf1",
+      amountVnd: 50000,
+    });
+    expect(status).toBe("REFUNDED");
+    const reversal = calls.find((c) => c.url.includes("/reversals"));
+    expect(reversal?.url).toContain(`/transfers/${okTid}/reversals`);
+  });
+
+  it("refund throws when no succeeded transfer exists — no phantom REFUNDED", async () => {
+    const { finix } = stubFinix({
+      transferAttempts: () => ({
+        _embedded: { transfer_attempts: [{ transfer_id: "TR_declined" }] },
+      }),
+      getTransfer: () => ({ id: "TR_declined", state: "FAILED", amount: 1 }),
+    });
+    setFinixForTests(finix);
+    await expect(
+      paymentProviderFor("FINIX").refund({ ref: "checkout_form_cf2", amountVnd: 1 }),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
   });
 
   it("settle records externalRef so webhook replays resolve O(1)", async () => {

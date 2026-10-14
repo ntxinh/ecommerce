@@ -2,12 +2,11 @@ import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
 import type { DB } from "@/server/db/client";
 import { paymentAttempts, payments } from "@/server/db/schema";
 import { persistPaymentOutcome } from "@/server/modules/orders/outcome";
-import type { PaymentProvider, PaymentStatus } from "./providers";
+import type { PaymentProvider } from "./providers";
 
 const DEFAULT_BASE = "https://finix.sandbox-payments-api.com";
 const FINIX_VERSION = "2022-02-01";
@@ -120,12 +119,18 @@ export async function finixFormTransfer(
   const linked = attempts
     .map((ta: { transfer_id?: string }) => ta.transfer_id)
     .filter((id: string | undefined): id is string => Boolean(id));
-  const tid = transferId ?? linked.at(-1);
   // An explicitly-named transfer must belong to this form — buyers could pass
   // any TR id on the return URL; only transfers this form produced bind.
-  if (!tid || (transferId && !linked.includes(tid))) return null;
-  const t = await finixRequest(finix, "GET", `/transfers/${encodeURIComponent(tid)}`);
-  return t ? { ...t, checkout_form_id: t.checkout_form_id ?? formId } : null;
+  if (transferId && !linked.includes(transferId)) return null;
+  const transfers: FinixTransfer[] = [];
+  for (const tid of transferId ? [transferId] : linked) {
+    const t = await finixRequest(finix, "GET", `/transfers/${encodeURIComponent(tid)}`);
+    if (t) transfers.push(t);
+  }
+  // Declined-then-retried forms yield several transfers — the SUCCEEDED one is
+  // the settle/refund target; fall back to the latest for the pay page.
+  const picked = transfers.find((t) => t.state === "SUCCEEDED") ?? transfers.at(-1) ?? null;
+  return picked ? { ...picked, checkout_form_id: picked.checkout_form_id ?? formId } : null;
 }
 
 /** Resolves the attempt a transfer settles on — the dedupe key for the
@@ -209,7 +214,8 @@ export function verifyFinixSignature(
 ): boolean {
   if (!signatureHeader) return false;
   const parts = Object.fromEntries(
-    signatureHeader.split(",").map((kv) => kv.split("=", 2) as [string, string]),
+    // Finix emits `timestamp=<epoch>, sig=<hex>` — trim the pair before keying.
+    signatureHeader.split(",").map((kv) => kv.trim().split("=", 2) as [string, string]),
   );
   const ts = parts.timestamp;
   const sig = parts.sig;
@@ -349,12 +355,22 @@ export const finixCard: PaymentProvider = {
   refund: async ({ ref, amountVnd }) => {
     const finix = getFinix();
     if (!finix) throw new AuthError("INVALID_INPUT", 422, "finix is not configured");
-    const t = await finixFormTransfer(finix, ref);
-    const transferId = t?.state === "SUCCEEDED" && t.id ? t.id : null;
-    if (!transferId) return "REFUNDED"; // unpaid form — nothing captured to refund
+    // settledPaymentRef yields the settled transfer id (attempt.external_ref);
+    // a raw form id (rows settled before external_ref existed) resolves via
+    // transfer_attempts. No resolved transfer = nothing captured to refund —
+    // throw rather than report REFUNDED for a reversal never issued.
+    let transferId: string | null = ref;
+    if (ref.startsWith("checkout_form_")) {
+      const t = await finixFormTransfer(finix, ref);
+      transferId = t?.state === "SUCCEEDED" && t.id ? t.id : null;
+    }
+    if (!transferId) {
+      throw new AuthError("INVALID_INPUT", 422, "finix has no succeeded transfer to refund");
+    }
     await finixRequest(finix, "POST", `/transfers/${encodeURIComponent(transferId)}/reversals`, {
       refund_amount: amountVnd,
-      idempotency_id: `${transferId}:${amountVnd}:${ulid()}`,
+      // Stable key: a retried refund replays the same reversal at Finix.
+      idempotency_id: `${transferId}:refund:${amountVnd}`,
     });
     return "REFUNDED";
   },

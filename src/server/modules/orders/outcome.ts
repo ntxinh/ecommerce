@@ -121,18 +121,23 @@ export function persistPaymentOutcome(
 
 /**
  * The provider-side ref refunds must target: the latest PAID attempt's
- * `providerRef` (Stripe session id). Falls back to `paymentId` for mock
- * adapters, which never record a providerRef and ignore the ref anyway —
- * and matches the pre-Stripe call shape for legacy PAID rows.
+ * `externalRef` when recorded (Finix transfer id — the reversal endpoint's
+ * resource), else `providerRef` (Stripe session id / Finix form id). Falls
+ * back to `paymentId` for mock adapters, which never record a providerRef and
+ * ignore the ref anyway — and matches the pre-Stripe call shape for legacy
+ * PAID rows.
  */
 export function settledPaymentRef(db: Pick<DB, "select">, paymentId: string): string {
-  return (
-    db
-      .select({ status: paymentAttempts.status, ref: paymentAttempts.providerRef })
-      .from(paymentAttempts)
-      .where(eq(paymentAttempts.paymentId, paymentId))
-      .orderBy(desc(paymentAttempts.id))
-      .all()
-      .find((a) => a.status === "PAID" && a.ref)?.ref ?? paymentId
-  );
+  const settled = db
+    .select({
+      status: paymentAttempts.status,
+      ref: paymentAttempts.providerRef,
+      ext: paymentAttempts.externalRef,
+    })
+    .from(paymentAttempts)
+    .where(eq(paymentAttempts.paymentId, paymentId))
+    .orderBy(desc(paymentAttempts.id))
+    .all()
+    .find((a) => a.status === "PAID" && (a.ext ?? a.ref));
+  return settled?.ext ?? settled?.ref ?? paymentId;
 }
