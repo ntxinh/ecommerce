@@ -1,3 +1,6 @@
+// Header reads the session cookie for the cart badge; block instead of instant-shell.
+export const instant = false;
+
 import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/shared/site-footer";
 import { SiteHeader } from "@/components/shared/site-header";

@@ -63,5 +63,105 @@
     "ordersPlanned": "Planned: orders",
     "usersPlanned": "Planned: users",
     "moderationPlanned": "Planned: seller applications"
+  },
+  "catalog": {
+    "fromPrice": "From",
+    "products": "Products"
+  },
+  "cart": {
+    "title": "Your cart",
+    "empty": "Your cart is empty",
+    "item": "Item",
+    "price": "Price",
+    "quantity": "Qty",
+    "variant": "Variant",
+    "decrease": "Decrease quantity",
+    "increase": "Increase quantity",
+    "remove": "Remove",
+    "subtotal": "Subtotal",
+    "addToCart": "Add to cart",
+    "added": "Added to cart",
+    "unavailable": "unavailable",
+    "proceedToCheckout": "Proceed to checkout",
+    "signInToCheckout": "Sign in to check out",
+    "errors": {
+      "UNAUTHORIZED": "Please sign in",
+      "INVALID_INPUT": "Please check your input",
+      "NOT_FOUND": "Item no longer available",
+      "INSUFFICIENT_STOCK": "Not enough stock",
+      "FORBIDDEN": "Not allowed"
+    }
+  },
+  "checkout": {
+    "title": "Checkout",
+    "steps": {
+      "address": "Address",
+      "shipping": "Shipping",
+      "payment": "Payment",
+      "review": "Review"
+    },
+    "newAddress": "Use a new address",
+    "addressFields": {
+      "recipientName": "Recipient name",
+      "phone": "Phone",
+      "line1": "Address line",
+      "ward": "Ward",
+      "district": "District",
+      "city": "City"
+    },
+    "shippingMethods": {
+      "standard": "Standard",
+      "express": "Express"
+    },
+    "vouchers": "Voucher codes",
+    "vouchersPlaceholder": "e.g. WELCOME10",
+    "vouchersHint": "Separate multiple codes with spaces or commas",
+    "paymentMethods": {
+      "COD": "Cash on delivery",
+      "MOCK_WALLET": "Mock wallet (test)"
+    },
+    "simulate": "Simulate payment result",
+    "simulateNone": "Real outcome",
+    "simulateSuccess": "Force success",
+    "simulateFailure": "Force failure",
+    "simulateHint": "Dev option for the mock wallet",
+    "merchandiseSubtotal": "Merchandise subtotal",
+    "totalNote": "Shipping fees and voucher discounts are applied when you place the order",
+    "back": "Back",
+    "next": "Next",
+    "placeOrder": "Place order",
+    "confirmationTitle": "Order placed",
+    "confirmationBody": "Thanks! Your order was split per seller below.",
+    "errors": {
+      "UNAUTHORIZED": "Please sign in",
+      "FORBIDDEN": "Not allowed",
+      "NOT_FOUND": "Something in your order is no longer available",
+      "INVALID_INPUT": "Please complete all required fields",
+      "INSUFFICIENT_STOCK": "Not enough stock for an item",
+      "VOUCHER_INVALID": "A voucher code is invalid or exhausted",
+      "IDEMPOTENCY_CONFLICT": "This order is already being processed"
+    },
+    "stepsLabel": "Checkout steps"
+  },
+  "orders": {
+    "title": "My orders",
+    "empty": "No orders yet",
+    "order": "Order",
+    "date": "Date",
+    "status": "Status",
+    "total": "Total",
+    "items": "Items",
+    "item": "Item",
+    "quantity": "Qty",
+    "lineTotal": "Line total",
+    "merchandise": "Merchandise",
+    "shipping": "Shipping",
+    "discount": "Discount",
+    "sellerOrders": "Seller orders",
+    "payment": "Payment",
+    "deliveryAddress": "Delivery address",
+    "backToOrders": "All orders",
+    "viewOrders": "View all orders",
+    "nextPage": "Older orders"
   }
 }

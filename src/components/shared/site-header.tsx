@@ -3,7 +3,11 @@ import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CartBadge } from "@/features/cart/cart-badge";
 import { Link } from "@/i18n/navigation";
+import { getActor } from "@/server/auth/actor";
+import { getDb } from "@/server/db/client";
+import { getCart } from "@/server/modules/cart/service";
 import { LocaleSwitcher } from "./locale-switcher";
 import { ThemeSwitcher } from "./theme-switcher";
 
@@ -11,6 +15,9 @@ export async function SiteHeader({ locale }: { locale: string }) {
   const tc = await getTranslations({ locale, namespace: "common" });
   const tn = await getTranslations({ locale, namespace: "nav" });
   const ts = await getTranslations({ locale, namespace: "shell" });
+
+  const actor = await getActor();
+  const cartCount = actor ? getCart(getDb(), actor.userId).items.reduce((n, i) => n + i.qty, 0) : 0;
 
   return (
     <header className="border-b">
@@ -44,7 +51,10 @@ export async function SiteHeader({ locale }: { locale: string }) {
             className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
             aria-label={tn("cart")}
           >
-            <ShoppingCartIcon />
+            <span className="relative inline-flex">
+              <ShoppingCartIcon />
+              <CartBadge serverCount={cartCount} loggedIn={!!actor} />
+            </span>
           </Link>
           <Link
             href="/account"
