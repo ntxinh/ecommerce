@@ -27,6 +27,7 @@ import {
   packSellerOrder,
   shipSellerOrder,
 } from "@/server/modules/orders/fulfillment";
+import { cancelOrder } from "@/server/modules/orders/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
 
 const PATH = "./tests/.tmp/fulfillment-test.db";
@@ -315,5 +316,50 @@ describe("cancelSellerOrder", () => {
     const so2 = leg(res2.orderId, "shop_1");
     expect(await errorCode(() => cancelSellerOrder(db, CUSTOMER, so2.id))).toBe("FORBIDDEN");
     expect(await errorCode(() => cancelSellerOrder(db, SHOP2_OWNER, so2.id))).toBe("FORBIDDEN");
+  });
+});
+
+describe("review fixes", () => {
+  it("seller-cancelling one leg doesn't block the buyer cancelling the rest", async () => {
+    const res = await paidOrder([
+      { variantId: "var_3", qty: 1 },
+      { variantId: "var_6", qty: 1 },
+    ]);
+    const so1 = leg(res.orderId, "shop_1");
+    const so2 = leg(res.orderId, "shop_2");
+
+    await cancelSellerOrder(db, SHOP1_OWNER, so1.id);
+
+    // A CANCELLED leg must not count as "progressed" — the buyer can still
+    // cancel the order, which releases the remaining leg's stock.
+    const out = await cancelOrder(db, CUSTOMER, res.orderId);
+    expect(out.status).toBe("CANCELLED");
+    expect(leg(res.orderId, "shop_2").status).toBe("CANCELLED");
+    expect(db.select().from(payments).where(eq(payments.orderId, res.orderId)).get()!.status).toBe(
+      "REFUNDED",
+    );
+    expect(so2.shopId).toBe("shop_2");
+  });
+
+  it("duplicate tracking number → INVALID_INPUT, not a raw constraint error", async () => {
+    const a = await paidOrder([{ variantId: "var_7", qty: 1 }]);
+    const soA = leg(a.orderId, "shop_2");
+    confirmSellerOrder(db, SHOP2_OWNER, soA.id);
+    packSellerOrder(db, SHOP2_OWNER, soA.id);
+    shipSellerOrder(db, SHOP2_OWNER, soA.id, { carrier: "ghn", trackingNumber: "TRK-DUP" });
+
+    const b = await paidOrder([{ variantId: "var_6", qty: 1 }]);
+    const soB = leg(b.orderId, "shop_2");
+    confirmSellerOrder(db, SHOP2_OWNER, soB.id);
+    packSellerOrder(db, SHOP2_OWNER, soB.id);
+    expect(
+      await errorCode(() =>
+        shipSellerOrder(db, SHOP2_OWNER, soB.id, { carrier: "ghn", trackingNumber: "TRK-DUP" }),
+      ),
+    ).toBe("INVALID_INPUT");
+    // Failed attempt left no shipment behind.
+    expect(
+      db.select().from(shipments).where(eq(shipments.sellerOrderId, soB.id)).all(),
+    ).toHaveLength(0);
   });
 });

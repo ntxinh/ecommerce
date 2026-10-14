@@ -74,9 +74,10 @@ export function getOrder(db: DB, actor: Actor, orderId: string): OrderDetail {
 /**
  * Customer cancel (owner or ADMIN). Allowed while the order hasn't shipped:
  * PENDING_PAYMENT/PAYMENT_FAILED always; PAID|PROCESSING only when every
- * seller order is still NEW/CONFIRMED. Frees stock: ACTIVE reservations are
- * released, COD-consumed ones restore on_hand and flip RELEASED. PAID payments
- * are refunded via the adapter post-commit.
+ * seller order is still NEW/CONFIRMED or already CANCELLED (a cancelled leg
+ * released its stock, so it doesn't gate the rest). Frees stock: ACTIVE
+ * reservations are released, COD-consumed ones restore on_hand and flip
+ * RELEASED. PAID payments are refunded via the adapter post-commit.
  */
 export async function cancelOrder(
   db: DB,
@@ -90,14 +91,14 @@ export async function cancelOrder(
   if (!cancellable.includes(order.status)) {
     throw new AuthError("INVALID_INPUT", 422, `order ${orderId} is ${order.status}`);
   }
-  if (
-    (order.status === "PAID" || order.status === "PROCESSING") &&
-    detail.sellerOrders.some((so) => so.status !== "NEW" && so.status !== "CONFIRMED")
-  ) {
+  const progressed = detail.sellerOrders.find(
+    (so) => !["NEW", "CONFIRMED", "CANCELLED"].includes(so.status),
+  );
+  if ((order.status === "PAID" || order.status === "PROCESSING") && progressed) {
     throw new AuthError(
       "INVALID_INPUT",
       422,
-      "a seller order has already progressed past packing gate",
+      `seller order ${progressed.id} has already progressed (${progressed.status})`,
     );
   }
 

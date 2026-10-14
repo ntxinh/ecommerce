@@ -66,6 +66,17 @@ export function shipSellerOrder(
     if (so.status === "PACKING") transitionSellerOrder(tx, sellerOrderId, "READY_TO_SHIP", actor);
     const next = transitionSellerOrder(tx, sellerOrderId, "SHIPPED", actor);
     if (!tx.select().from(shipments).where(eq(shipments.sellerOrderId, sellerOrderId)).get()) {
+      // shipments.trackingNumber is globally unique — pre-check so a recycled
+      // number surfaces as INVALID_INPUT instead of a raw constraint 500.
+      if (
+        tx
+          .select({ id: shipments.id })
+          .from(shipments)
+          .where(eq(shipments.trackingNumber, input.trackingNumber))
+          .get()
+      ) {
+        throw new AuthError("INVALID_INPUT", 422, "tracking number already in use");
+      }
       const now = Date.now();
       const shipmentId = `shp_${ulid()}`;
       tx.insert(shipments)
