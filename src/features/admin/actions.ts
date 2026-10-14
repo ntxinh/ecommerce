@@ -12,6 +12,7 @@ import { DecideInput, ShopStatusInput } from "@/server/api/contracts/seller";
 import { AuthError } from "@/server/api/errors";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
+import { createPlatformVoucher, setSetting } from "@/server/modules/admin/ops";
 import { revokeUserSessions, setUserStatus } from "@/server/modules/admin/service";
 import {
   createCategory,
@@ -152,6 +153,57 @@ export async function revokeUserSessionsAction(formData: FormData): Promise<Admi
     if (!userId) return { ok: false, error: "INVALID_INPUT" };
     const actor = await getActor();
     revokeUserSessions(getDb(), actor, userId);
+    return { ok: true };
+  } catch (e) {
+    return toResult(e);
+  }
+}
+
+const SettingInput = z.object({ key: z.string().min(1), value: z.string() });
+
+/** Save one whitelisted setting; `value` arrives as a JSON string from the form. */
+export async function setSettingAction(formData: FormData): Promise<AdminActionResult> {
+  try {
+    const parsed = SettingInput.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
+    let value: unknown;
+    try {
+      value = JSON.parse(parsed.data.value);
+    } catch {
+      return { ok: false, error: "INVALID_INPUT" };
+    }
+    const actor = await getActor();
+    setSetting(getDb(), actor, parsed.data.key, value);
+    return { ok: true };
+  } catch (e) {
+    return toResult(e);
+  }
+}
+
+// Empty optional fields arrive as ""; coerce to undefined before validating.
+const optInt = (schema: z.ZodType<number>) =>
+  z.preprocess((v) => (v === "" || v == null ? undefined : v), schema.optional());
+const epochMs = z.preprocess((v) => new Date(String(v)).getTime(), z.number().int().positive());
+
+const PlatformVoucherForm = z.object({
+  code: z.string().min(1).max(64),
+  kind: z.enum(["PERCENT", "FIXED", "SHIPPING"]),
+  value: z.coerce.number().int().positive(),
+  minSpendVnd: optInt(z.number().int().min(0)),
+  maxDiscountVnd: optInt(z.number().int().positive()),
+  startsAt: epochMs,
+  endsAt: epochMs,
+  totalLimit: optInt(z.number().int().positive()),
+  perUserLimit: optInt(z.number().int().positive()),
+});
+
+/** Create a PLATFORM voucher from the admin form. */
+export async function createPlatformVoucherAction(formData: FormData): Promise<AdminActionResult> {
+  try {
+    const parsed = PlatformVoucherForm.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
+    const actor = await getActor();
+    createPlatformVoucher(getDb(), actor, parsed.data);
     return { ok: true };
   } catch (e) {
     return toResult(e);

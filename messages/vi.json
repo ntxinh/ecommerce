@@ -65,7 +65,10 @@
     "categories": "Danh mục",
     "applications": "Đơn đăng ký bán",
     "users": "Người dùng",
-    "audit": "Nhật ký kiểm toán"
+    "audit": "Nhật ký kiểm toán",
+    "orders": "Đơn hàng",
+    "settings": "Cài đặt",
+    "vouchers": "Voucher"
   },
   "catalog": {
     "fromPrice": "Từ",
@@ -393,7 +396,52 @@
     "userStatus": {
       "ACTIVE": "Đang hoạt động",
       "SUSPENDED": "Bị đình chỉ"
-    }
+    },
+    "ordersTitle": "Đơn hàng",
+    "ordersEmpty": "Không có đơn nào khớp.",
+    "searchOrders": "Tìm theo mã đơn hoặc email người mua",
+    "colOrder": "Đơn hàng",
+    "colBuyer": "Người mua",
+    "colTotal": "Tổng",
+    "orderStatus": {
+      "PENDING_PAYMENT": "Chờ thanh toán",
+      "PAID": "Đã thanh toán",
+      "PROCESSING": "Đang xử lý",
+      "SHIPPED": "Đã giao vận",
+      "DELIVERED": "Đã giao",
+      "COMPLETED": "Hoàn tất",
+      "CANCELLED": "Đã hủy",
+      "PAYMENT_FAILED": "Thanh toán thất bại",
+      "PARTIALLY_REFUNDED": "Hoàn một phần",
+      "REFUNDED": "Đã hoàn tiền"
+    },
+    "settingsTitle": "Cài đặt nền tảng",
+    "settingsHint": "Giá trị là JSON — số, hoặc object như {\"standard\":15000}.",
+    "colKey": "Khóa",
+    "colValue": "Giá trị",
+    "settingsSaved": "Đã lưu cài đặt",
+    "vouchersTitle": "Voucher nền tảng",
+    "vouchersEmpty": "Chưa có voucher nào.",
+    "createVoucher": "Tạo voucher",
+    "fieldCode": "Mã",
+    "fieldKind": "Loại",
+    "fieldValue": "Giá trị (bps cho PERCENT, VND cho loại khác)",
+    "fieldMinSpend": "Đơn tối thiểu (VND)",
+    "fieldMaxDiscount": "Giảm tối đa (VND)",
+    "fieldStarts": "Bắt đầu",
+    "fieldEnds": "Kết thúc",
+    "fieldTotalLimit": "Giới hạn tổng",
+    "fieldPerUserLimit": "Giới hạn mỗi người",
+    "colCode": "Mã",
+    "colKind": "Loại",
+    "colUsed": "Đã dùng",
+    "colWindow": "Thời hạn",
+    "voucherKind": {
+      "PERCENT": "Phần trăm",
+      "FIXED": "Số tiền cố định",
+      "SHIPPING": "Vận chuyển"
+    },
+    "voucherCreated": "Đã tạo voucher"
   },
   "storefront": {
     "categories": "Danh mục",

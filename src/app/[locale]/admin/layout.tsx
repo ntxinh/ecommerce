@@ -53,6 +53,15 @@ export default async function AdminLayout({
           <Link href="/admin/audit" className="block hover:underline">
             {ts("audit")}
           </Link>
+          <Link href="/admin/orders" className="block hover:underline">
+            {ts("orders")}
+          </Link>
+          <Link href="/admin/vouchers" className="block hover:underline">
+            {ts("vouchers")}
+          </Link>
+          <Link href="/admin/settings" className="block hover:underline">
+            {ts("settings")}
+          </Link>
         </nav>
       </aside>
       <div className="flex flex-1 flex-col">

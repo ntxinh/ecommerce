@@ -65,7 +65,10 @@
     "categories": "Categories",
     "applications": "Applications",
     "users": "Users",
-    "audit": "Audit log"
+    "audit": "Audit log",
+    "orders": "Orders",
+    "settings": "Settings",
+    "vouchers": "Vouchers"
   },
   "catalog": {
     "fromPrice": "From",
@@ -393,7 +396,52 @@
     "userStatus": {
       "ACTIVE": "Active",
       "SUSPENDED": "Suspended"
-    }
+    },
+    "ordersTitle": "Orders",
+    "ordersEmpty": "No orders match.",
+    "searchOrders": "Search order id or buyer email",
+    "colOrder": "Order",
+    "colBuyer": "Buyer",
+    "colTotal": "Total",
+    "orderStatus": {
+      "PENDING_PAYMENT": "Pending payment",
+      "PAID": "Paid",
+      "PROCESSING": "Processing",
+      "SHIPPED": "Shipped",
+      "DELIVERED": "Delivered",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled",
+      "PAYMENT_FAILED": "Payment failed",
+      "PARTIALLY_REFUNDED": "Partially refunded",
+      "REFUNDED": "Refunded"
+    },
+    "settingsTitle": "Platform settings",
+    "settingsHint": "Values are JSON — numbers, or objects like {\"standard\":15000}.",
+    "colKey": "Key",
+    "colValue": "Value",
+    "settingsSaved": "Setting saved",
+    "vouchersTitle": "Platform vouchers",
+    "vouchersEmpty": "No vouchers yet.",
+    "createVoucher": "Create voucher",
+    "fieldCode": "Code",
+    "fieldKind": "Kind",
+    "fieldValue": "Value (bps for PERCENT, VND otherwise)",
+    "fieldMinSpend": "Min spend (VND)",
+    "fieldMaxDiscount": "Max discount (VND)",
+    "fieldStarts": "Starts",
+    "fieldEnds": "Ends",
+    "fieldTotalLimit": "Total limit",
+    "fieldPerUserLimit": "Per-user limit",
+    "colCode": "Code",
+    "colKind": "Kind",
+    "colUsed": "Used",
+    "colWindow": "Window",
+    "voucherKind": {
+      "PERCENT": "Percent",
+      "FIXED": "Fixed amount",
+      "SHIPPING": "Shipping"
+    },
+    "voucherCreated": "Voucher created"
   },
   "storefront": {
     "categories": "Categories",
