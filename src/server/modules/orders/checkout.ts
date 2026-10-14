@@ -25,8 +25,8 @@ import {
 } from "@/server/db/schema";
 import {
   consumeReservation,
-  type Tx as InventoryTx,
   reserveStock,
+  sweepExpiredReservations,
 } from "@/server/modules/inventory/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
 import {
@@ -246,6 +246,10 @@ export async function placeOrder(
     }
     // FAILED → fall through and retry under the same key.
   }
+
+  // Expire stale reservations before repricing/reserving — the sweep is
+  // on-read (no background timers) and must run outside the order tx.
+  sweepExpiredReservations(db);
 
   const { orderId, sellerOrderIds, paymentId, attemptId, status } = db.transaction((tx) => {
     const now = Date.now();

@@ -17,11 +17,12 @@ function routePath(file: string): string {
   return `/${file.replace(/^src\/app\//, "").replace(/\/route\.ts$/, "")}`;
 }
 
-/** Exported HTTP methods of a route file (`export [async] function GET|POST…`). */
+/** Exported HTTP methods: `export [async] function GET` or
+ *  `export const GET = async (…)` — both are legal handler styles. */
 function routeMethods(file: string): string[] {
   const src = readFileSync(file, "utf8");
   const found = new Set<string>();
-  for (const m of src.matchAll(/export\s+(?:async\s+)?function\s+([A-Z]+)/g)) {
+  for (const m of src.matchAll(/export\s+(?:async\s+)?(?:function|const)\s+([A-Z]+)/g)) {
     if (m[1].toLowerCase() in HTTP_METHODS) found.add(m[1].toUpperCase());
   }
   return [...found];
@@ -86,5 +87,23 @@ describe("openapi.yaml ↔ route handlers", () => {
       }
     }
     expect(phantom).toEqual([]);
+  });
+});
+
+describe("method regex", () => {
+  it("matches const-exported handlers, not just function exports", () => {
+    // A route written `export const DELETE = async () => …` must be caught —
+    // the guard only covers what the pattern sees.
+    const src = [
+      "export async function GET() {}",
+      "export const DELETE = async () => Response.json({})",
+      "const PUT = () => {}", // not exported → ignored
+      "export const title = 'x'", // lowercase → ignored
+    ].join("\n");
+    const found = new Set<string>();
+    for (const m of src.matchAll(/export\s+(?:async\s+)?(?:function|const)\s+([A-Z]+)/g)) {
+      if (m[1].toLowerCase() in HTTP_METHODS) found.add(m[1]);
+    }
+    expect([...found].sort()).toEqual(["DELETE", "GET"]);
   });
 });

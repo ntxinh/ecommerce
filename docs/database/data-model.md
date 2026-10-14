@@ -378,4 +378,6 @@ Per design spec §3: returns, reviews, notifications, financial_ledger_entries
 
 `make db-generate` (drizzle-kit) → `make db-migrate` → `make db-seed`.
 Deterministic, idempotent seed (`onConflictDoNothing`, fixed seed timestamp);
-e2e runs `scripts/db-seed.ts` against `tests/.tmp/e2e.db`.
+e2e runs `scripts/db-seed.ts` against `${os.tmpdir()}/marketflow-e2e.db` (see
+`playwright.config.ts` — outside the repo tree so Turbopack's watcher can't
+force-reload pages on WAL churn).

@@ -147,8 +147,10 @@ paths:
                 $ref: "#/components/schemas/ErrorBody"
         "422":
           description: >-
-            Unprocessable: unknown shipping method, unsupported payment method,
-            or VOUCHER_INVALID.
+            Unprocessable: INVALID_INPUT for shippingByShop keys naming shops
+            not in the order, unknown shipping method, unsupported payment
+            method, or VOUCHER_INVALID. (INVALID_INPUT is 400 for malformed
+            JSON or failed contract validation.)
           content:
             application/json:
               schema:

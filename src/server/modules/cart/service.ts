@@ -5,7 +5,7 @@ import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
 import type { DB } from "@/server/db/client";
 import { cartItems, carts, products, productVariants, shops } from "@/server/db/schema";
-import { availableStock } from "@/server/modules/inventory/service";
+import { availableStock, sweepExpiredReservations } from "@/server/modules/inventory/service";
 
 /** Query surface shared by DB and a drizzle tx so mergeGuestCart can run atomically. */
 type CartStore = Pick<DB, "select" | "insert" | "update" | "delete">;
@@ -111,6 +111,9 @@ function ownedItem(db: CartStore, userId: string, cartItemId: string) {
 
 /** Reads the cart joined to variant/product/shop, grouping lines by shop. */
 export function getCart(db: DB, userId: string): CartView {
+  // On-read expiry sweep: abandoned reservations must free stock before
+  // availability is computed (no background timers by design).
+  sweepExpiredReservations(db);
   const empty: CartView = { cartId: null, items: [], byShop: [], subtotalVnd: 0 };
   const cartId = cartIdFor(db, userId);
   if (!cartId) return empty;
