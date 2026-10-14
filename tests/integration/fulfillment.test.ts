@@ -320,25 +320,38 @@ describe("cancelSellerOrder", () => {
 });
 
 describe("review fixes", () => {
-  it("seller-cancelling one leg doesn't block the buyer cancelling the rest", async () => {
+  it("seller-cancelling one leg doesn't block the buyer cancelling the rest; refunds split correctly", async () => {
     const res = await paidOrder([
       { variantId: "var_3", qty: 1 },
       { variantId: "var_6", qty: 1 },
     ]);
     const so1 = leg(res.orderId, "shop_1");
-    const so2 = leg(res.orderId, "shop_2");
+    const payment = db.select().from(payments).where(eq(payments.orderId, res.orderId)).get()!;
 
-    await cancelSellerOrder(db, SHOP1_OWNER, so1.id);
+    const legCancel = await cancelSellerOrder(db, SHOP1_OWNER, so1.id);
 
     // A CANCELLED leg must not count as "progressed" — the buyer can still
-    // cancel the order, which releases the remaining leg's stock.
+    // cancel the order, which releases the remaining leg's stock and refunds
+    // only what the leg-cancel didn't already refund (grandTotal − X).
     const out = await cancelOrder(db, CUSTOMER, res.orderId);
     expect(out.status).toBe("CANCELLED");
-    expect(leg(res.orderId, "shop_2").status).toBe("CANCELLED");
+    const so2 = leg(res.orderId, "shop_2");
+    expect(so2.status).toBe("CANCELLED");
     expect(db.select().from(payments).where(eq(payments.orderId, res.orderId)).get()!.status).toBe(
       "REFUNDED",
     );
-    expect(so2.shopId).toBe("shop_2");
+
+    const refunded = db
+      .select()
+      .from(auditLogs)
+      .all()
+      .filter((a) => a.action === "order.partial_refund")
+      .map((a) => ({ target: a.targetId, refundVnd: JSON.parse(a.metaJson).refundVnd }));
+    expect(refunded).toContainEqual({ target: so1.id, refundVnd: legCancel.refundedVnd });
+    const total = refunded
+      .filter((r) => [so1.id, so2.id].includes(r.target))
+      .reduce((s, r) => s + r.refundVnd, 0);
+    expect(total).toBe(payment.amountVnd); // partial + remainder = capture, never more
   });
 
   it("duplicate tracking number → INVALID_INPUT, not a raw constraint error", async () => {

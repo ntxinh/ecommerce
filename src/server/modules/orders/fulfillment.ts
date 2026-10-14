@@ -157,10 +157,24 @@ export function completeSellerOrder(db: DB, actor: Actor, sellerOrderId: string)
 }
 
 /**
+ * A seller order's share of the order total: item line totals (after item
+ * promos + allocated vouchers) + its shipping. Shared by leg-cancel and
+ * parent-cancel so both refund the same amounts.
+ */
+export function legShareVnd(tx: Tx, so: SellerOrder): number {
+  const items = tx
+    .select({ lineTotalVnd: orderItems.lineTotalVnd })
+    .from(orderItems)
+    .where(eq(orderItems.sellerOrderId, so.id))
+    .all();
+  return items.reduce((s, l) => s + l.lineTotalVnd, 0) + so.shippingVnd;
+}
+
+/**
  * Seller-initiated leg cancel (NEW|CONFIRMED → CANCELLED). Frees the leg's
  * reservation share — online orders release ACTIVE reservations, COD legs
  * restore on_hand — and, when the parent was PAID, refunds the leg's share
- * (items' line totals + its shipping) via the provider post-commit.
+ * via the provider post-commit.
  */
 export async function cancelSellerOrder(
   db: DB,
@@ -174,7 +188,7 @@ export async function cancelSellerOrder(
     if (wasCancelled) return { next, refundVnd: 0, payment: undefined };
 
     const lines = tx
-      .select({ variantId: orderItems.variantId, lineTotalVnd: orderItems.lineTotalVnd })
+      .select({ variantId: orderItems.variantId })
       .from(orderItems)
       .where(eq(orderItems.sellerOrderId, sellerOrderId))
       .all();
@@ -190,12 +204,7 @@ export async function cancelSellerOrder(
     // stays PAID (no PARTIALLY_REFUNDED enum) — the audit row is the ledger.
     const payment = tx.select().from(payments).where(eq(payments.orderId, so.orderId)).get();
     const refundVnd =
-      payment?.status === "PAID"
-        ? Math.min(
-            lines.reduce((s, l) => s + l.lineTotalVnd, 0) + next.shippingVnd,
-            payment.amountVnd,
-          )
-        : 0;
+      payment?.status === "PAID" ? Math.min(legShareVnd(tx, next), payment.amountVnd) : 0;
     if (refundVnd > 0) {
       tx.insert(auditLogs)
         .values({

@@ -6,6 +6,7 @@ import { AuthError } from "@/server/api/errors";
 import type { Actor } from "@/server/auth/permissions";
 import type { DB } from "@/server/db/client";
 import {
+  auditLogs,
   orderItems,
   orderPricingBreakdowns,
   orders,
@@ -16,6 +17,7 @@ import {
 import { releaseOrderReservations } from "@/server/modules/inventory/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
 import { dispatchMockPayment, type PlaceOrderResult } from "./checkout";
+import { legShareVnd } from "./fulfillment";
 import { transitionOrder, transitionSellerOrder } from "./transitions";
 
 type Order = typeof orders.$inferSelect;
@@ -103,7 +105,7 @@ export async function cancelOrder(
   }
 
   const payment = detail.payment;
-  db.transaction((tx) => {
+  const refundVnd = db.transaction((tx) => {
     const now = Date.now();
     releaseOrderReservations(
       tx,
@@ -117,12 +119,33 @@ export async function cancelOrder(
       actor.userId,
       "order_cancelled",
     );
+    // Refund only the legs being cancelled now — legs already CANCELLED by the
+    // seller were refunded their share by cancelSellerOrder.
+    let refundVnd = 0;
     for (const so of tx
-      .select({ id: sellerOrders.id })
+      .select()
       .from(sellerOrders)
       .where(eq(sellerOrders.orderId, orderId))
       .all()) {
+      const wasCancelled = so.status === "CANCELLED";
       transitionSellerOrder(tx, so.id, "CANCELLED", actor);
+      if (!wasCancelled && payment?.status === "PAID") {
+        const share = legShareVnd(tx, so);
+        refundVnd += share;
+        if (share > 0) {
+          tx.insert(auditLogs)
+            .values({
+              id: `aud_${ulid()}`,
+              actorId: actor.userId,
+              action: "order.partial_refund",
+              targetType: "seller_order",
+              targetId: so.id,
+              metaJson: JSON.stringify({ paymentId: payment.id, refundVnd: share }),
+              createdAt: now,
+            })
+            .run();
+        }
+      }
     }
     transitionOrder(tx, orderId, "CANCELLED", actor);
     if (payment?.status === "PAID") {
@@ -131,12 +154,13 @@ export async function cancelOrder(
         .where(eq(payments.id, payment.id))
         .run();
     }
+    return refundVnd;
   });
 
-  if (payment?.status === "PAID") {
+  if (payment?.status === "PAID" && refundVnd > 0) {
     await paymentProviderFor(payment.method).refund({
       ref: payment.id,
-      amountVnd: payment.amountVnd,
+      amountVnd: refundVnd,
     });
   }
   return { orderId, status: "CANCELLED" };
