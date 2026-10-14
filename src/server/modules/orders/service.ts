@@ -206,15 +206,16 @@ export async function retryPayment(
   });
   const sellerOrderIds = detail.sellerOrders.map((s) => s.id);
   if (payment.method === "STRIPE") {
-    const redirectUrl = await dispatchStripePayment(
+    const { redirectUrl, orderStatus } = await dispatchStripePayment(
       db,
       orderId,
+      payment.id,
       attemptId,
       payment.amountVnd,
       opts.origin!,
       opts.locale ?? "en",
     );
-    return { orderId, sellerOrderIds, status: "PENDING_PAYMENT", redirectUrl };
+    return { orderId, sellerOrderIds, status: orderStatus, redirectUrl };
   }
   const outcome = await dispatchMockPayment(
     db,

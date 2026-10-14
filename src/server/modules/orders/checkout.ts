@@ -28,6 +28,7 @@ import {
   sweepExpiredReservations,
 } from "@/server/modules/inventory/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
+import { getStripe } from "@/server/modules/payments/stripe";
 import {
   type PricedOrder,
   priceOrder,
@@ -139,27 +140,50 @@ export async function dispatchMockPayment(
 
 /** Post-commit Stripe dispatch: create a Checkout Session for the attempt and
  *  record `providerRef` (session id) — the webhook/return-page dedupe key.
- *  The attempt stays PENDING until Stripe settles it. */
+ *  The attempt stays PENDING until Stripe settles it. A session-create failure
+ *  can't roll back the committed order — wedge it PAYMENT_FAILED (attempt
+ *  FAILED + audit) so the pay page offers a retry instead of a dead order. */
 export async function dispatchStripePayment(
   db: DB,
   orderId: string,
+  paymentId: string,
   attemptId: string,
   amountVnd: number,
   origin: string,
   locale: string,
-): Promise<string | undefined> {
-  const { ref, redirectUrl } = await paymentProviderFor("STRIPE").createAttempt({
-    amountVnd,
-    orderId,
-    attemptId,
-    origin,
-    locale,
-  });
-  db.update(paymentAttempts)
-    .set({ providerRef: ref })
-    .where(eq(paymentAttempts.id, attemptId))
-    .run();
-  return redirectUrl;
+): Promise<{ redirectUrl?: string; orderStatus: "PENDING_PAYMENT" | "PAYMENT_FAILED" }> {
+  try {
+    const { ref, redirectUrl } = await paymentProviderFor("STRIPE").createAttempt({
+      amountVnd,
+      orderId,
+      attemptId,
+      origin,
+      locale,
+    });
+    db.update(paymentAttempts)
+      .set({ providerRef: ref })
+      .where(eq(paymentAttempts.id, attemptId))
+      .run();
+    return { redirectUrl, orderStatus: "PENDING_PAYMENT" };
+  } catch (e) {
+    if (e instanceof AuthError) {
+      // Config/usage errors surface to the caller as validation failures.
+      throw e;
+    }
+    persistPaymentOutcome(db, paymentId, "FAILED", attemptId);
+    db.insert(auditLogs)
+      .values({
+        id: `aud_${ulid()}`,
+        actorId: null,
+        action: "payment.stripe_session_failed",
+        targetType: "order",
+        targetId: orderId,
+        metaJson: JSON.stringify({ detail: e instanceof Error ? e.message : String(e) }),
+        createdAt: Date.now(),
+      })
+      .run();
+    return { orderStatus: "PAYMENT_FAILED" };
+  }
 }
 
 /** Resolves the absolute request origin for Stripe return URLs. */
@@ -211,8 +235,15 @@ export async function placeOrder(
     }
     // FAILED → fall through and retry under the same key.
   }
-  if (input.paymentMethod === "STRIPE" && !opts.origin) {
-    throw new AuthError("INVALID_INPUT", 400, "request origin required for stripe checkout");
+  if (input.paymentMethod === "STRIPE") {
+    if (!opts.origin) {
+      throw new AuthError("INVALID_INPUT", 400, "request origin required for stripe checkout");
+    }
+    // Server-side gate — the form hides STRIPE without keys, but API callers
+    // only meet this check.
+    if (!getStripe()) {
+      throw new AuthError("INVALID_INPUT", 422, "stripe is not configured");
+    }
   }
 
   // Expire stale reservations before repricing/reserving — the sweep is
@@ -410,18 +441,16 @@ export async function placeOrder(
   );
 
   if (input.paymentMethod === "STRIPE") {
-    if (!opts.origin) {
-      throw new AuthError("INVALID_INPUT", 400, "request origin required for stripe checkout");
-    }
-    const redirectUrl = await dispatchStripePayment(
+    const { redirectUrl, orderStatus } = await dispatchStripePayment(
       db,
       orderId,
+      paymentId,
       attemptId,
       amountVnd,
-      opts.origin,
+      opts.origin!,
       opts.locale ?? "en",
     );
-    return { orderId, sellerOrderIds, status, redirectUrl };
+    return { orderId, sellerOrderIds, status: orderStatus, redirectUrl };
   }
   if (input.paymentMethod !== "COD") {
     const outcome = await dispatchMockPayment(

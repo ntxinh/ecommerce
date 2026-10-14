@@ -132,7 +132,10 @@ describe("sessionOutcome", () => {
     expect(sessionOutcome({ status: "complete", payment_status: "paid" })).toBe("PAID");
     expect(sessionOutcome({ status: "open", payment_status: "unpaid" })).toBe("PENDING");
     expect(sessionOutcome({ status: "expired", payment_status: "unpaid" })).toBe("FAILED");
-    expect(sessionOutcome({ status: "complete", payment_status: "unpaid" })).toBe("FAILED");
+    expect(sessionOutcome({ status: "complete", payment_status: "unpaid" })).toBe("PENDING");
+    expect(sessionOutcome({ status: "complete", payment_status: "no_payment_required" })).toBe(
+      "PENDING",
+    );
   });
 });
 
@@ -150,6 +153,9 @@ describe("placeOrder STRIPE", () => {
   });
 
   it("rejects STRIPE without a request origin", async () => {
+    setStripeForTests({
+      checkout: { sessions: { create: async () => ({}) } },
+    } as unknown as Stripe);
     const view = addItem(db, CUSTOMER.userId, "var_2", 1);
     const cartItemId = view.items.find((i) => i.variantId === "var_2")!.cartItemId;
     await expect(
@@ -161,6 +167,69 @@ describe("placeOrder STRIPE", () => {
         paymentMethod: "STRIPE",
         idempotencyKey: `stripe_${++keySeq}`,
       }),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  });
+
+  it("sessions.create failure wedges PAYMENT_FAILED (retryable), not stuck PENDING", async () => {
+    clearCart(db, CUSTOMER.userId);
+    const view = addItem(db, CUSTOMER.userId, "var_3", 1);
+    const cartItemId = view.items.find((i) => i.variantId === "var_3")!.cartItemId;
+    setStripeForTests({
+      checkout: {
+        sessions: {
+          create: async () => {
+            throw new Error("stripe api unreachable");
+          },
+        },
+      },
+    } as unknown as Stripe);
+    const result = await placeOrder(
+      db,
+      CUSTOMER,
+      {
+        cartItemIds: [cartItemId],
+        addressId: ADDRESS,
+        shippingByShop: {},
+        voucherCodes: [],
+        paymentMethod: "STRIPE",
+        idempotencyKey: `stripe_${++keySeq}`,
+      },
+      { origin: "https://shop.test", locale: "en" },
+    );
+    expect(result.status).toBe("PAYMENT_FAILED");
+    expect(result.redirectUrl).toBeUndefined();
+    expect(db.select().from(orders).where(eq(orders.id, result.orderId)).get()!.status).toBe(
+      "PAYMENT_FAILED",
+    );
+    const payment = db.select().from(payments).where(eq(payments.orderId, result.orderId)).get()!;
+    const att = db
+      .select()
+      .from(paymentAttempts)
+      .where(eq(paymentAttempts.paymentId, payment.id))
+      .get()!;
+    expect(att.status).toBe("FAILED");
+    expect(att.providerRef).toBeNull();
+  });
+
+  it("rejects STRIPE when STRIPE_SECRET_KEY is unset", async () => {
+    clearCart(db, CUSTOMER.userId);
+    const view = addItem(db, CUSTOMER.userId, "var_4", 1);
+    const cartItemId = view.items.find((i) => i.variantId === "var_4")!.cartItemId;
+    setStripeForTests(null); // forces unconfigured even if env is set
+    await expect(
+      placeOrder(
+        db,
+        CUSTOMER,
+        {
+          cartItemIds: [cartItemId],
+          addressId: ADDRESS,
+          shippingByShop: {},
+          voucherCodes: [],
+          paymentMethod: "STRIPE",
+          idempotencyKey: `stripe_${++keySeq}`,
+        },
+        { origin: "https://shop.test", locale: "en" },
+      ),
     ).rejects.toMatchObject({ code: "INVALID_INPUT" });
   });
 });
@@ -247,8 +316,8 @@ describe("stripe webhook", () => {
     );
   });
 
-  it("payment_intent.payment_failed resolves via attemptId metadata", async () => {
-    const { orderId, attemptId } = await stripeOrder();
+  it("payment_intent.payment_failed is non-terminal — open session can still pay", async () => {
+    const { orderId, attemptId, sessionId } = await stripeOrder();
     setStripeForTests(new Stripe("sk_test_x"));
     process.env.STRIPE_WEBHOOK_SECRET = WHSEC;
     const pi = {
@@ -256,15 +325,21 @@ describe("stripe webhook", () => {
       object: "payment_intent",
       metadata: { orderId, attemptId },
     };
-    const payload = JSON.stringify(stripeEvent("payment_intent.payment_failed", pi));
-    const res = handleStripeWebhook(db, payload, sign(payload, WHSEC));
-    expect(res.status).toBe(200);
+    const declined = JSON.stringify(stripeEvent("payment_intent.payment_failed", pi));
+    expect(handleStripeWebhook(db, declined, sign(declined, WHSEC)).status).toBe(200);
+    // Attempt stays PENDING — the in-session retry can still succeed.
     expect(
       db.select().from(paymentAttempts).where(eq(paymentAttempts.id, attemptId)).get()!.status,
-    ).toBe("FAILED");
+    ).toBe("PENDING");
     expect(db.select().from(orders).where(eq(orders.id, orderId)).get()!.status).toBe(
-      "PAYMENT_FAILED",
+      "PENDING_PAYMENT",
     );
+    // And the later paid event on the same session still lands.
+    const paid = JSON.stringify(
+      stripeEvent("checkout.session.completed", stripeSession({ id: sessionId })),
+    );
+    handleStripeWebhook(db, paid, sign(paid, WHSEC));
+    expect(db.select().from(orders).where(eq(orders.id, orderId)).get()!.status).toBe("PAID");
   });
 
   it("bad signature → 400, missing secret → 404", async () => {

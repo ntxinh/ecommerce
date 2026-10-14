@@ -26,14 +26,16 @@ export function getStripe(): Stripe | null {
 
 export type AttemptOutcome = "PAID" | "FAILED" | "PENDING";
 
-/** Stripe Checkout Session → our coarse outcome. `open`+`unpaid` is still
- *  pending; `expired` (or a completed session that never paid) is dead. */
+/** Stripe Checkout Session → our coarse outcome. `expired` is the only
+ *  terminal failure — `complete`+unpaid is a delayed/async method still
+ *  settling (async_payment_succeeded/failed arrives later), so marking it
+ *  FAILED would strand real money and invite a double-charge retry. */
 export function sessionOutcome(s: {
   status: Stripe.Checkout.Session.Status | string | null;
   payment_status: string;
 }): AttemptOutcome {
   if (s.payment_status === "paid") return "PAID";
-  if (s.status === "expired" || s.status === "complete") return "FAILED";
+  if (s.status === "expired") return "FAILED";
   return "PENDING";
 }
 
@@ -66,11 +68,9 @@ export function applyStripeSessionOutcome(
   if (attempt.status === "PAID" || attempt.status === "FAILED" || outcome === "PENDING") {
     return { attemptId: attempt.id, applied: false };
   }
-  db.update(paymentAttempts)
-    .set({ status: outcome === "PAID" ? "PAID" : "FAILED" })
-    .where(eq(paymentAttempts.id, attempt.id))
-    .run();
-  persistPaymentOutcome(db, attempt.paymentId, outcome);
+  // persistPaymentOutcome's inner transaction is a savepoint — attempt +
+  // payment + order writes land atomically.
+  persistPaymentOutcome(db, attempt.paymentId, outcome, attempt.id);
   return { attemptId: attempt.id, applied: true };
 }
 
@@ -94,23 +94,11 @@ export function processStripeEvent(db: DB, event: Stripe.Event): AttemptOutcome 
     return outcome;
   }
   if (type === "payment_intent.payment_failed") {
-    // PI events don't carry the session id — sessions tag payment_intent_data
-    // metadata with attemptId so failures land on the right attempt.
-    const pi = event.data.object as Stripe.PaymentIntent;
-    const attemptId = pi.metadata?.attemptId;
-    if (!attemptId) return "IGNORED";
-    const attempt = db
-      .select()
-      .from(paymentAttempts)
-      .where(eq(paymentAttempts.id, attemptId))
-      .get();
-    if (!attempt || attempt.status === "PAID" || attempt.status === "FAILED") return "IGNORED";
-    db.update(paymentAttempts)
-      .set({ status: "FAILED" })
-      .where(eq(paymentAttempts.id, attempt.id))
-      .run();
-    persistPaymentOutcome(db, attempt.paymentId, "FAILED");
-    return "FAILED";
+    // A declined card inside an open Checkout Session emits this while the
+    // customer retries on the same session — NOT terminal for session-backed
+    // attempts. Only checkout.session.expired / async_payment_failed end a
+    // Stripe attempt.
+    return "IGNORED";
   }
   return "IGNORED";
 }
