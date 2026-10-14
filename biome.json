@@ -19,7 +19,7 @@
     }
   },
   "files": {
-    "includes": ["src/**", "tests/**", "scripts/**", "*.ts", "*.json", "!**/.worktrees"]
+    "includes": ["src/**", "tests/**", "scripts/**", "*.ts", "*.json", "!.worktrees/**"]
   },
   "css": {
     "parser": {

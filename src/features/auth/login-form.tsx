@@ -1,17 +1,37 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { useGuestCart } from "@/features/cart/use-guest-cart";
 import { loginAction } from "./actions";
 import { errorKey, fieldKey } from "./errors";
 import { Field, Submit } from "./ui";
 import { useAuthAction } from "./use-auth-action";
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const t = useTranslations("auth");
   const tc = useTranslations("common");
   const { state, dispatch, pending } = useAuthAction(loginAction);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
+  // Persisted guest cart only exists client-side — read it post-mount, not in
+  // the SSR initialiser (hydration would keep value="[]" and drop the merge).
+  const [guestItems, setGuestItems] = useState("[]");
+  const guestClear = useGuestCart((s) => s.clear);
+
+  useEffect(() => {
+    setGuestItems(JSON.stringify(useGuestCart.getState().items));
+  }, []);
+
+  useEffect(() => {
+    if (!state?.ok) return;
+    if (state.merged === false) {
+      toast.warning(t("mergeFailed"));
+    } else {
+      guestClear();
+    }
+  }, [state, guestClear, t]);
 
   return (
     <form action={dispatch} className="space-y-4">
@@ -44,6 +64,8 @@ export function LoginForm() {
           aria-invalid={!!fe?.password}
         />
       </Field>
+      <input type="hidden" name="guestItems" value={guestItems} readOnly />
+      {next ? <input type="hidden" name="next" value={next} readOnly /> : null}
       <Submit pending={pending}>{tc("signIn")}</Submit>
     </form>
   );

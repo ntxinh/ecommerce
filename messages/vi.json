@@ -39,7 +39,8 @@
     "verifyStatus": "Trạng thái email",
     "verifyPending": "Chưa xác minh",
     "accountTitle": "Tài khoản",
-    "toAccount": "Đi tới tài khoản"
+    "toAccount": "Đi tới tài khoản",
+    "mergeFailed": "Không thể khôi phục giỏ hàng đã lưu"
   },
   "nav": {
     "storefront": "Cửa hàng",
@@ -63,5 +64,105 @@
     "ordersPlanned": "Dự kiến: đơn hàng",
     "usersPlanned": "Dự kiến: người dùng",
     "moderationPlanned": "Dự kiến: đơn đăng ký bán hàng"
+  },
+  "catalog": {
+    "fromPrice": "Từ",
+    "products": "Sản phẩm"
+  },
+  "cart": {
+    "title": "Giỏ hàng của bạn",
+    "empty": "Giỏ hàng trống",
+    "item": "Sản phẩm",
+    "price": "Giá",
+    "quantity": "SL",
+    "variant": "Phân loại",
+    "decrease": "Giảm số lượng",
+    "increase": "Tăng số lượng",
+    "remove": "Xóa",
+    "subtotal": "Tạm tính",
+    "addToCart": "Thêm vào giỏ",
+    "added": "Đã thêm vào giỏ",
+    "unavailable": "hết hàng",
+    "proceedToCheckout": "Tiến hành thanh toán",
+    "signInToCheckout": "Đăng nhập để thanh toán",
+    "errors": {
+      "UNAUTHORIZED": "Vui lòng đăng nhập",
+      "INVALID_INPUT": "Vui lòng kiểm tra lại thông tin",
+      "NOT_FOUND": "Sản phẩm không còn bán",
+      "INSUFFICIENT_STOCK": "Không đủ hàng",
+      "FORBIDDEN": "Không được phép"
+    }
+  },
+  "checkout": {
+    "title": "Thanh toán",
+    "steps": {
+      "address": "Địa chỉ",
+      "shipping": "Vận chuyển",
+      "payment": "Thanh toán",
+      "review": "Xác nhận"
+    },
+    "newAddress": "Dùng địa chỉ mới",
+    "addressFields": {
+      "recipientName": "Tên người nhận",
+      "phone": "Số điện thoại",
+      "line1": "Địa chỉ",
+      "ward": "Phường/Xã",
+      "district": "Quận/Huyện",
+      "city": "Tỉnh/Thành phố"
+    },
+    "shippingMethods": {
+      "standard": "Tiêu chuẩn",
+      "express": "Hỏa tốc"
+    },
+    "vouchers": "Mã giảm giá",
+    "vouchersPlaceholder": "vd: WELCOME10",
+    "vouchersHint": "Phân tách nhiều mã bằng dấu cách hoặc phẩy",
+    "paymentMethods": {
+      "COD": "Thanh toán khi nhận hàng",
+      "MOCK_WALLET": "Ví giả lập (thử nghiệm)"
+    },
+    "simulate": "Giả lập kết quả thanh toán",
+    "simulateNone": "Kết quả thật",
+    "simulateSuccess": "Ép thành công",
+    "simulateFailure": "Ép thất bại",
+    "simulateHint": "Tùy chọn dev cho ví giả lập",
+    "merchandiseSubtotal": "Tạm tính hàng hóa",
+    "totalNote": "Phí vận chuyển và giảm giá được áp dụng khi đặt hàng",
+    "back": "Quay lại",
+    "next": "Tiếp",
+    "placeOrder": "Đặt hàng",
+    "confirmationTitle": "Đặt hàng thành công",
+    "confirmationBody": "Cảm ơn bạn! Đơn hàng được tách theo từng người bán bên dưới.",
+    "errors": {
+      "UNAUTHORIZED": "Vui lòng đăng nhập",
+      "FORBIDDEN": "Không được phép",
+      "NOT_FOUND": "Có sản phẩm trong đơn không còn bán",
+      "INVALID_INPUT": "Vui lòng điền đủ các trường bắt buộc",
+      "INSUFFICIENT_STOCK": "Không đủ hàng cho một sản phẩm",
+      "VOUCHER_INVALID": "Mã giảm giá không hợp lệ hoặc đã hết",
+      "IDEMPOTENCY_CONFLICT": "Đơn hàng này đang được xử lý"
+    },
+    "stepsLabel": "Các bước thanh toán"
+  },
+  "orders": {
+    "title": "Đơn hàng của tôi",
+    "empty": "Chưa có đơn hàng",
+    "order": "Đơn hàng",
+    "date": "Ngày",
+    "status": "Trạng thái",
+    "total": "Tổng",
+    "items": "Sản phẩm",
+    "item": "Sản phẩm",
+    "quantity": "SL",
+    "lineTotal": "Thành tiền",
+    "merchandise": "Hàng hóa",
+    "shipping": "Vận chuyển",
+    "discount": "Giảm giá",
+    "sellerOrders": "Đơn theo người bán",
+    "payment": "Thanh toán",
+    "deliveryAddress": "Địa chỉ giao hàng",
+    "backToOrders": "Tất cả đơn hàng",
+    "viewOrders": "Xem tất cả đơn hàng",
+    "nextPage": "Đơn cũ hơn"
   }
 }

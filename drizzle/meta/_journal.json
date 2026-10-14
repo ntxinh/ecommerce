@@ -15,6 +15,27 @@
       "when": 1791895230170,
       "tag": "0001_steep_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791934736342,
+      "tag": "0002_brief_colonel_america",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791938969003,
+      "tag": "0003_early_iron_patriot",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791942829186,
+      "tag": "0004_colossal_katie_power",
+      "breakpoints": true
     }
   ]
 }

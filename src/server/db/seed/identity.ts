@@ -2,6 +2,7 @@ import "server-only";
 import { hashSync } from "@node-rs/argon2";
 import type { DB } from "../client";
 import {
+  addresses,
   applicationSettings,
   sellerApplications,
   shopMemberships,
@@ -11,7 +12,7 @@ import {
 } from "../schema";
 
 // Fixed text ids make the seed deterministic and idempotent on PK conflict.
-const SEEDED_AT = 1735689600000; // 2025-01-01T00:00:00Z in unixepoch ms, stable across runs
+export const SEEDED_AT = 1735689600000; // 2025-01-01T00:00:00Z in unixepoch ms, stable across runs
 
 export function seedIdentity(db: DB) {
   const passwordHash = hashSync("Marketflow123!");
@@ -99,7 +100,26 @@ export function seedIdentity(db: DB) {
       { key: "auto_complete_days", value: "3" },
       { key: "currency", value: '"VND"' },
       { key: "reservation_ttl_minutes", value: "15" },
+      // Shipping fee table (VND) quoted per method at checkout.
+      { key: "shipping_fees", value: '{"standard":15000,"express":30000}' },
     ])
+    .onConflictDoNothing()
+    .run();
+
+  // Default delivery address so checkout works end-to-end for the demo customer.
+  db.insert(addresses)
+    .values({
+      id: "addr_1",
+      userId: "usr_customer",
+      recipientName: "Customer",
+      phone: "0900000000",
+      line1: "1 Nguyen Hue",
+      ward: "Ben Nghe",
+      district: "District 1",
+      city: "Ho Chi Minh City",
+      isDefault: true,
+      createdAt: SEEDED_AT,
+    })
     .onConflictDoNothing()
     .run();
 }

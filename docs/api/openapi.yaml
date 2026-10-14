@@ -1,0 +1,344 @@
+openapi: 3.1.0
+info:
+  title: Marketflow API
+  version: "0.1.0"
+  description: >-
+    REST surface under /api/v1. Session-cookie auth (getActor) — mutating routes
+    return 401 UNAUTHORIZED without a session. Errors always serialize as
+    {error: {code, message}} via toErrorResponse.
+paths:
+  /api/v1/health:
+    get:
+      summary: Liveness probe
+      description: No dependency checks; always 200 when the app is up.
+      responses:
+        "200":
+          description: Service is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [status]
+                    properties:
+                      status:
+                        type: string
+                        enum: [ok]
+  /api/v1/cart:
+    get:
+      summary: Current session user's cart
+      responses:
+        "200":
+          description: Cart view, grouped per shop.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/cart/items:
+    post:
+      summary: Add a variant to the cart (additive upsert)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CartAddInput"
+      responses:
+        "200":
+          description: Full cart view after the add.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Variant missing or not sellable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+    delete:
+      summary: Remove one cart line
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CartRemoveInput"
+      responses:
+        "200":
+          description: Full cart view after the removal.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Cart line not found for this user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+  /api/v1/checkout:
+    post:
+      summary: Place an order from cart lines
+      description: >-
+        Single transaction: idempotency replay → server-side repricing →
+        voucher validation → guarded stock reservation → order/seller_order/
+        payment writes. The Idempotency-Key header wins over the body's
+        idempotencyKey field; a completed replay returns the same order.
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutInput"
+      responses:
+        "201":
+          description: Order placed (or idempotent replay).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PlaceOrderResult"
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Address belongs to a different user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: Cart line or address not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "409":
+          description: INSUFFICIENT_STOCK or IDEMPOTENCY_CONFLICT.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "422":
+          description: >-
+            Unprocessable: INVALID_INPUT for shippingByShop keys naming shops
+            not in the order, unknown shipping method, unsupported payment
+            method, or VOUCHER_INVALID. (INVALID_INPUT is 400 for malformed
+            JSON or failed contract validation.)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+components:
+  responses:
+    Unauthorized:
+      description: No valid session.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+    InvalidInput:
+      description: Malformed JSON or failed contract validation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorBody"
+  schemas:
+    ErrorBody:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - UNAUTHORIZED
+                - FORBIDDEN
+                - INVALID_INPUT
+                - NOT_FOUND
+                - INSUFFICIENT_STOCK
+                - VOUCHER_INVALID
+                - IDEMPOTENCY_CONFLICT
+                - INTERNAL
+            message:
+              type: string
+    CartLine:
+      type: object
+      required:
+        - cartItemId
+        - variantId
+        - productId
+        - name
+        - sku
+        - attrs
+        - unitPriceVnd
+        - qty
+        - available
+        - shopId
+        - shopName
+      properties:
+        cartItemId:
+          type: string
+        variantId:
+          type: string
+        productId:
+          type: string
+        name:
+          type: string
+        sku:
+          type: string
+        attrs:
+          type: object
+          additionalProperties: true
+        unitPriceVnd:
+          type: integer
+        qty:
+          type: integer
+        available:
+          type: boolean
+        shopId:
+          type: string
+        shopName:
+          type: string
+    CartView:
+      type: object
+      required: [cartId, items, byShop, subtotalVnd]
+      properties:
+        cartId:
+          type: [string, "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartLine"
+        byShop:
+          type: array
+          items:
+            type: object
+            required: [shopId, shopName, items]
+            properties:
+              shopId:
+                type: string
+              shopName:
+                type: string
+              items:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CartLine"
+        subtotalVnd:
+          type: integer
+    CartResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/CartView"
+    CartAddInput:
+      type: object
+      required: [variantId, qty]
+      properties:
+        variantId:
+          type: string
+          minLength: 1
+        qty:
+          type: integer
+          minimum: 1
+          maximum: 999
+    CartRemoveInput:
+      type: object
+      required: [cartItemId]
+      properties:
+        cartItemId:
+          type: string
+          minLength: 1
+    CheckoutInput:
+      type: object
+      required: [cartItemIds, addressId, paymentMethod]
+      properties:
+        cartItemIds:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: string
+            minLength: 1
+        addressId:
+          type: string
+          minLength: 1
+        shippingByShop:
+          type: object
+          description: shopId → shipping method name; fee priced server-side.
+          additionalProperties:
+            type: string
+            minLength: 1
+          default: {}
+        voucherCodes:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+          default: []
+        paymentMethod:
+          type: string
+          enum: [COD, MOCK_WALLET]
+        idempotencyKey:
+          type: string
+          minLength: 8
+          maxLength: 128
+        simulate:
+          type: string
+          enum: [success, failure]
+          description: Dev option forcing the mock wallet outcome.
+    PlaceOrderResult:
+      type: object
+      required: [orderId, sellerOrderIds, status]
+      properties:
+        orderId:
+          type: string
+        sellerOrderIds:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum:
+            - PENDING_PAYMENT
+            - PAID
+            - PROCESSING
+            - SHIPPED
+            - DELIVERED
+            - COMPLETED
+            - CANCELLED
+            - PAYMENT_FAILED
+            - PARTIALLY_REFUNDED
+            - REFUNDED

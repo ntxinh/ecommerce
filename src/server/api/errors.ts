@@ -7,7 +7,11 @@ export type ErrorCode =
   | "INVALID_CREDENTIALS"
   | "INVALID_INPUT"
   | "INVALID_TOKEN"
-  | "RATE_LIMITED";
+  | "RATE_LIMITED"
+  | "INSUFFICIENT_STOCK"
+  | "VOUCHER_INVALID"
+  | "NOT_FOUND"
+  | "IDEMPOTENCY_CONFLICT";
 
 export class AuthError extends Error {
   constructor(

@@ -7,6 +7,7 @@ import {
   ResetPasswordInput,
   ResetRequestInput,
 } from "@/server/api/contracts/auth";
+import { CartMergeInput } from "@/server/api/contracts/cart";
 import { AuthError } from "@/server/api/errors";
 import { getActor } from "@/server/auth/actor";
 import { clearSessionCookie, getSessionToken, setSessionCookie } from "@/server/auth/cookies";
@@ -14,6 +15,7 @@ import { checkRateLimit } from "@/server/auth/rate-limit";
 import { createSession, revokeSession } from "@/server/auth/sessions";
 import { hashToken } from "@/server/auth/tokens";
 import { getDb } from "@/server/db/client";
+import { mergeGuestCart } from "@/server/modules/cart/service";
 import {
   authenticate,
   createPasswordReset,
@@ -23,7 +25,11 @@ import {
 } from "@/server/modules/identity/service";
 
 export type ActionResult =
-  | { ok: true; redirect?: string }
+  | {
+      ok: true;
+      redirect?: string /** false ⇒ guest cart merge rejected; client keeps its cart */;
+      merged?: boolean;
+    }
   | { ok: false; error: string; fieldErrors?: Record<string, string> };
 
 export type ActionState = ActionResult | null;
@@ -68,8 +74,37 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
 
   const session = await createSession(getDb(), user.id);
   await setSessionCookie(session.token);
-  return { ok: true, redirect: "/" };
+
+  // Guest-cart merge: localStorage lines arrive as a JSON hidden field; the
+  // server cart is authoritative from here on. `merged=false` tells the client
+  // to keep its local cart so nothing is lost on a bad payload.
+  let merged = true;
+  const raw = String(formData.get("guestItems") ?? "");
+  if (raw && raw !== "[]") {
+    let guestItems: unknown;
+    try {
+      guestItems = JSON.parse(raw);
+    } catch {
+      merged = false;
+    }
+    if (merged) {
+      const merge = CartMergeInput.safeParse({ items: guestItems });
+      if (merge.success) {
+        if (merge.data.items.length > 0) mergeGuestCart(getDb(), user.id, merge.data.items);
+      } else {
+        merged = false;
+      }
+    }
+  }
+  // `next` is an internal path (e.g. /checkout) — reject anything else.
+  const next = String(formData.get("next") ?? "");
+  return {
+    ok: true,
+    redirect: next.startsWith("/") && !next.startsWith("//") ? next : "/",
+    merged,
+  };
 }
+
 export async function logoutAction(_prev: ActionState, _formData: FormData): Promise<ActionResult> {
   const token = await getSessionToken();
   if (token) await revokeSession(getDb(), hashToken(token));
