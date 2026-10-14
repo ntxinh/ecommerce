@@ -14,19 +14,25 @@ the design spec §11.
   sessions, password reset, email verification; roles + shop memberships;
   storefront/seller/admin shells with guards; locale + theme switching; demo
   accounts.
-- [ ] **Phase 5 — Transactional checkout and orders** *(next)* — minimal
-  catalog schema needed by checkout, inventory reservations, multi-seller
-  orders, idempotency, state machines, rollback/oversell tests.
-- [ ] **Phase 6 — Payments, shipping, fulfillment** — mock payment adapters,
-  simulated shipping providers, tracking, seller fulfillment UI, cancellation
-  + inventory release.
+- [x] **Phase 5 — Transactional checkout and orders** — minimal catalog
+  schema, inventory reservations, multi-seller orders, idempotency, state
+  machines, rollback/oversell tests, checkout/orders UI, e2e journey +
+  OpenAPI coverage.
+- [ ] **Phase 6 — Payments, shipping, fulfillment** — ~~mock payment
+  adapters,~~ ~~simulated shipping providers,~~ tracking, seller fulfillment
+  UI, cancellation + inventory release. *(In progress: COD + MOCK_WALLET
+  adapters and flat-fee shipping quotes done; MOCK_BANK, tracking UI, seller
+  fulfillment UI deferred to slice 3.)*
 - [ ] **Phase 7 — Returns and marketplace finance** — returns workflow,
   refunds, commission, ledger, settlements.
 - [ ] **Phase 3 — Catalog and discovery** — categories/brands/products/
   variants/images, search, filters, shop storefronts, product management,
   moderation.
-- [ ] **Phase 4 — Cart, pricing, promotions** — carts, server pricing engine,
-  vouchers/promotions, checkout review screens.
+- [ ] **Phase 4 — Cart, pricing, promotions** — ~~carts, server pricing
+  engine, vouchers/promotions, checkout review screens.~~ *(Checkout-side
+  done: server cart + guest merge, pricing engine, vouchers at checkout,
+  review stepper. Standalone cart discovery/management UI remains with
+  Phase 3.)*
 - [ ] **Phase 8 — Engagement and administration** — reviews, notifications,
   admin console, seller onboarding, analytics.
 - [ ] **Phase 9 — Quality and operational hardening** — coverage thresholds,
