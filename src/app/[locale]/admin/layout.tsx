@@ -47,7 +47,12 @@ export default async function AdminLayout({
           <Link href="/admin/applications" className="block hover:underline">
             {ts("applications")}
           </Link>
-          <p className="text-muted-foreground">{ts("usersPlanned")}</p>
+          <Link href="/admin/users" className="block hover:underline">
+            {ts("users")}
+          </Link>
+          <Link href="/admin/audit" className="block hover:underline">
+            {ts("audit")}
+          </Link>
         </nav>
       </aside>
       <div className="flex flex-1 flex-col">

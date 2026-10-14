@@ -60,14 +60,12 @@
     "searchPlaceholder": "Search products",
     "footerTagline": "Buy and sell anything",
     "catalogPlanned": "Planned: product catalog",
-    "metricsPlanned": "Planned: dashboard metrics",
-    "productsPlanned": "Planned: products",
-    "ordersPlanned": "Planned: orders",
-    "usersPlanned": "Planned: users",
     "moderationPlanned": "Planned: seller applications",
     "moderation": "Moderation queue",
     "categories": "Categories",
-    "applications": "Applications"
+    "applications": "Applications",
+    "users": "Users",
+    "audit": "Audit log"
   },
   "catalog": {
     "fromPrice": "From",
@@ -359,6 +357,42 @@
       "NOT_FOUND": "Record not found",
       "INVALID_INPUT": "Action rejected — check the note or the item's current state",
       "INVALID_STATE": "That item was already decided"
+    },
+    "metric": {
+      "ordersToday": "Orders today",
+      "gmvVnd": "GMV (VND)",
+      "customers": "Customers",
+      "sellers": "Sellers",
+      "pendingApplications": "Pending applications",
+      "moderationQueue": "Moderation queue",
+      "pendingReturns": "Pending returns",
+      "lowStock": "Low stock variants"
+    },
+    "usersTitle": "Users",
+    "usersEmpty": "No users match.",
+    "searchUsers": "Search email or name",
+    "search": "Search",
+    "filter": "Filter",
+    "view": "View",
+    "colUser": "User",
+    "colRoles": "Roles",
+    "colCreated": "Created",
+    "colWhen": "When",
+    "colAction": "Action",
+    "colActor": "Actor",
+    "colTarget": "Target",
+    "colMeta": "Meta",
+    "revokeSessions": "Revoke sessions",
+    "memberships": "Shop memberships",
+    "noMemberships": "No shop memberships.",
+    "recentAudit": "Recent audit activity",
+    "auditTitle": "Audit log",
+    "auditEmpty": "No audit rows.",
+    "targetType": "Target type",
+    "targetId": "Target id",
+    "userStatus": {
+      "ACTIVE": "Active",
+      "SUSPENDED": "Suspended"
     }
   },
   "storefront": {
@@ -530,8 +564,7 @@
       "NOT_FOUND": "Review not found",
       "INVALID_INPUT": "Check the rating and fields — or the item was already reviewed"
     }
-  }
-  ,
+  },
   "sellers": {
     "title": "Become a seller",
     "currentStatus": "Your application",

@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import {
   CategoryInput,
   DeleteCategoryInput,
@@ -11,6 +12,7 @@ import { DecideInput, ShopStatusInput } from "@/server/api/contracts/seller";
 import { AuthError } from "@/server/api/errors";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
+import { revokeUserSessions, setUserStatus } from "@/server/modules/admin/service";
 import {
   createCategory,
   deleteCategory,
@@ -119,6 +121,37 @@ export async function setShopStatusAction(formData: FormData): Promise<AdminActi
     if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
     const actor = await getActor();
     setShopStatus(getDb(), actor, parsed.data.shopId, parsed.data.status);
+    return { ok: true };
+  } catch (e) {
+    return toResult(e);
+  }
+}
+
+const UserStatusInput = z.object({
+  userId: z.string().min(1),
+  status: z.enum(["ACTIVE", "SUSPENDED"]),
+});
+
+/** Admin suspend/reactivate for a user; suspend revokes all sessions. */
+export async function setUserStatusAction(formData: FormData): Promise<AdminActionResult> {
+  try {
+    const parsed = UserStatusInput.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
+    const actor = await getActor();
+    setUserStatus(getDb(), actor, parsed.data.userId, parsed.data.status);
+    return { ok: true };
+  } catch (e) {
+    return toResult(e);
+  }
+}
+
+/** Admin force sign-out: revoke every session for a user. */
+export async function revokeUserSessionsAction(formData: FormData): Promise<AdminActionResult> {
+  try {
+    const userId = String(formData.get("userId") ?? "");
+    if (!userId) return { ok: false, error: "INVALID_INPUT" };
+    const actor = await getActor();
+    revokeUserSessions(getDb(), actor, userId);
     return { ok: true };
   } catch (e) {
     return toResult(e);

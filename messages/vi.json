@@ -60,14 +60,12 @@
     "searchPlaceholder": "Tìm sản phẩm",
     "footerTagline": "Mua bán mọi thứ",
     "catalogPlanned": "Dự kiến: danh mục sản phẩm",
-    "metricsPlanned": "Dự kiến: chỉ số tổng quan",
-    "productsPlanned": "Dự kiến: sản phẩm",
-    "ordersPlanned": "Dự kiến: đơn hàng",
-    "usersPlanned": "Dự kiến: người dùng",
     "moderationPlanned": "Dự kiến: đơn đăng ký bán hàng",
     "moderation": "Hàng chờ kiểm duyệt",
     "categories": "Danh mục",
-    "applications": "Đơn đăng ký bán"
+    "applications": "Đơn đăng ký bán",
+    "users": "Người dùng",
+    "audit": "Nhật ký kiểm toán"
   },
   "catalog": {
     "fromPrice": "Từ",
@@ -359,6 +357,42 @@
       "NOT_FOUND": "Không tìm thấy bản ghi",
       "INVALID_INPUT": "Thao tác bị từ chối — kiểm tra lý do hoặc trạng thái hiện tại",
       "INVALID_STATE": "Mục này đã được xử lý"
+    },
+    "metric": {
+      "ordersToday": "Đơn hôm nay",
+      "gmvVnd": "GMV (VND)",
+      "customers": "Khách hàng",
+      "sellers": "Người bán",
+      "pendingApplications": "Đơn đăng ký chờ",
+      "moderationQueue": "Chờ kiểm duyệt",
+      "pendingReturns": "Trả hàng chờ xử lý",
+      "lowStock": "Biến thể sắp hết hàng"
+    },
+    "usersTitle": "Người dùng",
+    "usersEmpty": "Không có người dùng phù hợp.",
+    "searchUsers": "Tìm theo email hoặc tên",
+    "search": "Tìm",
+    "filter": "Lọc",
+    "view": "Xem",
+    "colUser": "Người dùng",
+    "colRoles": "Vai trò",
+    "colCreated": "Ngày tạo",
+    "colWhen": "Thời gian",
+    "colAction": "Hành động",
+    "colActor": "Người thực hiện",
+    "colTarget": "Đối tượng",
+    "colMeta": "Chi tiết",
+    "revokeSessions": "Thu hồi phiên",
+    "memberships": "Thành viên cửa hàng",
+    "noMemberships": "Không thuộc cửa hàng nào.",
+    "recentAudit": "Hoạt động kiểm toán gần đây",
+    "auditTitle": "Nhật ký kiểm toán",
+    "auditEmpty": "Không có bản ghi nào.",
+    "targetType": "Loại đối tượng",
+    "targetId": "Mã đối tượng",
+    "userStatus": {
+      "ACTIVE": "Đang hoạt động",
+      "SUSPENDED": "Bị đình chỉ"
     }
   },
   "storefront": {
