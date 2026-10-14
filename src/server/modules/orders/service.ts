@@ -16,7 +16,7 @@ import {
 } from "@/server/db/schema";
 import { releaseOrderReservations } from "@/server/modules/inventory/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
-import { dispatchMockPayment, type PlaceOrderResult } from "./checkout";
+import { dispatchMockPayment, dispatchStripePayment, type PlaceOrderResult } from "./checkout";
 import { legShareVnd } from "./fulfillment";
 import { transitionOrder, transitionSellerOrder } from "./transitions";
 
@@ -167,7 +167,9 @@ export async function cancelOrder(
 }
 
 /**
- * Retries a PAYMENT_FAILED order: new payment attempt + wallet dispatch.
+ * Retries a PAYMENT_FAILED order: new payment attempt + dispatch.
+ * MOCK_WALLET confirms synchronously; STRIPE mints a fresh Checkout Session
+ * and returns redirectUrl — the browser resumes at Stripe.
  * Reservations stay ACTIVE from the original checkout (TTL may have consumed
  * them — dispatch then rolls back and the order returns to PAYMENT_FAILED).
  */
@@ -176,12 +178,16 @@ export async function retryPayment(
   actor: Actor,
   orderId: string,
   simulate?: "success" | "failure",
+  opts: { origin?: string; locale?: string } = {},
 ): Promise<PlaceOrderResult> {
   const detail = getOrder(db, actor, orderId);
   const payment = detail.payment;
   if (!payment) throw new AuthError("NOT_FOUND", 404, "payment not found");
-  if (payment.method !== "MOCK_WALLET") {
-    throw new AuthError("INVALID_INPUT", 422, "only wallet payments can be retried");
+  if (payment.method !== "MOCK_WALLET" && payment.method !== "STRIPE") {
+    throw new AuthError("INVALID_INPUT", 422, `cannot retry ${payment.method} payments`);
+  }
+  if (payment.method === "STRIPE" && !opts.origin) {
+    throw new AuthError("INVALID_INPUT", 400, "request origin required for stripe checkout");
   }
   const attemptId = db.transaction((tx) => {
     transitionOrder(tx, orderId, "PENDING_PAYMENT", actor);
@@ -198,6 +204,18 @@ export async function retryPayment(
       .run();
     return id;
   });
+  const sellerOrderIds = detail.sellerOrders.map((s) => s.id);
+  if (payment.method === "STRIPE") {
+    const redirectUrl = await dispatchStripePayment(
+      db,
+      orderId,
+      attemptId,
+      payment.amountVnd,
+      opts.origin!,
+      opts.locale ?? "en",
+    );
+    return { orderId, sellerOrderIds, status: "PENDING_PAYMENT", redirectUrl };
+  }
   const outcome = await dispatchMockPayment(
     db,
     "MOCK_WALLET",
@@ -206,9 +224,5 @@ export async function retryPayment(
     attemptId,
     simulate,
   );
-  return {
-    orderId,
-    sellerOrderIds: detail.sellerOrders.map((s) => s.id),
-    status: outcome.orderStatus,
-  };
+  return { orderId, sellerOrderIds, status: outcome.orderStatus };
 }

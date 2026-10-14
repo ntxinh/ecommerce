@@ -102,11 +102,11 @@ beforeAll(() => {
 describe("mockBank provider", () => {
   it("mb_ refs, simulate flag, confirm/refund contract", async () => {
     const bank = paymentProviderFor("MOCK_BANK");
-    const ok = bank.createAttempt({ amountVnd: 1000 });
+    const ok = await bank.createAttempt({ amountVnd: 1000 });
     expect(ok.ref).toMatch(/^mb_/);
     expect(await bank.confirm({ ref: ok.ref })).toBe("PAID");
 
-    const bad = bank.createAttempt({ amountVnd: 1000, simulate: "failure" });
+    const bad = await bank.createAttempt({ amountVnd: 1000, simulate: "failure" });
     expect(await bank.confirm({ ref: bad.ref })).toBe("FAILED");
     expect(await bank.refund({ ref: bad.ref, amountVnd: 500 })).toBe("REFUNDED");
   });

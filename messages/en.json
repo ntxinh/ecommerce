@@ -121,7 +121,16 @@
     "vouchersHint": "Separate multiple codes with spaces or commas",
     "paymentMethods": {
       "COD": "Cash on delivery",
-      "MOCK_WALLET": "Mock wallet (test)"
+      "MOCK_WALLET": "Mock wallet (test)",
+      "STRIPE": "Card (Stripe)"
+    },
+    "pay": {
+      "title": "Payment",
+      "pending": "Your payment is still processing. Complete it at Stripe if you left the checkout window.",
+      "failed": "This payment failed or expired. You can retry with a new checkout session.",
+      "retry": "Retry payment",
+      "continue": "Continue to Stripe",
+      "viewOrders": "View my orders"
     },
     "simulate": "Simulate payment result",
     "simulateNone": "Real outcome",

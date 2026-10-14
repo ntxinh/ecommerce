@@ -2,7 +2,7 @@ import { CheckoutInput } from "@/server/api/contracts/checkout";
 import { AuthError, toErrorResponse } from "@/server/api/errors";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
-import { placeOrder } from "@/server/modules/orders/checkout";
+import { placeOrder, requestOrigin } from "@/server/modules/orders/checkout";
 
 /**
  * POST /api/v1/checkout — place an order. `Idempotency-Key` header wins over
@@ -23,10 +23,15 @@ export async function POST(req: Request) {
       idempotencyKey: req.headers.get("Idempotency-Key") ?? raw.idempotencyKey,
     });
     if (!parsed.success) throw new AuthError("INVALID_INPUT", 400);
-    const result = await placeOrder(getDb(), actor, {
-      ...parsed.data,
-      idempotencyKey: parsed.data.idempotencyKey ?? "",
-    });
+    const result = await placeOrder(
+      getDb(),
+      actor,
+      {
+        ...parsed.data,
+        idempotencyKey: parsed.data.idempotencyKey ?? "",
+      },
+      { origin: requestOrigin(req.headers), locale: "en" },
+    );
     return Response.json({ data: result }, { status: 201 });
   } catch (e) {
     return toErrorResponse(e);

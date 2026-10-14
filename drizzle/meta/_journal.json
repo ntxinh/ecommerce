@@ -57,6 +57,13 @@
       "when": 1791972130289,
       "tag": "0007_slimy_yellow_claw",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791982117431,
+      "tag": "0008_lame_tomas",
+      "breakpoints": true
     }
   ]
 }

@@ -50,6 +50,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
         shippingOptions={shippingOptions}
         byShop={cart.byShop}
         subtotalVnd={cart.subtotalVnd}
+        stripeEnabled={Boolean(process.env.STRIPE_PUBLISHABLE_KEY)}
       />
     </section>
   );

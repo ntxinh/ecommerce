@@ -121,7 +121,16 @@
     "vouchersHint": "Phân tách nhiều mã bằng dấu cách hoặc phẩy",
     "paymentMethods": {
       "COD": "Thanh toán khi nhận hàng",
-      "MOCK_WALLET": "Ví giả lập (thử nghiệm)"
+      "MOCK_WALLET": "Ví giả lập (thử nghiệm)",
+      "STRIPE": "Thẻ (Stripe)"
+    },
+    "pay": {
+      "title": "Thanh toán",
+      "pending": "Thanh toán đang xử lý. Hoàn tất tại Stripe nếu bạn đã rời cửa sổ thanh toán.",
+      "failed": "Thanh toán thất bại hoặc đã hết hạn. Bạn có thể thử lại bằng phiên thanh toán mới.",
+      "retry": "Thử thanh toán lại",
+      "continue": "Tiếp tục tới Stripe",
+      "viewOrders": "Xem đơn hàng"
     },
     "simulate": "Giả lập kết quả thanh toán",
     "simulateNone": "Kết quả thật",

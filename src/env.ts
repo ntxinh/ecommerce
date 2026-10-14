@@ -7,6 +7,10 @@ const EnvSchema = z.object({
   SESSION_COOKIE_NAME: z.string().default("marketflow_session"),
   API_DOCS_ENABLED: z.enum(["true", "false"]).default("false"),
   INTERNAL_CRON_TOKEN: z.string().default("dev-cron-token"),
+  // Stripe is optional: absent keys hide the method and 404 the webhook.
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
 });
 
 export const env = EnvSchema.parse(process.env);

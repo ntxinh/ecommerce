@@ -45,11 +45,13 @@ export function CheckoutForm({
   shippingOptions,
   byShop,
   subtotalVnd,
+  stripeEnabled = false,
 }: {
   addresses: CheckoutAddress[];
   shippingOptions: ShippingOption[];
   byShop: CartShopGroup[];
   subtotalVnd: number;
+  stripeEnabled?: boolean;
 }) {
   const t = useTranslations("checkout");
   const locale = useLocale();
@@ -77,6 +79,7 @@ export function CheckoutForm({
   return (
     <form action={dispatch} className="space-y-6">
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+      <input type="hidden" name="locale" value={locale} />
 
       <nav aria-label={t("stepsLabel")} className="flex flex-wrap gap-2">
         {CHECKOUT_STEPS.map((s, i) => (
@@ -169,7 +172,10 @@ export function CheckoutForm({
           </div>
           <Separator />
           <div className="space-y-2">
-            {(["COD", "MOCK_WALLET"] as const).map((m, i) => (
+            {(stripeEnabled
+              ? (["COD", "MOCK_WALLET", "STRIPE"] as const)
+              : (["COD", "MOCK_WALLET"] as const)
+            ).map((m, i) => (
               <Label key={m} className="flex items-center gap-2 font-normal">
                 <input type="radio" name="paymentMethod" value={m} defaultChecked={i === 0} />
                 {t(`paymentMethods.${m}`)}

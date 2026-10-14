@@ -1,5 +1,7 @@
 "use server";
 
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { ulid } from "ulidx";
 import { z } from "zod";
 import { AuthError } from "@/server/api/errors";
@@ -8,7 +10,8 @@ import type { DB } from "@/server/db/client";
 import { getDb } from "@/server/db/client";
 import { addresses } from "@/server/db/schema";
 import { clearCart, getCart } from "@/server/modules/cart/service";
-import { placeOrder } from "@/server/modules/orders/checkout";
+import { placeOrder, requestOrigin } from "@/server/modules/orders/checkout";
+import { retryPayment } from "@/server/modules/orders/service";
 
 export type CheckoutActionResult = { ok: true; orderId: string } | { ok: false; error: string };
 
@@ -74,25 +77,60 @@ export async function placeOrderAction(
       .filter(Boolean);
 
     const paymentMethod = formData.get("paymentMethod");
-    if (paymentMethod !== "COD" && paymentMethod !== "MOCK_WALLET") {
+    const stripeOn = Boolean(process.env.STRIPE_PUBLISHABLE_KEY);
+    if (
+      paymentMethod !== "COD" &&
+      paymentMethod !== "MOCK_WALLET" &&
+      !(paymentMethod === "STRIPE" && stripeOn)
+    ) {
       return { ok: false, error: "INVALID_INPUT" };
     }
     const simulate = formData.get("simulate");
 
-    const result = await placeOrder(db, actor, {
-      cartItemIds: cart.items.map((i) => i.cartItemId),
-      addressId,
-      shippingByShop,
-      voucherCodes,
-      paymentMethod,
-      idempotencyKey: String(formData.get("idempotencyKey") ?? `ui_${ulid()}`),
-      simulate: simulate === "success" || simulate === "failure" ? simulate : undefined,
-    });
+    const result = await placeOrder(
+      db,
+      actor,
+      {
+        cartItemIds: cart.items.map((i) => i.cartItemId),
+        addressId,
+        shippingByShop,
+        voucherCodes,
+        paymentMethod,
+        idempotencyKey: String(formData.get("idempotencyKey") ?? `ui_${ulid()}`),
+        simulate: simulate === "success" || simulate === "failure" ? simulate : undefined,
+      },
+      {
+        origin: requestOrigin(await headers()),
+        locale: String(formData.get("locale") ?? "en"),
+      },
+    );
 
     clearCart(db, actor.userId);
+    // STRIPE: the order is placed but unpaid — hand the browser to Stripe's
+    // hosted Checkout. redirect() throws; the client never sees a result.
+    if (result.redirectUrl) redirect(result.redirectUrl);
     return { ok: true, orderId: result.orderId };
   } catch (e) {
     if (e instanceof AuthError) return { ok: false, error: e.code };
     throw e;
   }
+}
+
+/**
+ * Pay-page retry for a wedged Stripe order: mints a fresh Checkout Session
+ * and sends the browser back to Stripe.
+ */
+export async function retryStripePayment(
+  orderId: string,
+  locale: string,
+  _formData: FormData,
+): Promise<void> {
+  const actor = await getActor();
+  if (!actor) redirect(`/${locale}/login`);
+  const result = await retryPayment(getDb(), actor, orderId, undefined, {
+    origin: requestOrigin(await headers()),
+    locale,
+  });
+  if (result.redirectUrl) redirect(result.redirectUrl);
+  redirect(`/${locale}/checkout/pay/${orderId}`);
 }

@@ -375,7 +375,7 @@ erDiagram
   payments {
     text id PK
     text order_id FK
-    text method "COD|MOCK_WALLET|MOCK_BANK"
+    text method "COD|MOCK_WALLET|MOCK_BANK|STRIPE"
     text status "PENDING|AUTHORIZED|PAID|FAILED|REFUNDED|EXPIRED"
     integer amount_vnd
     integer created_at
@@ -386,6 +386,7 @@ erDiagram
     text payment_id FK
     text status "same enum as payments"
     text simulate "nullable dev override"
+    text provider_ref "nullable; Stripe session id — webhook dedupe key"
     text idempotency_key
     integer created_at
   }
