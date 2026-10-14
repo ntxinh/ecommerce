@@ -407,6 +407,12 @@ erDiagram
   }
 ```
 
+Carrier-adapter seam: `shipments.provider`/`tracking_number` are seller-entered
+today (no carrier API). Real providers (Viettel/GHN — deferred) will add
+`provider_ref` columns on `shipments` and `tracking_events` mirroring
+`payment_attempts.provider_ref`: the provider's object id and remote event id
+for webhook dedupe.
+
 ## Idempotency and audit
 
 ```mermaid
