@@ -2,9 +2,10 @@
 
 **Status: Partially implemented** — identity, sellers, settings, addresses,
 catalog (+ images/attributes/moderation), reviews, search history, inventory,
-pricing, cart, orders/payments/shipments, idempotency and audit tables exist
-(`drizzle/0000_*.sql` … `0007_*.sql`). Remaining groups (returns,
-notifications, ledger/settlements, wishlists) are Planned per the roadmap.
+pricing, cart, orders/payments/shipments, returns/refunds, financial ledger,
+seller settlements, notifications, wishlists, idempotency and audit tables
+exist (`drizzle/0000_*.sql` … `0009_*.sql`). Search indexes remain Planned
+per the roadmap.
 
 ## Conventions
 
@@ -413,6 +414,142 @@ today (no carrier API). Real providers (Viettel/GHN — deferred) will add
 `payment_attempts.provider_ref`: the provider's object id and remote event id
 for webhook dedupe.
 
+## Returns and refunds
+
+```mermaid
+erDiagram
+  seller_orders ||--o{ return_requests : "idx (seller_order_id, status)"
+  orders ||--o{ return_requests : scopes
+  users ||--o{ return_requests : files
+  return_requests ||--o{ return_items : "cascade"
+  order_items ||--o{ return_items : returns
+  payments ||--o{ refunds : issued
+  return_items |o--o| refunds : "unique(return_item_id); NULL = cancellation"
+
+  return_requests {
+    text id PK
+    text seller_order_id FK
+    text order_id FK
+    text user_id FK
+    text status "PENDING|APPROVED|REJECTED|REFUNDED|DISPUTED"
+    text reason
+    text evidence_json "JSON array"
+    text decided_by FK "nullable"
+    integer decided_at "nullable"
+    text decision_note "nullable"
+    integer created_at
+  }
+  return_items {
+    text id PK
+    text return_request_id FK "cascade"
+    text order_item_id FK
+    integer qty
+    integer restock "boolean"
+    integer refund_vnd
+  }
+  refunds {
+    text id PK
+    text payment_id FK
+    text return_item_id FK "nullable UK — one refund per returned item"
+    integer amount_vnd
+    text status "PENDING|COMPLETED|FAILED"
+    text reason
+    integer created_at
+  }
+```
+
+## Financial ledger and settlements
+
+Append-only `financial_ledger_entries` is the book of record: signed
+`amount_vnd` per `account` (`CUSTOMER_PAYABLE`, `PLATFORM_REVENUE`,
+`SELLER_PAYABLE`, `REFUNDS_PAYABLE`), keyed by `(ref_type, ref_id)` —
+`ORDER` / `REFUND` / `SETTLEMENT`. Settlements batch paid seller legs;
+`settlement_items.seller_order_id` is unique so a leg settles at most once.
+
+```mermaid
+erDiagram
+  shops ||--o{ financial_ledger_entries : "idx (account, shop_id)"
+  shops ||--o{ seller_settlements : "idx (shop_id, status)"
+  seller_settlements ||--o{ settlement_items : "cascade"
+  seller_orders ||--o| settlement_items : "unique(seller_order_id)"
+
+  financial_ledger_entries {
+    text id PK
+    text account "CUSTOMER_PAYABLE|PLATFORM_REVENUE|SELLER_PAYABLE|REFUNDS_PAYABLE"
+    text shop_id FK "nullable"
+    integer amount_vnd "signed"
+    text ref_type "ORDER|REFUND|SETTLEMENT"
+    text ref_id "indexed with ref_type"
+    text meta_json
+    integer created_at
+  }
+  seller_settlements {
+    text id PK
+    text shop_id FK
+    text status "PENDING|PAID"
+    integer gross_vnd
+    integer commission_vnd
+    integer refund_vnd
+    integer net_vnd
+    integer created_at
+    integer paid_at "nullable"
+  }
+  settlement_items {
+    text id PK
+    text settlement_id FK "cascade"
+    text seller_order_id FK UK
+    integer gross_vnd
+    integer commission_vnd
+    integer net_vnd
+  }
+```
+
+## Notifications
+
+```mermaid
+erDiagram
+  users ||--o{ notifications : "idx (user_id, read_at), cascade"
+  users ||--o{ notification_preferences : configures
+
+  notifications {
+    text id PK
+    text user_id FK "cascade"
+    text type "account|seller_application|order|payment|shipment|return|voucher"
+    text title
+    text body
+    text href "nullable"
+    integer read_at "nullable = unread"
+    integer created_at
+  }
+  notification_preferences {
+    text user_id PK,FK "composite PK (user_id, type), cascade"
+    text type PK
+    integer enabled "boolean"
+  }
+```
+
+## Wishlists
+
+```mermaid
+erDiagram
+  users ||--|| wishlists : "unique(user_id), cascade"
+  wishlists ||--o{ wishlist_items : "cascade"
+  products ||--o{ wishlist_items : "unique(wishlist_id, product_id), cascade"
+
+  wishlists {
+    text id PK
+    text user_id FK UK "cascade"
+    integer created_at
+  }
+  wishlist_items {
+    text id PK
+    text wishlist_id FK "cascade"
+    text product_id FK "cascade"
+    integer created_at
+  }
+```
+
+
 ## Idempotency and audit
 
 ```mermaid
@@ -438,8 +575,7 @@ erDiagram
 
 ## Planned entity groups
 
-Per design spec §3: returns, notifications, financial_ledger_entries
-+ seller_settlements, wishlists, search indexes.
+Per design spec §3: search indexes.
 
 ## Migrations
 

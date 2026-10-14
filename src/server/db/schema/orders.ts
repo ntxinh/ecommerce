@@ -233,6 +233,93 @@ export const trackingEvents = sqliteTable(
   (t) => [index("tracking_events_shipment_idx").on(t.shipmentId)],
 );
 
+export const returnRequests = sqliteTable(
+  "return_requests",
+  {
+    id: text("id").primaryKey(),
+    sellerOrderId: text("seller_order_id")
+      .notNull()
+      .references(() => sellerOrders.id),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => orders.id),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    status: text("status", { enum: ["PENDING", "APPROVED", "REJECTED", "REFUNDED", "DISPUTED"] })
+      .notNull()
+      .default("PENDING"),
+    reason: text("reason").notNull(),
+    evidenceJson: text("evidence_json").notNull().default("[]"),
+    decidedBy: text("decided_by").references(() => users.id),
+    decidedAt: integer("decided_at"),
+    decisionNote: text("decision_note"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    index("return_requests_so_idx").on(t.sellerOrderId, t.status),
+    index("return_requests_user_idx").on(t.userId),
+  ],
+);
+
+export const returnItems = sqliteTable(
+  "return_items",
+  {
+    id: text("id").primaryKey(),
+    returnRequestId: text("return_request_id")
+      .notNull()
+      .references(() => returnRequests.id, { onDelete: "cascade" }),
+    orderItemId: text("order_item_id")
+      .notNull()
+      .references(() => orderItems.id),
+    qty: integer("qty").notNull(),
+    restock: integer("restock", { mode: "boolean" }).notNull().default(false),
+    refundVnd: integer("refund_vnd").notNull(),
+  },
+  (t) => [index("return_items_req_idx").on(t.returnRequestId)],
+);
+
+export const refunds = sqliteTable(
+  "refunds",
+  {
+    id: text("id").primaryKey(),
+    paymentId: text("payment_id")
+      .notNull()
+      .references(() => payments.id),
+    returnItemId: text("return_item_id").references(() => returnItems.id), // NULL = cancellation refund
+    amountVnd: integer("amount_vnd").notNull(),
+    status: text("status", { enum: ["PENDING", "COMPLETED", "FAILED"] })
+      .notNull()
+      .default("PENDING"),
+    reason: text("reason").notNull().default(""),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("refunds_return_item_uidx").on(t.returnItemId)],
+);
+
+export const wishlists = sqliteTable("wishlists", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" })
+    .unique(),
+  createdAt: integer("created_at").notNull(),
+});
+export const wishlistItems = sqliteTable(
+  "wishlist_items",
+  {
+    id: text("id").primaryKey(),
+    wishlistId: text("wishlist_id")
+      .notNull()
+      .references(() => wishlists.id, { onDelete: "cascade" }),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("wishlist_items_uidx").on(t.wishlistId, t.productId)],
+);
+
 export const idempotencyRecords = sqliteTable("idempotency_records", {
   key: text("key").primaryKey(),
   userId: text("user_id")
