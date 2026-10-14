@@ -1,6 +1,7 @@
 // Session + order reads happen at request time; block instead of instant-shell.
 export const instant = false;
 
+import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
@@ -14,11 +15,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DisputeButton } from "@/features/returns/queue";
+import { loadReturnRows } from "@/features/returns/queue-data";
+import { ReturnForm } from "@/features/returns/return-form";
 import { Link } from "@/i18n/navigation";
 import { formatDate, formatVnd } from "@/lib/format";
 import { AuthError } from "@/server/api/errors";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
+import { returnRequests } from "@/server/db/schema";
+import { settingNumber } from "@/server/db/settings";
+import { deliveredAt } from "@/server/modules/orders/fulfillment";
 import { getOrder, type OrderDetail } from "@/server/modules/orders/service";
 export default async function OrderDetailPage({
   params,
@@ -30,14 +37,28 @@ export default async function OrderDetailPage({
   const actor = await getActor();
   if (!actor) notFound();
 
+  const db = getDb();
   let detail: OrderDetail;
   try {
-    detail = getOrder(getDb(), actor, id);
+    detail = getOrder(db, actor, id);
   } catch (e) {
     if (e instanceof AuthError) notFound();
     throw e;
   }
   const { order, sellerOrders, items, payment, shipments, trackingEvents } = detail;
+  const tr = await getTranslations({ locale, namespace: "returns" });
+  // This order's return requests (owned legs only — getOrder forbids strangers).
+  const orderReturns = db
+    .select()
+    .from(returnRequests)
+    .where(eq(returnRequests.orderId, order.id))
+    .all();
+  const returnDetails = loadReturnRows(
+    db,
+    orderReturns.map((r) => r.id),
+  );
+  const windowMs = settingNumber(db, "return_window_days", 7) * 86_400_000;
+  const isOwner = actor.userId === order.userId;
 
   const address = JSON.parse(order.addressSnapshotJson) as {
     recipientName: string;
@@ -127,6 +148,13 @@ export default async function OrderDetailPage({
       {sellerOrders.map((so) => {
         const shipment = shipments.find((s) => s.sellerOrderId === so.id);
         const events = shipment ? trackingEvents.filter((ev) => ev.shipmentId === shipment.id) : [];
+        const legReturns = orderReturns.filter((r) => r.sellerOrderId === so.id);
+        const delivered = deliveredAt(db, so.id);
+        const canReturn =
+          isOwner &&
+          (so.status === "DELIVERED" || so.status === "COMPLETED") &&
+          delivered !== null &&
+          Date.now() - delivered <= windowMs;
         return (
           <Card key={so.id}>
             <CardHeader>
@@ -160,6 +188,39 @@ export default async function OrderDetailPage({
                       ))}
                     </ol>
                   ) : null}
+                </div>
+              ) : null}
+              {legReturns.length > 0 ? (
+                <div className="space-y-1">
+                  <p className="font-medium">{tr("requestsTitle")}</p>
+                  {legReturns.map((r) => (
+                    <div key={r.id} className="flex items-center gap-2 text-sm">
+                      <Badge variant="outline">{tr(`status.${r.status}`)}</Badge>
+                      <span className="text-muted-foreground">
+                        {(returnDetails.get(r.id)?.lines ?? [])
+                          .map((l) => `${l.name} ×${l.qty}`)
+                          .join(", ")}
+                        {r.decisionNote ? ` — ${r.decisionNote}` : ""}
+                      </span>
+                      {r.status === "REJECTED" ? <DisputeButton returnRequestId={r.id} /> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {canReturn ? (
+                <div className="space-y-2">
+                  <p className="font-medium">{tr("requestReturn")}</p>
+                  <ReturnForm
+                    sellerOrderId={so.id}
+                    items={items
+                      .filter((i) => i.sellerOrderId === so.id)
+                      .map((i) => ({
+                        orderItemId: i.id,
+                        name: i.nameSnapshot,
+                        sku: i.skuSnapshot,
+                        qty: i.qty,
+                      }))}
+                  />
                 </div>
               ) : null}
             </CardContent>

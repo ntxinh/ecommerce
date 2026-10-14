@@ -26,6 +26,7 @@ export default async function AdminLayout({
 
   const tn = await getTranslations({ locale, namespace: "nav" });
   const ts = await getTranslations({ locale, namespace: "shell" });
+  const tr = await getTranslations({ locale, namespace: "returns" });
 
   return (
     <div className="flex min-h-screen">
@@ -39,6 +40,9 @@ export default async function AdminLayout({
           </Link>
           <Link href="/admin/categories" className="block hover:underline">
             {ts("categories")}
+          </Link>
+          <Link href="/admin/refunds" className="block hover:underline">
+            {tr("refundsTitle")}
           </Link>
           <p className="text-muted-foreground">{ts("usersPlanned")}</p>
         </nav>

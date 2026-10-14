@@ -385,5 +385,60 @@
       "popular": "Bán chạy"
     },
     "imageN": "Ảnh {n}"
+  },
+  "returns": {
+    "requestReturn": "Yêu cầu trả hàng",
+    "requestSubmit": "Gửi yêu cầu trả hàng",
+    "requestsTitle": "Yêu cầu trả hàng",
+    "reason": "Lý do",
+    "reasonPlaceholder": "Tại sao bạn muốn trả hàng?",
+    "evidence": "Link minh chứng (không bắt buộc)",
+    "evidencePlaceholder": "https://…, https://… (tối đa 5)",
+    "qty": "Số lượng",
+    "restock": "Nhập lại kho",
+    "dispute": "Khiếu nại quyết định",
+    "queueTitle": "Yêu cầu trả hàng",
+    "queueEmpty": "Chưa có yêu cầu trả hàng nào.",
+    "filterPending": "Đang chờ",
+    "filterAll": "Tất cả",
+    "nextPage": "Cũ hơn",
+    "colRequest": "Yêu cầu",
+    "colItems": "Sản phẩm",
+    "colStatus": "Trạng thái",
+    "colRefund": "Hoàn tiền",
+    "colActions": "Thao tác",
+    "colRefundId": "Hoàn tiền",
+    "colPayment": "Thanh toán",
+    "colReturnItem": "Mục trả hàng",
+    "colAmount": "Số tiền",
+    "colDate": "Ngày",
+    "notePlaceholder": "Ghi chú quyết định (không bắt buộc)",
+    "approve": "Duyệt",
+    "reject": "Từ chối",
+    "refundsTitle": "Hoàn tiền",
+    "refundsEmpty": "Chưa có giao dịch hoàn tiền.",
+    "disputedTitle": "Trả hàng đang khiếu nại",
+    "disputedHint": "Các yêu cầu được khiếu nại chờ quản trị viên phán quyết — duyệt hoặc từ chối.",
+    "disputedEmpty": "Không có trả hàng nào đang khiếu nại.",
+    "status": {
+      "PENDING": "Đang chờ",
+      "APPROVED": "Đã duyệt",
+      "REJECTED": "Bị từ chối",
+      "REFUNDED": "Đã hoàn tiền",
+      "DISPUTED": "Đang khiếu nại"
+    },
+    "refundStatus": {
+      "PENDING": "Đang chờ",
+      "COMPLETED": "Hoàn tất",
+      "FAILED": "Thất bại"
+    },
+    "errors": {
+      "UNAUTHORIZED": "Vui lòng đăng nhập",
+      "FORBIDDEN": "Bạn không thể quản lý yêu cầu trả hàng này",
+      "NOT_FOUND": "Không tìm thấy yêu cầu trả hàng",
+      "INVALID_INPUT": "Kiểm tra lại số lượng và lý do",
+      "INVALID_STATE": "Thao tác không hợp lệ với trạng thái hiện tại",
+      "RETURN_WINDOW_EXPIRED": "Đã quá thời hạn trả hàng"
+    }
   }
 }

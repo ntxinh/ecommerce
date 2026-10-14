@@ -26,6 +26,7 @@ export default async function SellerLayout({
   }
 
   const tSeller = await getTranslations({ locale, namespace: "seller" });
+  const tr = await getTranslations({ locale, namespace: "returns" });
   const tn = await getTranslations({ locale, namespace: "nav" });
 
   return (
@@ -40,6 +41,9 @@ export default async function SellerLayout({
           </Link>
           <Link href="/seller/orders" className="block hover:underline">
             {tSeller("ordersTitle")}
+          </Link>
+          <Link href="/seller/returns" className="block hover:underline">
+            {tr("queueTitle")}
           </Link>
         </nav>
       </aside>

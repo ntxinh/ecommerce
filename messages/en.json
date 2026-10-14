@@ -385,5 +385,60 @@
       "popular": "Best sellers"
     },
     "imageN": "Image {n}"
+  },
+  "returns": {
+    "requestReturn": "Request a return",
+    "requestSubmit": "Submit return request",
+    "requestsTitle": "Return requests",
+    "reason": "Reason",
+    "reasonPlaceholder": "Why are you returning this?",
+    "evidence": "Evidence URLs (optional)",
+    "evidencePlaceholder": "https://…, https://… (max 5)",
+    "qty": "Qty",
+    "restock": "Restock",
+    "dispute": "Dispute decision",
+    "queueTitle": "Return requests",
+    "queueEmpty": "No return requests.",
+    "filterPending": "Pending",
+    "filterAll": "All",
+    "nextPage": "Older",
+    "colRequest": "Request",
+    "colItems": "Items",
+    "colStatus": "Status",
+    "colRefund": "Refund",
+    "colActions": "Actions",
+    "colRefundId": "Refund",
+    "colPayment": "Payment",
+    "colReturnItem": "Return item",
+    "colAmount": "Amount",
+    "colDate": "Date",
+    "notePlaceholder": "Decision note (optional)",
+    "approve": "Approve",
+    "reject": "Reject",
+    "refundsTitle": "Refunds",
+    "refundsEmpty": "No refunds recorded.",
+    "disputedTitle": "Disputed returns",
+    "disputedHint": "Escalated requests awaiting admin adjudication — approve or reject.",
+    "disputedEmpty": "No disputed returns.",
+    "status": {
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "REFUNDED": "Refunded",
+      "DISPUTED": "Disputed"
+    },
+    "refundStatus": {
+      "PENDING": "Pending",
+      "COMPLETED": "Completed",
+      "FAILED": "Failed"
+    },
+    "errors": {
+      "UNAUTHORIZED": "Please sign in",
+      "FORBIDDEN": "You can't manage this return",
+      "NOT_FOUND": "Return request not found",
+      "INVALID_INPUT": "Check the quantities and reason",
+      "INVALID_STATE": "That action isn't allowed for the current status",
+      "RETURN_WINDOW_EXPIRED": "The return window has expired"
+    }
   }
 }
