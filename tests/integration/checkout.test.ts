@@ -320,7 +320,8 @@ describe("placeOrder", () => {
     );
     // Seller confirm on the unpaid parent is gated (422) — so the seller side
     // can never pin an unpaid order open.
-    const so = db.select().from(sellerOrders).where(eq(sellerOrders.orderId, res.orderId)).get()!;
+    const so = db.select().from(sellerOrders).where(eq(sellerOrders.orderId, res.orderId)).get();
+    if (!so) throw new Error("seller order missing");
     expect(await errorCode(() => transitionSellerOrder(db, so.id, "CONFIRMED", SHOP2_OWNER))).toBe(
       "INVALID_INPUT",
     );

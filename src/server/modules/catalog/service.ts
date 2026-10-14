@@ -669,9 +669,11 @@ export function listProductReviews(
   const where: SQL[] = [eq(reviews.productId, productId), eq(reviews.status, "PUBLISHED")];
   if (opts.cursor) {
     const c = decodeReviewCursor(opts.cursor);
-    where.push(
-      or(lt(reviews.createdAt, c.c), and(eq(reviews.createdAt, c.c), lt(reviews.id, c.i)))!,
+    const pred = or(
+      lt(reviews.createdAt, c.c),
+      and(eq(reviews.createdAt, c.c), lt(reviews.id, c.i)),
     );
+    if (pred) where.push(pred);
   }
   const rows = db
     .select({

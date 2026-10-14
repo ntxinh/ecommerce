@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, eq, sql } from "drizzle-orm";
 import { ulid } from "ulidx";
+import { AuthError } from "@/server/api/errors";
 import type { DB } from "@/server/db/client";
 import {
   financialLedgerEntries,
@@ -70,7 +71,8 @@ export function postOrderRecognition(tx: Tx, orderId: string): void {
     .get();
   if (already) return;
 
-  const order = tx.select().from(orders).where(eq(orders.id, orderId)).get()!;
+  const order = tx.select().from(orders).where(eq(orders.id, orderId)).get();
+  if (!order) throw new AuthError("NOT_FOUND", 404, `order ${orderId} not found`);
   post(tx, {
     account: "CUSTOMER_PAYABLE",
     amountVnd: order.totalVnd,
