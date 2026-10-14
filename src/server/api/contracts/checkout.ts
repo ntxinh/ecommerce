@@ -7,7 +7,7 @@ export const CheckoutInput = z.object({
   // shopId → method name; fee is priced server-side from settings.
   shippingByShop: z.record(z.string().min(1), z.string().min(1)).default({}),
   voucherCodes: z.array(z.string().trim().min(1).max(64)).max(20).default([]),
-  paymentMethod: z.enum(["COD", "MOCK_WALLET", "MOCK_BANK", "STRIPE"]),
+  paymentMethod: z.enum(["COD", "MOCK_WALLET", "MOCK_BANK", "STRIPE", "FINIX"]),
   // Optional in body — the Idempotency-Key header is authoritative.
   idempotencyKey: z.string().min(8).max(128).optional(),
   simulate: z.enum(["success", "failure"]).optional(),

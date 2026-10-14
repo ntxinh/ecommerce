@@ -225,6 +225,30 @@ paths:
           description: Signature verification failed.
         "404":
           description: Stripe webhook not configured on this deployment.
+  /api/v1/webhooks/finix:
+    post:
+      summary: Finix webhook sink
+      description: >-
+        Unauthenticated but signature-verified (Finix-Signature header
+        `timestamp=<epoch>,sig=<hex>` → HMAC-SHA256 of "<ts>:<body>" against
+        FINIX_WEBHOOK_SECRET, the webhook's secret_signing_key). Handles
+        transfer created/updated events carrying state SUCCEEDED/FAILED;
+        resolves the attempt via checkout_form_id / tags / external_ref and
+        dedupes on payment_attempts. 404 when the secret isn't configured,
+        400 on a bad signature.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Event acknowledged (handled, ignored, or unknown ref).
+        "400":
+          description: Signature verification failed.
+        "404":
+          description: Finix webhook not configured on this deployment.
   /api/v1/search:
     get:
       summary: Search products or fetch autocomplete suggestions
@@ -531,7 +555,7 @@ components:
           default: []
         paymentMethod:
           type: string
-          enum: [COD, MOCK_WALLET, MOCK_BANK, STRIPE]
+          enum: [COD, MOCK_WALLET, MOCK_BANK, STRIPE, FINIX]
         idempotencyKey:
           type: string
           minLength: 8
@@ -566,5 +590,5 @@ components:
         redirectUrl:
           type: string
           description: >-
-            STRIPE only — hosted Checkout URL the client must redirect to;
-            the order stays PENDING_PAYMENT until the webhook settles it.
+            STRIPE/FINIX only — hosted checkout URL the client must redirect
+            to; the order stays PENDING_PAYMENT until the webhook settles it.

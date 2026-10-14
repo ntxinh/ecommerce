@@ -123,7 +123,8 @@
       "COD": "Thanh toán khi nhận hàng",
       "MOCK_WALLET": "Ví giả lập (thử nghiệm)",
       "MOCK_BANK": "Chuyển khoản ngân hàng (thử nghiệm)",
-      "STRIPE": "Thẻ (Stripe)"
+      "STRIPE": "Thẻ (Stripe)",
+      "FINIX": "Thẻ (Finix)"
     },
     "pay": {
       "title": "Thanh toán",
@@ -131,6 +132,14 @@
       "failed": "Thanh toán thất bại hoặc đã hết hạn. Bạn có thể thử lại bằng phiên thanh toán mới.",
       "retry": "Thử thanh toán lại",
       "continue": "Tiếp tục tới Stripe",
+      "viewOrders": "Xem đơn hàng"
+    },
+    "payFinix": {
+      "title": "Thanh toán",
+      "pending": "Thanh toán đang xử lý. Hoàn tất tại Finix nếu bạn đã rời cửa sổ thanh toán.",
+      "failed": "Thanh toán thất bại hoặc đã hết hạn. Bạn có thể thử lại bằng phiên thanh toán mới.",
+      "retry": "Thử thanh toán lại",
+      "continue": "Tiếp tục tới Finix",
       "viewOrders": "Xem đơn hàng"
     },
     "simulate": "Giả lập kết quả thanh toán",

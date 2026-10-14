@@ -3,6 +3,7 @@ import "server-only";
 import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
 import type { payments } from "@/server/db/schema";
+import { finixCard } from "./finix";
 import { stripeCard } from "./stripe";
 
 export type PaymentMethod = (typeof payments.$inferSelect)["method"];
@@ -71,6 +72,7 @@ const PROVIDERS: Partial<Record<PaymentMethod, PaymentProvider>> = {
   MOCK_BANK: simulatedProvider("mb_"),
   // Lazy import would split the seam; stripe.ts is small — static is fine.
   STRIPE: stripeCard,
+  FINIX: finixCard,
 };
 
 export function paymentProviderFor(method: PaymentMethod): PaymentProvider {

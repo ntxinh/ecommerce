@@ -27,6 +27,7 @@ import {
   reserveStock,
   sweepExpiredReservations,
 } from "@/server/modules/inventory/service";
+import { finixCheckoutLink, getFinix } from "@/server/modules/payments/finix";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
 import { getStripe } from "@/server/modules/payments/stripe";
 import {
@@ -45,7 +46,7 @@ export type CheckoutInput = {
   /** shopId → method name (validated + priced from settings server-side). */
   shippingByShop: Record<string, string>;
   voucherCodes: string[];
-  paymentMethod: "COD" | "MOCK_WALLET" | "MOCK_BANK" | "STRIPE";
+  paymentMethod: "COD" | "MOCK_WALLET" | "MOCK_BANK" | "STRIPE" | "FINIX";
   idempotencyKey: string;
   simulate?: "success" | "failure";
 };
@@ -133,13 +134,15 @@ export async function dispatchMockPayment(
   return persistPaymentOutcome(db, paymentId, paymentStatus, attemptId);
 }
 
-/** Post-commit Stripe dispatch: create a Checkout Session for the attempt and
- *  record `providerRef` (session id) — the webhook/return-page dedupe key.
- *  The attempt stays PENDING until Stripe settles it. A session-create failure
- *  can't roll back the committed order — wedge it PAYMENT_FAILED (attempt
- *  FAILED + audit) so the pay page offers a retry instead of a dead order. */
-export async function dispatchStripePayment(
+/** Post-commit hosted-checkout dispatch (Stripe session / Finix form): creates
+ *  the provider checkout for the attempt and records `providerRef` — the
+ *  webhook/return-page dedupe key. The attempt stays PENDING until the
+ *  provider settles it. A create failure can't roll back the committed order —
+ *  wedge it PAYMENT_FAILED (attempt FAILED + audit) so the pay page offers a
+ *  retry instead of a dead order. */
+export async function dispatchHostedPayment(
   db: DB,
+  method: "STRIPE" | "FINIX",
   orderId: string,
   paymentId: string,
   attemptId: string,
@@ -148,7 +151,7 @@ export async function dispatchStripePayment(
   locale: string,
 ): Promise<{ redirectUrl?: string; orderStatus: OrderStatus }> {
   try {
-    const { ref, redirectUrl } = await paymentProviderFor("STRIPE").createAttempt({
+    const { ref, redirectUrl } = await paymentProviderFor(method).createAttempt({
       amountVnd,
       orderId,
       attemptId,
@@ -170,7 +173,7 @@ export async function dispatchStripePayment(
       .values({
         id: `aud_${ulid()}`,
         actorId: null,
-        action: "payment.stripe_session_failed",
+        action: `payment.${method.toLowerCase()}_checkout_failed`,
         targetType: "order",
         targetId: orderId,
         metaJson: JSON.stringify({ detail: e instanceof Error ? e.message : String(e) }),
@@ -183,7 +186,7 @@ export async function dispatchStripePayment(
   }
 }
 
-/** Resolves the absolute request origin for Stripe return URLs. */
+/** Resolves the absolute request origin for hosted-checkout return URLs. */
 export function requestOrigin(headers: Headers): string {
   return (
     headers.get("origin") ??
@@ -229,10 +232,12 @@ export async function placeOrder(
       ) as PlaceOrderResult;
       const live = db.select({ s: orders.status }).from(orders).where(eq(orders.id, orderId)).get();
       const status = live?.s ?? "PENDING_PAYMENT";
-      // Replay of a still-pending Stripe order must re-issue the Checkout
-      // link — the original redirectUrl was never persisted.
-      if (status === "PENDING_PAYMENT" && input.paymentMethod === "STRIPE") {
-        const stripe = getStripe();
+      // Replay of a still-pending hosted-checkout order must re-issue the
+      // redirect link — the original redirectUrl was never persisted.
+      if (
+        status === "PENDING_PAYMENT" &&
+        (input.paymentMethod === "STRIPE" || input.paymentMethod === "FINIX")
+      ) {
         const paymentId = db
           .select({ id: payments.id })
           .from(payments)
@@ -247,25 +252,43 @@ export async function placeOrder(
             .orderBy(desc(paymentAttempts.id))
             .all()
             .find((a) => a.ref)?.ref;
-        if (stripe && ref) {
-          const session = await stripe.checkout.sessions.retrieve(ref).catch(() => null);
-          if (session?.url) {
-            return { orderId, sellerOrderIds, status, redirectUrl: session.url };
-          }
+        const finix = input.paymentMethod === "FINIX" ? getFinix() : null;
+        const link =
+          ref &&
+          (input.paymentMethod === "STRIPE"
+            ? ((await getStripe()
+                ?.checkout.sessions.retrieve(ref)
+                .then((s) => s.url)
+                .catch(() => null)) ?? null)
+            : finix
+              ? await finixCheckoutLink(finix, ref)
+              : null);
+        if (link) {
+          return { orderId, sellerOrderIds, status, redirectUrl: link };
         }
       }
       return { orderId, sellerOrderIds, status };
     }
     // FAILED → fall through and retry under the same key.
   }
-  if (input.paymentMethod === "STRIPE") {
+  if (input.paymentMethod === "STRIPE" || input.paymentMethod === "FINIX") {
     if (!opts.origin) {
-      throw new AuthError("INVALID_INPUT", 400, "request origin required for stripe checkout");
+      throw new AuthError(
+        "INVALID_INPUT",
+        400,
+        `request origin required for ${input.paymentMethod.toLowerCase()} checkout`,
+      );
     }
-    // Server-side gate — the form hides STRIPE without keys, but API callers
-    // only meet this check.
-    if (!getStripe()) {
-      throw new AuthError("INVALID_INPUT", 422, "stripe is not configured");
+    // Server-side gate — the form hides hosted methods without keys, but API
+    // callers only meet this check.
+    const configured =
+      input.paymentMethod === "STRIPE" ? Boolean(getStripe()) : Boolean(getFinix());
+    if (!configured) {
+      throw new AuthError(
+        "INVALID_INPUT",
+        422,
+        `${input.paymentMethod.toLowerCase()} is not configured`,
+      );
     }
   }
 
@@ -463,9 +486,10 @@ export async function placeOrder(
     },
   );
 
-  if (input.paymentMethod === "STRIPE") {
-    const { redirectUrl, orderStatus } = await dispatchStripePayment(
+  if (input.paymentMethod === "STRIPE" || input.paymentMethod === "FINIX") {
+    const { redirectUrl, orderStatus } = await dispatchHostedPayment(
       db,
+      input.paymentMethod,
       orderId,
       paymentId,
       attemptId,

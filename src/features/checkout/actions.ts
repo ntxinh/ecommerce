@@ -78,11 +78,15 @@ export async function placeOrderAction(
 
     const paymentMethod = formData.get("paymentMethod");
     const stripeOn = Boolean(process.env.STRIPE_PUBLISHABLE_KEY);
+    const finixOn = Boolean(
+      process.env.FINIX_USERNAME && process.env.FINIX_PASSWORD && process.env.FINIX_MERCHANT_ID,
+    );
     if (
       paymentMethod !== "COD" &&
       paymentMethod !== "MOCK_WALLET" &&
       paymentMethod !== "MOCK_BANK" &&
-      !(paymentMethod === "STRIPE" && stripeOn)
+      !(paymentMethod === "STRIPE" && stripeOn) &&
+      !(paymentMethod === "FINIX" && finixOn)
     ) {
       return { ok: false, error: "INVALID_INPUT" };
     }
@@ -107,8 +111,8 @@ export async function placeOrderAction(
     );
 
     clearCart(db, actor.userId);
-    // STRIPE: the order is placed but unpaid — hand the browser to Stripe's
-    // hosted Checkout. redirect() throws; the client never sees a result.
+    // Hosted checkout (Stripe/Finix): the order is placed but unpaid — hand
+    // the browser to the provider. redirect() throws; the client never sees a result.
     if (result.redirectUrl) redirect(result.redirectUrl);
     return { ok: true, orderId: result.orderId };
   } catch (e) {
@@ -118,16 +122,12 @@ export async function placeOrderAction(
 }
 
 /**
- * Pay-page retry for a wedged Stripe order: mints a fresh Checkout Session
- * and sends the browser back to Stripe. A validation failure (e.g. the order
- * isn't PAYMENT_FAILED) bounces back to the pay page instead of a 500 —
+ * Pay-page retry for a wedged hosted-checkout order: mints a fresh session
+ * and sends the browser back to the provider. A validation failure (e.g. the
+ * order isn't PAYMENT_FAILED) bounces back to the pay page instead of a 500 —
  * redirect() throws NEXT_REDIRECT, never caught.
  */
-export async function retryStripePayment(
-  orderId: string,
-  locale: string,
-  _formData: FormData,
-): Promise<void> {
+async function retryHostedPayment(orderId: string, locale: string, payPath: string): Promise<void> {
   try {
     const actor = await getActor();
     if (!actor) redirect(`/${locale}/login`);
@@ -139,5 +139,21 @@ export async function retryStripePayment(
   } catch (e) {
     if (!(e instanceof AuthError)) throw e;
   }
-  redirect(`/${locale}/checkout/pay/${orderId}`);
+  redirect(`/${locale}/checkout/${payPath}/${orderId}`);
+}
+
+export async function retryStripePayment(
+  orderId: string,
+  locale: string,
+  _formData: FormData,
+): Promise<void> {
+  return retryHostedPayment(orderId, locale, "pay");
+}
+
+export async function retryFinixPayment(
+  orderId: string,
+  locale: string,
+  _formData: FormData,
+): Promise<void> {
+  return retryHostedPayment(orderId, locale, "pay-finix");
 }

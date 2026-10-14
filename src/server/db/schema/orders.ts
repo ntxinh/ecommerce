@@ -162,7 +162,9 @@ export const payments = sqliteTable(
     orderId: text("order_id")
       .notNull()
       .references(() => orders.id),
-    method: text("method", { enum: ["COD", "MOCK_WALLET", "MOCK_BANK", "STRIPE"] }).notNull(),
+    method: text("method", {
+      enum: ["COD", "MOCK_WALLET", "MOCK_BANK", "STRIPE", "FINIX"],
+    }).notNull(),
     status: text("status", {
       enum: ["PENDING", "AUTHORIZED", "PAID", "FAILED", "REFUNDED", "EXPIRED"],
     })
@@ -186,14 +188,17 @@ export const paymentAttempts = sqliteTable(
       enum: ["PENDING", "AUTHORIZED", "PAID", "FAILED", "REFUNDED", "EXPIRED"],
     }).notNull(),
     simulate: text("simulate"),
-    // Provider-side reference (Stripe session id); dedupe key for webhooks.
+    // Provider-side reference (hosted form/session id); dedupe key for webhooks.
     providerRef: text("provider_ref"),
+    // Secondary provider reference (Finix transfer id) recorded at first settle.
+    externalRef: text("external_ref"),
     idempotencyKey: text("idempotency_key").notNull(),
     createdAt: integer("created_at").notNull(),
   },
   (t) => [
     index("payment_attempts_payment_idx").on(t.paymentId),
     index("payment_attempts_provider_ref_idx").on(t.providerRef),
+    index("payment_attempts_external_ref_idx").on(t.externalRef),
   ],
 );
 
