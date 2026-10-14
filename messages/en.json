@@ -63,7 +63,9 @@
     "productsPlanned": "Planned: products",
     "ordersPlanned": "Planned: orders",
     "usersPlanned": "Planned: users",
-    "moderationPlanned": "Planned: seller applications"
+    "moderationPlanned": "Planned: seller applications",
+    "moderation": "Moderation queue",
+    "categories": "Categories"
   },
   "catalog": {
     "fromPrice": "From",
@@ -188,6 +190,14 @@
     "archive": "Archive",
     "restore": "Restore",
     "duplicate": "Duplicate",
+    "submitForReview": "Submit for review",
+    "moderation": {
+      "NONE": "Unreviewed",
+      "SUBMITTED": "In review",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "SUSPENDED": "Suspended"
+    },
     "fieldShop": "Shop",
     "fieldNameEn": "Name (English)",
     "fieldNameVi": "Name (Vietnamese)",
@@ -212,6 +222,39 @@
       "FORBIDDEN": "You can't manage products for this shop",
       "NOT_FOUND": "Product not found",
       "INVALID_INPUT": "Please check the form fields — duplicate SKU or a sale price above the base price"
+    }
+  },
+  "admin": {
+    "moderationTitle": "Product moderation",
+    "moderationHint": "Approve, reject, or suspend submitted listings. Reject and suspend require a reason.",
+    "categoriesTitle": "Categories",
+    "colProduct": "Product",
+    "colShop": "Shop",
+    "colSubmitted": "Submitted",
+    "colNote": "Note",
+    "colActions": "Actions",
+    "colSlug": "Slug",
+    "colNameEn": "Name (English)",
+    "colNameVi": "Name (Vietnamese)",
+    "colParent": "Parent",
+    "colSort": "Sort",
+    "colProducts": "Products",
+    "notePlaceholder": "Reason (required to reject/suspend)",
+    "approve": "Approve",
+    "reject": "Reject",
+    "suspend": "Suspend",
+    "save": "Save",
+    "delete": "Delete",
+    "deleteBlocked": "Delete is blocked while the category has products",
+    "noParent": "(root)",
+    "fieldSlug": "slug",
+    "createCategory": "Create category",
+    "queueEmpty": "Nothing awaiting review.",
+    "errors": {
+      "UNAUTHORIZED": "Please sign in",
+      "FORBIDDEN": "Admin access required",
+      "NOT_FOUND": "Record not found",
+      "INVALID_INPUT": "Action rejected — check the note or the item's current state"
     }
   },
   "storefront": {

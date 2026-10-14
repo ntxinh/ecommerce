@@ -63,7 +63,9 @@
     "productsPlanned": "Dự kiến: sản phẩm",
     "ordersPlanned": "Dự kiến: đơn hàng",
     "usersPlanned": "Dự kiến: người dùng",
-    "moderationPlanned": "Dự kiến: đơn đăng ký bán hàng"
+    "moderationPlanned": "Dự kiến: đơn đăng ký bán hàng",
+    "moderation": "Hàng chờ kiểm duyệt",
+    "categories": "Danh mục"
   },
   "catalog": {
     "fromPrice": "Từ",
@@ -188,6 +190,14 @@
     "archive": "Lưu trữ",
     "restore": "Khôi phục",
     "duplicate": "Nhân bản",
+    "submitForReview": "Gửi kiểm duyệt",
+    "moderation": {
+      "NONE": "Chưa duyệt",
+      "SUBMITTED": "Đang duyệt",
+      "APPROVED": "Đã duyệt",
+      "REJECTED": "Bị từ chối",
+      "SUSPENDED": "Bị đình chỉ"
+    },
     "fieldShop": "Cửa hàng",
     "fieldNameEn": "Tên (tiếng Anh)",
     "fieldNameVi": "Tên (tiếng Việt)",
@@ -212,6 +222,39 @@
       "FORBIDDEN": "Bạn không thể quản lý sản phẩm của cửa hàng này",
       "NOT_FOUND": "Không tìm thấy sản phẩm",
       "INVALID_INPUT": "Vui lòng kiểm tra lại — SKU trùng hoặc giá khuyến mãi cao hơn giá gốc"
+    }
+  },
+  "admin": {
+    "moderationTitle": "Kiểm duyệt sản phẩm",
+    "moderationHint": "Duyệt, từ chối hoặc đình chỉ sản phẩm đã gửi. Từ chối và đình chỉ cần ghi lý do.",
+    "categoriesTitle": "Danh mục",
+    "colProduct": "Sản phẩm",
+    "colShop": "Cửa hàng",
+    "colSubmitted": "Đã gửi",
+    "colNote": "Ghi chú",
+    "colActions": "Thao tác",
+    "colSlug": "Slug",
+    "colNameEn": "Tên (tiếng Anh)",
+    "colNameVi": "Tên (tiếng Việt)",
+    "colParent": "Danh mục cha",
+    "colSort": "Thứ tự",
+    "colProducts": "Sản phẩm",
+    "notePlaceholder": "Lý do (bắt buộc khi từ chối/đình chỉ)",
+    "approve": "Duyệt",
+    "reject": "Từ chối",
+    "suspend": "Đình chỉ",
+    "save": "Lưu",
+    "delete": "Xóa",
+    "deleteBlocked": "Không thể xóa danh mục còn sản phẩm",
+    "noParent": "(gốc)",
+    "fieldSlug": "slug",
+    "createCategory": "Tạo danh mục",
+    "queueEmpty": "Không có sản phẩm chờ duyệt.",
+    "errors": {
+      "UNAUTHORIZED": "Vui lòng đăng nhập",
+      "FORBIDDEN": "Cần quyền quản trị",
+      "NOT_FOUND": "Không tìm thấy bản ghi",
+      "INVALID_INPUT": "Thao tác bị từ chối — kiểm tra lý do hoặc trạng thái hiện tại"
     }
   },
   "storefront": {

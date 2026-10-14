@@ -21,6 +21,7 @@ type ProductIn = z.infer<typeof ProductInput>;
 type SaveIn = z.infer<typeof ProductSaveInput>;
 type VariantIn = z.infer<typeof VariantInput>;
 type ProductStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
+export type ModerationStatus = "NONE" | "SUBMITTED" | "APPROVED" | "REJECTED" | "SUSPENDED";
 
 export type SellerProductRow = {
   id: string;
@@ -28,6 +29,7 @@ export type SellerProductRow = {
   nameEn: string;
   nameVi: string;
   status: ProductStatus;
+  moderationStatus: ModerationStatus;
   categoryId: string;
   variantCount: number;
   available: number;
@@ -53,16 +55,18 @@ function loadProduct(tx: Tx, productId: string) {
   return product;
 }
 
-/** Loads the product, then asserts `product:write` on its shop. */
-function writeTarget(tx: Tx, actor: Actor | null, productId: string) {
+/** Loads the product, then asserts `product:write` on its shop.
+ *  Exported for the moderation module (submit reuses the same owner check). */
+export function writeTarget(tx: Tx, actor: Actor | null, productId: string) {
   const product = loadProduct(tx, productId);
   return { product, actor: requirePermission(actor, "product:write", { shopId: product.shopId }) };
 }
 
 /** A product may only go ACTIVE when it has at least one purchasable variant —
  *  public listProducts inner-joins variants, so variantless ACTIVES are invisible
- *  anyway; fail the publish instead of silently listing nothing. */
-function assertPublishable(tx: Tx, productId: string) {
+ *  anyway; fail the publish instead of silently listing nothing. Exported for
+ *  the moderation module (submit/approve go through the same gate). */
+export function assertPublishable(tx: Tx, productId: string) {
   const variants = tx
     .select({ id: productVariants.id })
     .from(productVariants)
@@ -89,11 +93,16 @@ function uniqueSlug(tx: Tx, nameEn: string): string {
 }
 
 /** SQLite reports constraint violations as message text only; map the ones a
- *  seller form can plausibly hit, rethrow everything else. */
-function mapConstraint(e: unknown): never {
+ *  form can plausibly hit, rethrow everything else. Exported for the
+ *  moderation module (category slugs hit the same UNIQUE path). */
+export function mapConstraint(e: unknown): never {
   if (e instanceof Error) {
-    if (e.message.includes("UNIQUE") && e.message.includes("sku")) {
-      throw new AuthError("INVALID_INPUT", 400, "SKU already in use");
+    if (e.message.includes("UNIQUE")) {
+      throw new AuthError(
+        "INVALID_INPUT",
+        400,
+        e.message.includes("sku") ? "SKU already in use" : "duplicate value",
+      );
     }
     if (e.message.includes("FOREIGN KEY")) {
       throw new AuthError("INVALID_INPUT", 400, "referenced record does not exist");
@@ -217,6 +226,7 @@ export function listSellerProducts(
       nameEn: products.nameEn,
       nameVi: products.nameVi,
       status: products.status,
+      moderationStatus: products.moderationStatus,
       categoryId: products.categoryId,
       variantCount: sql<number>`count(${productVariants.id})`,
       available: availSql.mapWith(Number),
@@ -379,6 +389,7 @@ export function duplicateProduct(db: DB, actor: Actor | null, productId: string)
         descriptionEn: src.descriptionEn,
         descriptionVi: src.descriptionVi,
         status: "DRAFT",
+        moderationStatus: "NONE", // a copy never inherits approval
         createdAt: Date.now(),
       })
       .run();

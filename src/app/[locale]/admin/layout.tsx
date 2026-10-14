@@ -34,11 +34,13 @@ export default async function AdminLayout({
           {tn("admin")}
         </Link>
         <nav className="mt-6 space-y-2 text-sm">
-          {[ts("usersPlanned"), ts("moderationPlanned")].map((label) => (
-            <p key={label} className="text-muted-foreground">
-              {label}
-            </p>
-          ))}
+          <Link href="/admin/moderation" className="block hover:underline">
+            {ts("moderation")}
+          </Link>
+          <Link href="/admin/categories" className="block hover:underline">
+            {ts("categories")}
+          </Link>
+          <p className="text-muted-foreground">{ts("usersPlanned")}</p>
         </nav>
       </aside>
       <div className="flex flex-1 flex-col">

@@ -114,6 +114,10 @@ export const effectivePrice = sql`coalesce(${productVariants.salePriceVnd}, ${pr
 /** Card price = cheapest variant's effective price. */
 export const minPrice = sql`min(${effectivePrice})`;
 export const availSql = sql`coalesce(sum(${inventory.onHand} - ${inventory.reserved}), 0)`;
+/** Public visibility gate: seller-published AND not held by moderation.
+ *  NONE covers never-submitted (seeded/legacy) products; SUBMITTED, REJECTED
+ *  and SUSPENDED are hidden. Exported for search + cart — same rule everywhere. */
+export const publicGate = sql`${products.status} = 'ACTIVE' and ${products.moderationStatus} in ('NONE','APPROVED')`;
 // Correlated aggregates over PUBLISHED reviews only — HIDDEN never counts.
 export const ratingAvg = sql<number | null>`(
   select avg(r.rating) from ${reviews} r
@@ -350,7 +354,7 @@ export function listProducts(
     throw new AuthError("INVALID_INPUT", 400, "limit must be an integer in 1..50");
   }
 
-  const where: SQL[] = [eq(products.status, opts.status ?? "ACTIVE")];
+  const where: SQL[] = [opts.status ? eq(products.status, opts.status) : publicGate];
   const having: SQL[] = [];
   if (opts.categoryId) {
     where.push(inArray(products.categoryId, categoryDescendants(db, opts.categoryId)));
@@ -399,8 +403,13 @@ export function getProductBySlug(db: DB, slug: string): ProductDetail {
     .innerJoin(shops, and(eq(shops.id, products.shopId), eq(shops.status, "ACTIVE")))
     .where(eq(products.slug, slug))
     .get();
-  // Public callers never see DRAFT/ARCHIVED — same NOT_FOUND as missing.
-  if (!row || row.product.status !== "ACTIVE") {
+  // Public callers never see DRAFT/ARCHIVED or moderated-hidden products — same
+  // NOT_FOUND as missing (publicGate rule, applied post-fetch).
+  if (
+    !row ||
+    row.product.status !== "ACTIVE" ||
+    !["NONE", "APPROVED"].includes(row.product.moderationStatus)
+  ) {
     throw new AuthError("NOT_FOUND", 404, "product not found");
   }
 
@@ -515,7 +524,7 @@ export function getShopBySlug(db: DB, slug: string): ShopCard {
       productCount: sql<number>`count(${products.id})`.mapWith(Number),
     })
     .from(shops)
-    .leftJoin(products, and(eq(products.shopId, shops.id), eq(products.status, "ACTIVE")))
+    .leftJoin(products, and(eq(products.shopId, shops.id), publicGate))
     .where(and(eq(shops.slug, slug), eq(shops.status, "ACTIVE")))
     .groupBy(shops.id)
     .get();
@@ -541,7 +550,7 @@ export function cardsForIds(db: DB, ids: string[]): ProductCard[] {
     .innerJoin(shops, and(eq(shops.id, products.shopId), eq(shops.status, "ACTIVE")))
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
     .leftJoin(inventory, eq(inventory.variantId, productVariants.id))
-    .where(and(inArray(products.id, ids), eq(products.status, "ACTIVE")))
+    .where(and(inArray(products.id, ids), publicGate))
     .groupBy(products.id, shops.id)
     .all() as CardRow[];
   const byId = new Map(toCards(db, rows).map((c) => [c.id, c]));
@@ -567,7 +576,7 @@ export function getHomepageData(db: DB): HomepageData {
         eq(promotions.status, "ACTIVE"),
         lte(promotions.startsAt, now),
         gt(promotions.endsAt, now),
-        eq(products.status, "ACTIVE"),
+        publicGate,
       ),
     )
     .groupBy(products.id)
@@ -590,7 +599,7 @@ export function getHomepageData(db: DB): HomepageData {
       productCount: sql<number>`count(${products.id})`.mapWith(Number),
     })
     .from(shops)
-    .leftJoin(products, and(eq(products.shopId, shops.id), eq(products.status, "ACTIVE")))
+    .leftJoin(products, and(eq(products.shopId, shops.id), publicGate))
     .where(eq(shops.status, "ACTIVE"))
     .groupBy(shops.id)
     .orderBy(desc(sql`count(${products.id})`), asc(shops.name))
@@ -604,7 +613,7 @@ export function getHomepageData(db: DB): HomepageData {
     })
     .from(orderItems)
     .innerJoin(products, eq(products.id, orderItems.productId))
-    .where(eq(products.status, "ACTIVE"))
+    .where(publicGate)
     .groupBy(orderItems.productId)
     .orderBy(desc(sql`count(*)`), asc(orderItems.productId))
     .limit(8)

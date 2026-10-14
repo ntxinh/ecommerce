@@ -18,6 +18,11 @@ const STATUS_VARIANT = {
   ARCHIVED: "outline",
 } as const;
 
+const MOD_VARIANT = {
+  SUBMITTED: "outline",
+  REJECTED: "destructive",
+  SUSPENDED: "destructive",
+} as const;
 type T = (key: string) => string;
 
 /** Seller product table: status badges + publish/unpublish/archive/duplicate. */
@@ -52,6 +57,11 @@ export function ProductTable({
             </TableCell>
             <TableCell>
               <Badge variant={STATUS_VARIANT[p.status]}>{t(`status.${p.status}`)}</Badge>
+              {p.moderationStatus !== "NONE" && p.moderationStatus !== "APPROVED" ? (
+                <Badge variant={MOD_VARIANT[p.moderationStatus]} className="ml-1">
+                  {t(`moderation.${p.moderationStatus}`)}
+                </Badge>
+              ) : null}
             </TableCell>
             <TableCell className="text-right">{p.variantCount}</TableCell>
             <TableCell className="text-right">{p.available}</TableCell>

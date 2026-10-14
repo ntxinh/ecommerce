@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Link, useRouter } from "@/i18n/navigation";
 import type { SellerProductRow } from "@/server/modules/catalog/manage";
-import { duplicateProductAction, setProductStatusAction } from "./actions";
+import { duplicateProductAction, setProductStatusAction, submitForReviewAction } from "./actions";
 
 const ERROR_KEYS = new Set(["UNAUTHORIZED", "FORBIDDEN", "NOT_FOUND", "INVALID_INPUT"]);
 
@@ -54,6 +54,17 @@ export function ProductRowActions({ product }: { product: SellerProductRow }) {
         <Link href={`/seller/products/${product.id}`}>{t("edit")}</Link>
       </Button>
       {product.status === "DRAFT" ? statusBtn("ACTIVE", t("publish")) : null}
+      {product.status === "DRAFT" && ["NONE", "REJECTED"].includes(product.moderationStatus) ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={pending}
+          onClick={() => run(submitForReviewAction)}
+        >
+          {t("submitForReview")}
+        </Button>
+      ) : null}
       {product.status === "ACTIVE" ? statusBtn("DRAFT", t("unpublish")) : null}
       {product.status !== "ARCHIVED" ? statusBtn("ARCHIVED", t("archive")) : null}
       {product.status === "ARCHIVED" ? statusBtn("DRAFT", t("restore")) : null}

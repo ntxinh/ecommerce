@@ -65,3 +65,37 @@ export const SetVariantStockInput = z.object({
   onHand: z.coerce.number().int().min(0),
   reason: z.string().trim().min(1).max(200).default("seller-adjust"),
 });
+
+/** Seller "submit for review" action. */
+export const SubmitForReviewInput = z.object({
+  productId: z.string().min(1),
+});
+
+/** Admin moderation decision; note is required on reject/suspend (service enforces). */
+export const ModerateProductInput = z.object({
+  productId: z.string().min(1),
+  action: z.enum(["approve", "reject", "suspend"]),
+  note: opt(z.string().trim().max(1000)),
+});
+
+export const CategoryInput = z.object({
+  parentId: opt(z.string().min(1)),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(100)
+    .regex(/^[a-z0-9-]+$/, "slug may only contain lowercase letters, digits and -"),
+  nameEn: name,
+  nameVi: name,
+  sortOrder: z.coerce.number().int().default(0),
+});
+// Slug is immutable once created — public URLs are built from it.
+export const UpdateCategoryInput = z.object({
+  id: z.string().min(1),
+  parentId: opt(z.string().min(1)),
+  nameEn: name,
+  nameVi: name,
+  sortOrder: z.coerce.number().int().default(0),
+});
+export const DeleteCategoryInput = z.object({ id: z.string().min(1) });

@@ -22,6 +22,7 @@ import {
   escapeLike,
   minPrice,
   type ProductCard,
+  publicGate,
   ratingAvg,
   toCards,
 } from "@/server/modules/catalog/service";
@@ -182,7 +183,7 @@ export function search(
   }
   const m = match(q);
 
-  const where: SQL[] = [eq(products.status, "ACTIVE"), m.hit];
+  const where: SQL[] = [publicGate, m.hit];
   const having: SQL[] = [];
   if (params.categoryId) {
     where.push(inArray(products.categoryId, categoryDescendants(db, params.categoryId)));
@@ -263,7 +264,7 @@ export function suggest(db: DB, q: string, limit = 8): string[] {
     .innerJoin(shops, and(eq(shops.id, products.shopId), eq(shops.status, "ACTIVE")))
     .where(
       and(
-        eq(products.status, "ACTIVE"),
+        publicGate,
         or(
           sql`ulower(${products.nameEn}) like ${pat} escape '\\'`,
           sql`ulower(${products.nameVi}) like ${pat} escape '\\'`,

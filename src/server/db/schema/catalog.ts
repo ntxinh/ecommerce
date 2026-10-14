@@ -43,13 +43,40 @@ export const products = sqliteTable(
     status: text("status", { enum: ["DRAFT", "ACTIVE", "ARCHIVED"] })
       .notNull()
       .default("DRAFT"),
+    // Admin gate, orthogonal to the seller-facing status lifecycle:
+    // NONE = never submitted (legacy/seeded products stay publishable),
+    // SUBMITTED = in the review queue, SUSPENDED = admin-pulled.
+    // Public reads require status=ACTIVE AND moderationStatus IN (NONE,APPROVED).
+    moderationStatus: text("moderation_status", {
+      enum: ["NONE", "SUBMITTED", "APPROVED", "REJECTED", "SUSPENDED"],
+    })
+      .notNull()
+      .default("NONE"),
     createdAt: integer("created_at").notNull(),
   },
   (t) => [
     uniqueIndex("products_slug_unique").on(t.slug),
     index("products_shop_idx").on(t.shopId),
     index("products_category_idx").on(t.categoryId),
+    index("products_moderation_idx").on(t.moderationStatus),
   ],
+);
+
+// Append-only moderation audit trail — every seller submission and admin
+// decision lands a row (spec: "record moderation reasons").
+export const productModerations = sqliteTable(
+  "product_moderations",
+  {
+    id: text("id").primaryKey(),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    actorId: text("actor_id").notNull(),
+    action: text("action", { enum: ["SUBMIT", "APPROVE", "REJECT", "SUSPEND"] }).notNull(),
+    note: text("note"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("product_moderations_product_idx").on(t.productId)],
 );
 
 export const productVariants = sqliteTable(

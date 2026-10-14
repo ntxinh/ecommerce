@@ -1,6 +1,10 @@
 "use server";
 
-import { ProductSaveInput, SetProductStatusInput } from "@/server/api/contracts/catalog";
+import {
+  ProductSaveInput,
+  SetProductStatusInput,
+  SubmitForReviewInput,
+} from "@/server/api/contracts/catalog";
 import { AuthError } from "@/server/api/errors";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
@@ -10,6 +14,7 @@ import {
   setProductStatus,
   updateProduct,
 } from "@/server/modules/catalog/manage";
+import { submitForReview } from "@/server/modules/catalog/moderation";
 
 export type SellerActionResult = { ok: true; productId?: string } | { ok: false; error: string };
 export type SellerActionState = SellerActionResult | null;
@@ -75,6 +80,19 @@ export async function duplicateProductAction(formData: FormData): Promise<Seller
     if (!productId) return { ok: false, error: "INVALID_INPUT" };
     const actor = await getActor();
     duplicateProduct(getDb(), actor, productId);
+    return { ok: true };
+  } catch (e) {
+    return toResult(e);
+  }
+}
+
+/** DRAFT → moderation queue; errors surface as toasts. */
+export async function submitForReviewAction(formData: FormData): Promise<SellerActionResult> {
+  try {
+    const parsed = SubmitForReviewInput.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
+    const actor = await getActor();
+    submitForReview(getDb(), actor, parsed.data.productId);
     return { ok: true };
   } catch (e) {
     return toResult(e);
