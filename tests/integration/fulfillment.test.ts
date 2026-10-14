@@ -27,7 +27,7 @@ import {
   packSellerOrder,
   shipSellerOrder,
 } from "@/server/modules/orders/fulfillment";
-import { cancelOrder } from "@/server/modules/orders/service";
+import { cancelOrder, retryPayment } from "@/server/modules/orders/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
 
 const PATH = "./tests/.tmp/fulfillment-test.db";
@@ -224,6 +224,33 @@ describe("seller fulfillment lifecycle", () => {
     const so = leg(res.orderId, "shop_2");
     expect(await errorCode(() => confirmSellerOrder(db, SHOP2_OWNER, so.id))).toBe("INVALID_INPUT");
   });
+
+  it("seller cannot leg-cancel while the parent order is unpaid", async () => {
+    // PAYMENT_FAILED parent: a still-live payment (open session/bank transfer)
+    // could capture for a cancelled leg and under-refund — the buyer's
+    // cancelOrder is the only unpaid-cancel path.
+    const res = await paidOrder([{ variantId: "var_7", qty: 1 }], {
+      paymentMethod: "MOCK_BANK",
+      simulate: "failure",
+    });
+    const so = leg(res.orderId, "shop_2");
+    expect(await errorCode(() => cancelSellerOrder(db, SHOP2_OWNER, so.id))).toBe("INVALID_INPUT");
+    expect(leg(res.orderId, "shop_2").status).toBe("NEW");
+  });
+
+  it("a MOCK_BANK failed payment retries to PAID; settled orders refuse a second attempt", async () => {
+    const res = await paidOrder([{ variantId: "var_8", qty: 1 }], {
+      paymentMethod: "MOCK_BANK",
+      simulate: "failure",
+    });
+    expect(res.status).toBe("PAYMENT_FAILED");
+
+    const retry = await retryPayment(db, CUSTOMER, res.orderId, "success");
+    expect(retry.status).toBe("PAID");
+
+    // No second attempt once the order is settled.
+    expect(await errorCode(() => retryPayment(db, CUSTOMER, res.orderId))).toBe("INVALID_INPUT");
+  });
 });
 
 describe("cancelSellerOrder", () => {
@@ -297,11 +324,17 @@ describe("cancelSellerOrder", () => {
     });
     const so = leg(res.orderId, "shop_2");
     const before = stock("var_8");
+    const ordered = db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.sellerOrderId, so.id))
+      .all()
+      .reduce((s, l) => s + l.qty, 0);
 
     const out = await cancelSellerOrder(db, SHOP2_OWNER, so.id);
     expect(out.refundedVnd).toBe(0);
     const after = stock("var_8");
-    expect(after.onHand).toBe(before.onHand + 2);
+    expect(after.onHand).toBe(before.onHand + ordered);
     expect(after.reserved).toBe(before.reserved);
   });
 

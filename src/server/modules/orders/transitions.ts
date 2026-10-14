@@ -20,7 +20,7 @@ export type Tx = Pick<DB, "select" | "insert" | "update">;
 export const ORDER_TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
   PENDING_PAYMENT: ["PAID", "PAYMENT_FAILED", "CANCELLED"],
   PAID: ["PROCESSING", "CANCELLED"],
-  PAYMENT_FAILED: ["PENDING_PAYMENT", "CANCELLED"],
+  PAYMENT_FAILED: ["PENDING_PAYMENT", "PAID", "CANCELLED"],
   PROCESSING: ["SHIPPED", "CANCELLED"],
   SHIPPED: ["DELIVERED"],
   DELIVERED: ["COMPLETED", "PARTIALLY_REFUNDED", "REFUNDED"],
@@ -56,26 +56,26 @@ export function canTransitionSellerOrder(from: SellerOrderStatus, to: SellerOrde
 
 /** Parent statuses that allow seller-fulfillment progress — anything where the
  *  order has been paid or shipped (partners can't move an unpaid order). */
-const PAID_PARENT: ReadonlySet<OrderStatus> = new Set([
-  "PAID",
-  "PROCESSING",
-  "SHIPPED",
-  "DELIVERED",
-  "COMPLETED",
-  "PARTIALLY_REFUNDED",
-  "REFUNDED",
-]);
+export const PAID_PARENT: Readonly<Partial<Record<OrderStatus, true>>> = {
+  PAID: true,
+  PROCESSING: true,
+  SHIPPED: true,
+  DELIVERED: true,
+  COMPLETED: true,
+  PARTIALLY_REFUNDED: true,
+  REFUNDED: true,
+};
 
 /** Seller-order targets that move fulfillment forward; CANCELLED/RETURN_* are
  *  excluded so owner-cancel and returns still work regardless of parent. */
-const FORWARD_SELLER: ReadonlySet<SellerOrderStatus> = new Set([
-  "CONFIRMED",
-  "PACKING",
-  "READY_TO_SHIP",
-  "SHIPPED",
-  "DELIVERED",
-  "COMPLETED",
-]);
+const FORWARD_SELLER: Readonly<Partial<Record<SellerOrderStatus, true>>> = {
+  CONFIRMED: true,
+  PACKING: true,
+  READY_TO_SHIP: true,
+  SHIPPED: true,
+  DELIVERED: true,
+  COMPLETED: true,
+};
 /**
  * Applies a parent-order transition inside the caller's store/tx: legality
  * check → status update → `audit_logs` row. `actor: null` marks system-initiated
@@ -145,7 +145,7 @@ export function transitionSellerOrder(
   }
   // Seller fulfillment can't advance while the parent order is unpaid or
   // dead — keeps unpaid orders cancellable and prevents orphan progress.
-  if (FORWARD_SELLER.has(to) && !(parent && PAID_PARENT.has(parent.status))) {
+  if (FORWARD_SELLER[to] && !(parent && PAID_PARENT[parent.status])) {
     throw new AuthError(
       "INVALID_INPUT",
       422,

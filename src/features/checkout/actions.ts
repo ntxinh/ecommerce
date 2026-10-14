@@ -119,19 +119,25 @@ export async function placeOrderAction(
 
 /**
  * Pay-page retry for a wedged Stripe order: mints a fresh Checkout Session
- * and sends the browser back to Stripe.
+ * and sends the browser back to Stripe. A validation failure (e.g. the order
+ * isn't PAYMENT_FAILED) bounces back to the pay page instead of a 500 —
+ * redirect() throws NEXT_REDIRECT, never caught.
  */
 export async function retryStripePayment(
   orderId: string,
   locale: string,
   _formData: FormData,
 ): Promise<void> {
-  const actor = await getActor();
-  if (!actor) redirect(`/${locale}/login`);
-  const result = await retryPayment(getDb(), actor, orderId, undefined, {
-    origin: requestOrigin(await headers()),
-    locale,
-  });
-  if (result.redirectUrl) redirect(result.redirectUrl);
+  try {
+    const actor = await getActor();
+    if (!actor) redirect(`/${locale}/login`);
+    const result = await retryPayment(getDb(), actor, orderId, undefined, {
+      origin: requestOrigin(await headers()),
+      locale,
+    });
+    if (result.redirectUrl) redirect(result.redirectUrl);
+  } catch (e) {
+    if (!(e instanceof AuthError)) throw e;
+  }
   redirect(`/${locale}/checkout/pay/${orderId}`);
 }

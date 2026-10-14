@@ -21,6 +21,7 @@ import { releaseOrderReservations } from "@/server/modules/inventory/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
 import { dispatchMockPayment, dispatchStripePayment, type PlaceOrderResult } from "./checkout";
 import { legShareVnd } from "./fulfillment";
+import { settledPaymentRef } from "./outcome";
 import { transitionOrder, transitionSellerOrder } from "./transitions";
 
 type Order = typeof orders.$inferSelect;
@@ -261,7 +262,7 @@ export async function cancelOrder(
 
   if (payment?.status === "PAID" && refundVnd > 0) {
     await paymentProviderFor(payment.method).refund({
-      ref: payment.id,
+      ref: settledPaymentRef(db, payment.id),
       amountVnd: refundVnd,
     });
   }
@@ -285,8 +286,22 @@ export async function retryPayment(
   const detail = getOrder(db, actor, orderId);
   const payment = detail.payment;
   if (!payment) throw new AuthError("NOT_FOUND", 404, "payment not found");
-  if (payment.method !== "MOCK_WALLET" && payment.method !== "STRIPE") {
+  if (
+    payment.method !== "MOCK_WALLET" &&
+    payment.method !== "MOCK_BANK" &&
+    payment.method !== "STRIPE"
+  ) {
     throw new AuthError("INVALID_INPUT", 422, `cannot retry ${payment.method} payments`);
+  }
+  // Retry only on a terminally-failed order — minting another attempt while
+  // PENDING_PAYMENT would leave two live payable sessions (double charge) and
+  // session-B expiry would wedge a still-live session A.
+  if (detail.order.status !== "PAYMENT_FAILED") {
+    throw new AuthError(
+      "INVALID_INPUT",
+      422,
+      `order ${orderId} is ${detail.order.status}, not retryable`,
+    );
   }
   if (payment.method === "STRIPE" && !opts.origin) {
     throw new AuthError("INVALID_INPUT", 400, "request origin required for stripe checkout");
@@ -321,7 +336,7 @@ export async function retryPayment(
   }
   const outcome = await dispatchMockPayment(
     db,
-    "MOCK_WALLET",
+    payment.method as "MOCK_WALLET" | "MOCK_BANK",
     orderId,
     payment.id,
     attemptId,

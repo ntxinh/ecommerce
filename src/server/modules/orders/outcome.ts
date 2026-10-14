@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { ulid } from "ulidx";
 import type { DB } from "@/server/db/client";
 import {
@@ -113,4 +113,22 @@ export function persistPaymentOutcome(
     return "PAID";
   });
   return { paymentStatus: status, orderStatus };
+}
+
+/**
+ * The provider-side ref refunds must target: the latest PAID attempt's
+ * `providerRef` (Stripe session id). Falls back to `paymentId` for mock
+ * adapters, which never record a providerRef and ignore the ref anyway —
+ * and matches the pre-Stripe call shape for legacy PAID rows.
+ */
+export function settledPaymentRef(db: Pick<DB, "select">, paymentId: string): string {
+  return (
+    db
+      .select({ status: paymentAttempts.status, ref: paymentAttempts.providerRef })
+      .from(paymentAttempts)
+      .where(eq(paymentAttempts.paymentId, paymentId))
+      .orderBy(desc(paymentAttempts.id))
+      .all()
+      .find((a) => a.status === "PAID" && a.ref)?.ref ?? paymentId
+  );
 }

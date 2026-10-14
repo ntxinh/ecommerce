@@ -17,7 +17,8 @@ import {
 } from "@/server/db/schema";
 import { releaseOrderReservations } from "@/server/modules/inventory/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
-import { type Tx, transitionSellerOrder } from "./transitions";
+import { settledPaymentRef } from "./outcome";
+import { PAID_PARENT, type Tx, transitionSellerOrder } from "./transitions";
 
 type SellerOrder = typeof sellerOrders.$inferSelect;
 
@@ -233,8 +234,25 @@ export async function cancelSellerOrder(
   const refund = db.transaction((tx) => {
     const { so, order } = leg(tx, actor, sellerOrderId);
     const wasCancelled = so.status === "CANCELLED";
+    // Idempotent re-call before the paid gate — a dead parent's already-
+    // cancelled leg must stay a no-op, not an error.
+    if (wasCancelled) {
+      transitionSellerOrder(tx, sellerOrderId, "CANCELLED", actor);
+      return { refundVnd: 0, payment: undefined };
+    }
+    // Cancelling a leg of an unpaid parent would let a still-live payment
+    // (open Stripe session, pending bank transfer) capture money for a
+    // cancelled leg that the refund accounting then under-refunds. The buyer's
+    // cancelOrder path releases unpaid legs wholesale — sellers wait for pay
+    // or the buyer cancels.
+    if (!PAID_PARENT[order.status]) {
+      throw new AuthError(
+        "INVALID_INPUT",
+        422,
+        `cannot cancel a leg while order ${order.id} is ${order.status}`,
+      );
+    }
     const next = transitionSellerOrder(tx, sellerOrderId, "CANCELLED", actor);
-    if (wasCancelled) return { next, refundVnd: 0, payment: undefined };
 
     const lines = tx
       .select({ variantId: orderItems.variantId })
@@ -271,7 +289,7 @@ export async function cancelSellerOrder(
   });
   if (refund.refundVnd > 0 && refund.payment) {
     await paymentProviderFor(refund.payment.method).refund({
-      ref: refund.payment.id,
+      ref: settledPaymentRef(db, refund.payment.id),
       amountVnd: refund.refundVnd,
     });
   }

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
 import type { Actor } from "@/server/auth/permissions";
@@ -234,7 +234,33 @@ export async function placeOrder(
         prior.responseJson ?? "{}",
       ) as PlaceOrderResult;
       const live = db.select({ s: orders.status }).from(orders).where(eq(orders.id, orderId)).get();
-      return { orderId, sellerOrderIds, status: live?.s ?? "PENDING_PAYMENT" };
+      const status = live?.s ?? "PENDING_PAYMENT";
+      // Replay of a still-pending Stripe order must re-issue the Checkout
+      // link — the original redirectUrl was never persisted.
+      if (status === "PENDING_PAYMENT" && input.paymentMethod === "STRIPE") {
+        const stripe = getStripe();
+        const paymentId = db
+          .select({ id: payments.id })
+          .from(payments)
+          .where(eq(payments.orderId, orderId))
+          .get()?.id;
+        const ref =
+          paymentId &&
+          db
+            .select({ ref: paymentAttempts.providerRef })
+            .from(paymentAttempts)
+            .where(eq(paymentAttempts.paymentId, paymentId))
+            .orderBy(desc(paymentAttempts.id))
+            .all()
+            .find((a) => a.ref)?.ref;
+        if (stripe && ref) {
+          const session = await stripe.checkout.sessions.retrieve(ref).catch(() => null);
+          if (session?.url) {
+            return { orderId, sellerOrderIds, status, redirectUrl: session.url };
+          }
+        }
+      }
+      return { orderId, sellerOrderIds, status };
     }
     // FAILED → fall through and retry under the same key.
   }

@@ -10,6 +10,7 @@ import { seedCatalog } from "@/server/db/seed/catalog";
 import { seedIdentity } from "@/server/db/seed/identity";
 import { addItem, clearCart } from "@/server/modules/cart/service";
 import { placeOrder } from "@/server/modules/orders/checkout";
+import { cancelOrder, retryPayment } from "@/server/modules/orders/service";
 import {
   applyStripeSessionOutcome,
   getStripe,
@@ -231,6 +232,63 @@ describe("placeOrder STRIPE", () => {
         { origin: "https://shop.test", locale: "en" },
       ),
     ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  });
+});
+
+describe("money-path review fixes", () => {
+  it("cancel refunds against the settled attempt's providerRef, not payments.id", async () => {
+    const { orderId, sessionId } = await stripeOrder();
+    applyStripeSessionOutcome(db, { id: sessionId }, "PAID");
+    expect(db.select().from(orders).where(eq(orders.id, orderId)).get()!.status).toBe("PAID");
+
+    const refunds: Record<string, unknown>[] = [];
+    const retrieved: string[] = [];
+    setStripeForTests({
+      checkout: {
+        sessions: {
+          retrieve: async (id: string) => {
+            retrieved.push(id);
+            return { id, payment_intent: "pi_captured" };
+          },
+        },
+      },
+      refunds: {
+        create: async (params: Record<string, unknown>) => {
+          refunds.push(params);
+          return {};
+        },
+      },
+    } as unknown as Stripe);
+
+    await cancelOrder(db, CUSTOMER, orderId);
+    expect(retrieved).toEqual([sessionId]);
+    expect(refunds).toEqual([
+      {
+        payment_intent: "pi_captured",
+        amount: db.select().from(payments).where(eq(payments.orderId, orderId)).get()!.amountVnd,
+      },
+    ]);
+    expect(db.select().from(payments).where(eq(payments.orderId, orderId)).get()!.status).toBe(
+      "REFUNDED",
+    );
+  });
+
+  it("session-completed on a PAYMENT_FAILED order settles PAID — captured money is authoritative", async () => {
+    const { orderId, sessionId } = await stripeOrder();
+    // Race: a later attempt's failure wedged the order while this session
+    // was still open. Force the parent to PAYMENT_FAILED, then the completed
+    // session must settle it PAID instead of throwing on the transition.
+    db.update(orders).set({ status: "PAYMENT_FAILED" }).where(eq(orders.id, orderId)).run();
+    const out = applyStripeSessionOutcome(db, { id: sessionId }, "PAID");
+    expect(out.applied).toBe(true);
+    expect(db.select().from(orders).where(eq(orders.id, orderId)).get()!.status).toBe("PAID");
+  });
+
+  it("retry refuses a still-live PENDING_PAYMENT order — no second session", async () => {
+    const { orderId } = await stripeOrder();
+    await expect(retryPayment(db, CUSTOMER, orderId)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
   });
 });
 
