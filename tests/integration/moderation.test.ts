@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { AuthError } from "@/server/api/errors";
 import type { Actor } from "@/server/auth/permissions";
 import { type DB, getDb, migrateDb } from "@/server/db/client";
-import { products } from "@/server/db/schema";
+import { products, shops } from "@/server/db/schema";
 import { seedCatalog } from "@/server/db/seed/catalog";
 import { seedIdentity } from "@/server/db/seed/identity";
 import { addItem } from "@/server/modules/cart/service";
@@ -210,6 +210,32 @@ describe("admin moderation decisions", () => {
       expect((e as AuthError).code).toBe("NOT_FOUND");
     }
     moderateProduct(db, admin, { productId: "prod_5", action: "approve", note: "cleared" });
+  });
+
+  it("suspended shops are unsellable at cart + checkout", async () => {
+    const view = addItem(db, customer.userId, "var_7", 1);
+    const line = view.items.find((i) => i.variantId === "var_7");
+    if (!line) throw new Error("cart line missing");
+    db.update(shops).set({ status: "SUSPENDED" }).where(eq(shops.id, "shop_2")).run();
+    try {
+      // direct add of another shop_2 variant is rejected, and the held line flips unavailable
+      expect(() => addItem(db, customer.userId, "var_8", 1)).toThrow(AuthError);
+      const after = addItem(db, customer.userId, "var_5", 1); // shop_1: still fine
+      const staleLine = after.items.find((i) => i.variantId === "var_7");
+      expect(staleLine?.available).toBe(false);
+      await expect(
+        placeOrder(db, customer, {
+          cartItemIds: [line.cartItemId],
+          addressId: "addr_1",
+          shippingByShop: {},
+          voucherCodes: [],
+          paymentMethod: "COD",
+          idempotencyKey: "mod_shop_suspended",
+        }),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    } finally {
+      db.update(shops).set({ status: "ACTIVE" }).where(eq(shops.id, "shop_2")).run();
+    }
   });
 
   it("requires a note on reject/suspend and valid queue states on approve/reject", () => {

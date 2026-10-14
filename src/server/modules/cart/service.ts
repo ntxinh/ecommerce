@@ -77,12 +77,13 @@ function parseAttrs(json: string): Record<string, unknown> {
   }
 }
 
-/** Variant exists AND its product is publicly purchasable (ACTIVE + not moderated). */
+/** Variant exists AND its product+shop are publicly purchasable. */
 function isSellable(db: CartStore, variantId: string) {
   return !!db
     .select({ id: productVariants.id })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
+    .innerJoin(shops, and(eq(shops.id, products.shopId), eq(shops.status, "ACTIVE")))
     .where(and(eq(productVariants.id, variantId), publicGate))
     .get();
 }
@@ -135,6 +136,7 @@ export function getCart(db: DB, userId: string): CartView {
       salePriceVnd: productVariants.salePriceVnd,
       shopId: shops.id,
       shopName: shops.name,
+      shopStatus: shops.status,
     })
     .from(cartItems)
     .innerJoin(productVariants, eq(productVariants.id, cartItems.variantId))
@@ -156,6 +158,7 @@ export function getCart(db: DB, userId: string): CartView {
     available:
       r.productStatus === "ACTIVE" &&
       ["NONE", "APPROVED"].includes(r.productModeration) &&
+      r.shopStatus === "ACTIVE" &&
       availableStock(db, r.variantId) >= r.qty,
     shopId: r.shopId,
     shopName: r.shopName,
