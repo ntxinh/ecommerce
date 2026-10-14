@@ -1,4 +1,4 @@
-import { SearchQuery } from "@/server/api/contracts/search";
+import { SearchBase, SearchQuery } from "@/server/api/contracts/search";
 import { AuthError, toErrorResponse } from "@/server/api/errors";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
@@ -12,13 +12,18 @@ import { recordSearch, search, suggest } from "@/server/modules/search/service";
  */
 export async function GET(req: Request) {
   try {
-    const parsed = SearchQuery.safeParse(Object.fromEntries(new URL(req.url).searchParams));
-    if (!parsed.success) throw new AuthError("INVALID_INPUT", 400);
-    const { mode, q, ...params } = parsed.data;
+    const raw = Object.fromEntries(new URL(req.url).searchParams);
+    const base = SearchBase.safeParse(raw);
+    if (!base.success) throw new AuthError("INVALID_INPUT", 400);
+    const { mode, q } = base.data;
     const db = getDb();
+    // Suggest ignores search params — they must not 400 the autocomplete call.
     if (mode === "suggest") return Response.json({ data: { suggestions: suggest(db, q) } });
+    const parsed = SearchQuery.safeParse(raw);
+    if (!parsed.success) throw new AuthError("INVALID_INPUT", 400);
     const actor = await getActor();
-    const result = search(db, { q, ...params });
+    const { mode: _mode, ...params } = parsed.data;
+    const result = search(db, params);
     if (actor) recordSearch(db, actor.userId, q);
     return Response.json({ data: result });
   } catch (e) {

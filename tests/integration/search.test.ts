@@ -1,6 +1,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
+import { SearchBase, SearchQuery } from "@/server/api/contracts/search";
 import { type DB, getDb, migrateDb } from "@/server/db/client";
 import {
   brands,
@@ -254,6 +255,8 @@ describe("search pagination", () => {
     expect(p1.total).toBe(4);
     expect(p1.items.map((i) => i.id)).toEqual(["prod_r1", "prod_r4"]);
     const p2 = search(db, { q: "aurora", limit: 2, cursor: p1.nextCursor! });
+    // total is the full match set — a cursor must not shrink it
+    expect(p2.total).toBe(4);
     expect(p2.items.map((i) => i.id)).toEqual(["prod_r2", "prod_r3"]);
     expect(p2.nextCursor).toBeNull();
 
@@ -301,5 +304,22 @@ describe("search history", () => {
     // service contract: only ever called with a real userId (route guards)
     const all = db.select().from(searchHistory).all();
     expect(all.every((r) => r.userId === "usr_customer")).toBe(true);
+  });
+});
+
+describe("SearchQuery contract", () => {
+  it("maps empty-string params to absent, never 0/false", () => {
+    const parsed = SearchQuery.parse({ q: "x", minPriceVnd: "", inStock: "", cursor: "" });
+    expect(parsed.minPriceVnd).toBeUndefined();
+    expect(parsed.inStock).toBeUndefined();
+    expect(parsed.cursor).toBeUndefined();
+    // a real empty would have coerced to 0 → proves "" ≠ 0
+    expect(SearchQuery.parse({ q: "x", minPriceVnd: "0" }).minPriceVnd).toBe(0);
+  });
+
+  it("suggest mode ignores search params without 400", () => {
+    const base = SearchBase.parse({ q: "cer", mode: "suggest", sort: "bogus", limit: "9999" });
+    expect(base.mode).toBe("suggest");
+    expect(SearchQuery.safeParse({ q: "x", sort: "bogus" }).success).toBe(false);
   });
 });

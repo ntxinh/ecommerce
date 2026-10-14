@@ -194,6 +194,10 @@ export function search(
   if (params.inStock != null) {
     having.push(params.inStock ? gt(availSql, 0) : lte(availSql, 0));
   }
+  // total counts the full match set — cursor predicates apply to the page
+  // only, never to the count.
+  const countWhere = and(...where);
+  const countHaving = having.length ? and(...having) : undefined;
   if (params.cursor) {
     const p = afterPredicate(sort, decodeCursor(params.cursor, sort), m);
     if (p.where) where.push(p.where);
@@ -213,9 +217,9 @@ export function search(
     .leftJoin(brands, eq(brands.id, products.brandId))
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
     .leftJoin(inventory, eq(inventory.variantId, productVariants.id))
-    .where(whereSql)
+    .where(countWhere)
     .groupBy(products.id, shops.id)
-    .having(havingSql)
+    .having(countHaving)
     .all().length;
 
   const rows = db
