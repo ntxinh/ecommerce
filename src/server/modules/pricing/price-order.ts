@@ -75,22 +75,43 @@ function voucherAmount(v: Voucher, baseVnd: number): number {
 }
 
 /**
- * Proportional-floor allocation of `discount` over line indexes' remaining
- * amounts; remainder goes to the last line (spec §4).
+ * Proportional-floor allocation of `discount` over `caps` (per-slot capacity).
+ * Rounding remainder prefers the last slot per spec §4; when a slot caps out,
+ * excess carries backward so no slot exceeds its cap. Since discount clamps to
+ * total capacity, the full amount always lands — sum(shares) = min(discount,
+ * sum(caps)).
  */
-function allocateToLines(lines: OrderLine[], idxs: number[], discount: number): number {
-  const base = idxs.reduce((s, i) => s + lines[i].lineTotalVnd, 0);
-  if (base <= 0 || discount <= 0 || idxs.length === 0) return 0;
+function proportionalAlloc(caps: number[], discount: number): number[] {
+  const base = caps.reduce((s, c) => s + c, 0);
+  const shares = caps.map(() => 0);
+  if (base <= 0 || discount <= 0 || caps.length === 0) return shares;
   const applied = Math.min(discount, base);
   let given = 0;
-  idxs.forEach((i, pos) => {
-    const share =
-      pos === idxs.length - 1
-        ? applied - given
-        : Math.floor((applied * lines[i].lineTotalVnd) / base);
-    lines[i].voucherDiscountVnd += share;
-    lines[i].lineTotalVnd -= share;
-    given += share;
+  caps.forEach((cap, i) => {
+    const want = i === caps.length - 1 ? applied - given : Math.floor((applied * cap) / base);
+    shares[i] = Math.min(want, cap);
+    given += shares[i];
+  });
+  for (let i = caps.length - 1; i >= 0 && given < applied; i--) {
+    const room = caps[i] - shares[i];
+    const take = Math.min(room, applied - given);
+    shares[i] += take;
+    given += take;
+  }
+  return shares;
+}
+
+/** Allocates a voucher discount across the given line indexes; returns applied total. */
+function allocateToLines(lines: OrderLine[], idxs: number[], discount: number): number {
+  const shares = proportionalAlloc(
+    idxs.map((i) => lines[i].lineTotalVnd),
+    discount,
+  );
+  let applied = 0;
+  idxs.forEach((i, k) => {
+    lines[i].voucherDiscountVnd += shares[k];
+    lines[i].lineTotalVnd -= shares[k];
+    applied += shares[k];
   });
   return applied;
 }
@@ -235,24 +256,31 @@ export function priceOrder(
 
   const merchSubtotal = () => perShop.reduce((s, g) => s + g.subtotalVnd - g.shopDiscountVnd, 0);
   const shopOf = (v: Voucher) => perShop.find((g) => g.shopId === v.shopId);
-  // 3–4. Non-shipping vouchers: ≤1 shop voucher per shop, ≤1 platform voucher.
+  // 3–4. Non-shipping vouchers — SHOP rows evaluate before PLATFORM regardless
+  // of input order (spec §4: platform voucher applies to post-shop-voucher
+  // subtotal). ≤1 shop voucher per shop, ≤1 platform voucher.
   const shopVoucherUsed = new Set<string>();
   let platformVoucherUsed = false;
   let platformDiscountVnd = 0;
-  for (const { code, voucher } of rows.filter((r) => r.voucher?.kind !== "SHIPPING")) {
-    const reject = (reason: VoucherRejection["reason"]) => rejectedVouchers.push({ code, reason });
+  const reject = (code: string, reason: VoucherRejection["reason"]) =>
+    rejectedVouchers.push({ code, reason });
+  const nonShipping = rows.filter((r) => r.voucher?.kind !== "SHIPPING");
+  for (const { code, voucher } of [
+    ...nonShipping.filter((r) => r.voucher?.scope === "SHOP"),
+    ...nonShipping.filter((r) => r.voucher?.scope !== "SHOP"),
+  ]) {
     if (!voucher) {
-      reject("UNKNOWN");
+      reject(code, "UNKNOWN");
       continue;
     }
     if (voucher.scope === "SHOP") {
       const group = shopOf(voucher);
       if (!group) {
-        reject("WRONG_SHOP");
+        reject(code, "WRONG_SHOP");
         continue;
       }
       if (shopVoucherUsed.has(group.shopId)) {
-        reject("STACKING");
+        reject(code, "STACKING");
         continue;
       }
       const r = validateVoucher(db, voucher, {
@@ -262,7 +290,7 @@ export function priceOrder(
         now,
       });
       if (r) {
-        rejectedVouchers.push({ code, reason: r.reason });
+        reject(code, r.reason);
         continue;
       }
       const idxs = lines.flatMap((l, i) => (l.shopId === group.shopId ? [i] : []));
@@ -277,13 +305,13 @@ export function priceOrder(
       shopVoucherUsed.add(group.shopId);
     } else {
       if (platformVoucherUsed) {
-        reject("STACKING");
+        reject(code, "STACKING");
         continue;
       }
       const base = merchSubtotal();
       const r = validateVoucher(db, voucher, { userId, scopeSubtotalVnd: base, now });
       if (r) {
-        rejectedVouchers.push({ code, reason: r.reason });
+        reject(code, r.reason);
         continue;
       }
       const applied = allocateToLines(
@@ -329,19 +357,21 @@ export function priceOrder(
       continue;
     }
     const remaining = pool.reduce((s, g) => s + g.shippingFeeVnd - g.shippingDiscountVnd, 0);
-    const applied = Math.min(voucherAmount(voucher, remaining), remaining);
-    let given = 0;
-    pool.forEach((g, pos) => {
-      const left = g.shippingFeeVnd - g.shippingDiscountVnd;
-      const share =
-        pos === pool.length - 1 ? applied - given : Math.floor((applied * left) / remaining);
-      g.shippingDiscountVnd += share;
-      given += share;
-      breakdown.push({
-        lineType: "SHIPPING_VOUCHER",
-        amountVnd: -share,
-        meta: { code: voucher.code, voucherId: voucher.id, shopId: g.shopId },
-      });
+    const shares = proportionalAlloc(
+      pool.map((g) => g.shippingFeeVnd - g.shippingDiscountVnd),
+      voucherAmount(voucher, remaining),
+    );
+    let applied = 0;
+    pool.forEach((g, k) => {
+      g.shippingDiscountVnd += shares[k];
+      applied += shares[k];
+      if (shares[k] > 0) {
+        breakdown.push({
+          lineType: "SHIPPING_VOUCHER",
+          amountVnd: -shares[k],
+          meta: { code: voucher.code, voucherId: voucher.id, shopId: g.shopId },
+        });
+      }
     });
     appliedVouchers.push({ voucherId: voucher.id, code: voucher.code, discountVnd: applied });
   }

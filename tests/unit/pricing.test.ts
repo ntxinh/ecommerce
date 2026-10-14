@@ -7,6 +7,7 @@ import {
   products,
   productVariants,
   promotions,
+  shops,
   voucherRedemptions,
   vouchers,
 } from "@/server/db/schema";
@@ -103,7 +104,48 @@ beforeEach(() => {
     .set({ basePriceVnd: 90000 })
     .where(eq(productVariants.id, "var_6"))
     .run();
+  db.update(productVariants)
+    .set({ basePriceVnd: 75000 })
+    .where(eq(productVariants.id, "var_8"))
+    .run();
+  db.update(productVariants)
+    .set({ basePriceVnd: 120000 })
+    .where(eq(productVariants.id, "var_7"))
+    .run();
 });
+
+// Third shop + product + var_9 for three-shop shipping allocation tests.
+function addShop3() {
+  db.insert(shops)
+    .values({ id: "shop_3", slug: "hue-crafts", name: "Hue Crafts", createdAt: NOW })
+    .onConflictDoNothing()
+    .run();
+  db.insert(products)
+    .values({
+      id: "prod_7",
+      shopId: "shop_3",
+      categoryId: "cat_1",
+      slug: "silk-lantern",
+      nameEn: "Silk Lantern",
+      nameVi: "Đèn lồng",
+      status: "ACTIVE",
+      createdAt: NOW,
+    })
+    .onConflictDoNothing()
+    .run();
+  db.insert(productVariants)
+    .values({
+      id: "var_9",
+      productId: "prod_7",
+      sku: "LNT-RED",
+      nameEn: "Red",
+      nameVi: "Đỏ",
+      basePriceVnd: 100000,
+      createdAt: NOW,
+    })
+    .onConflictDoNothing()
+    .run();
+}
 
 describe("unit price precedence", () => {
   it("uses flash price while the flash window is active", () => {
@@ -270,6 +312,45 @@ describe("vouchers", () => {
     expect(r.lines[1].lineTotalVnd).toBe(120000 - 572);
   });
 
+  it("never pushes a line negative when the last line cannot hold the remainder", () => {
+    addVoucher({ code: "F200", scope: "SHOP", shopId: "shop_2", kind: "FIXED", value: 200 });
+    db.update(productVariants)
+      .set({ basePriceVnd: 90000 })
+      .where(eq(productVariants.id, "var_7"))
+      .run();
+    db.update(productVariants)
+      .set({ basePriceVnd: 1 })
+      .where(eq(productVariants.id, "var_8"))
+      .run();
+    const r = price(
+      [
+        { variantId: "var_6", qty: 1 },
+        { variantId: "var_7", qty: 1 },
+        { variantId: "var_8", qty: 1 },
+      ],
+      ["F200"],
+    );
+    // caps [90000, 90000, 1]: floors 99+99, remainder 2 exceeds var_8's 1
+    // cap — var_8 takes 1 and the overflow 1 carries back to var_7 →
+    // [99, 100, 1]; old math gave var_8 2 > its total (negative line).
+    expect(r.lines.map((l) => l.voucherDiscountVnd)).toEqual([99, 100, 1]);
+    expect(r.lines[2].lineTotalVnd).toBe(0);
+    expect(r.lines.every((l) => l.lineTotalVnd >= 0)).toBe(true);
+    expect(r.lines.reduce((s, l) => s + l.lineTotalVnd, 0)).toBe(179801);
+  });
+
+  it("prices the same regardless of voucher-code input order", () => {
+    const items = [{ variantId: "var_7", qty: 2 }];
+    const shopFirst = price(items, ["SHOP2FIX", "WELCOME10"]);
+    const platformFirst = price(items, ["WELCOME10", "SHOP2FIX"]);
+    // SHOP2FIX always evaluates before WELCOME10 → 22000 platform discount.
+    expect(shopFirst.platformDiscountVnd).toBe(22000);
+    expect(platformFirst.platformDiscountVnd).toBe(22000);
+    expect(platformFirst.grandTotalVnd).toBe(shopFirst.grandTotalVnd);
+    expect(platformFirst.lines).toEqual(shopFirst.lines);
+    expect(platformFirst.perShop).toEqual(shopFirst.perShop);
+  });
+
   it("reports every rejection reason", () => {
     addVoucher({ code: "EXP", value: 1000, startsAt: NOW - 2000, endsAt: NOW - 1 });
     addVoucher({ code: "FUT", value: 1000, startsAt: NOW + 1000, endsAt: NOW + 2000 });
@@ -354,6 +435,32 @@ describe("shipping", () => {
     addVoucher({ code: "SHIP", kind: "SHIPPING", value: 1000 });
     const r = price([{ variantId: "var_6", qty: 1 }], ["SHIP"]);
     expect(r.rejectedVouchers).toEqual([{ code: "SHIP", reason: "MIN_SPEND" }]);
+  });
+
+  it("never lets the last shop's shipping discount exceed its fee", () => {
+    addShop3();
+    addVoucher({ code: "SHIPBIG", kind: "SHIPPING", value: 200 });
+    const r = price(
+      [
+        { variantId: "var_3", qty: 1 }, // shop_1
+        { variantId: "var_6", qty: 1 }, // shop_2
+        { variantId: "var_9", qty: 1 }, // shop_3
+      ],
+      ["SHIPBIG"],
+      {
+        shop_1: { method: "STANDARD", feeVnd: 100 },
+        shop_2: { method: "STANDARD", feeVnd: 100 },
+        shop_3: { method: "STANDARD", feeVnd: 1 },
+      },
+    );
+    // floors: 99 + 99 + 0; remainder 2 → shop_3 caps at 1, overflow 1 carries
+    // to shop_2 → [99, 100, 1]; no shop's discount exceeds its fee.
+    const byShop = Object.fromEntries(
+      r.perShop.map((g) => [g.shopId, g.shippingDiscountVnd] as const),
+    );
+    expect(byShop).toEqual({ shop_1: 99, shop_2: 100, shop_3: 1 });
+    for (const g of r.perShop) expect(g.shippingDiscountVnd).toBeLessThanOrEqual(g.shippingFeeVnd);
+    expect(r.perShop.reduce((s, g) => s + g.shippingDiscountVnd, 0)).toBe(200);
   });
 });
 

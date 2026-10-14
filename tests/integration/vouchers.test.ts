@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { AuthError } from "@/server/api/errors";
 import { type DB, getDb, migrateDb } from "@/server/db/client";
-import { voucherRedemptions, vouchers } from "@/server/db/schema";
+import { orders, voucherRedemptions, vouchers } from "@/server/db/schema";
 import { seedCatalog } from "@/server/db/seed/catalog";
 import { seedIdentity } from "@/server/db/seed/identity";
 import { priceOrder } from "@/server/modules/pricing/price-order";
@@ -30,6 +30,28 @@ function redemptionCount(voucherId: string, userId = USER) {
     .from(voucherRedemptions)
     .where(and(eq(voucherRedemptions.voucherId, voucherId), eq(voucherRedemptions.userId, userId)))
     .all().length;
+}
+
+let orderSeq = 0;
+
+/** Minimal orders row so redemptions satisfy the orderId FK. */
+function insertOrder(): string {
+  orderSeq += 1;
+  const id = `ord_t${orderSeq}`;
+  const now = Date.now();
+  db.insert(orders)
+    .values({
+      id,
+      userId: USER,
+      addressSnapshotJson: "{}",
+      totalVnd: 0,
+      subtotalVnd: 0,
+      idempotencyKey: `idem_t${orderSeq}`,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run();
+  return id;
 }
 
 beforeAll(() => {
@@ -96,7 +118,7 @@ describe("priceOrder + consumeRedemptions round trip", () => {
     // 94050 + 220000 - 31405 + 45000 shipping
     expect(priced.grandTotalVnd).toBe(327645);
 
-    db.transaction((tx) => consumeRedemptions(tx, USER, priced.appliedVouchers));
+    db.transaction((tx) => consumeRedemptions(tx, USER, priced.appliedVouchers, insertOrder()));
     expect(db.select().from(vouchers).where(eq(vouchers.id, "vch_1")).get()!.usedCount).toBe(1);
     expect(db.select().from(vouchers).where(eq(vouchers.id, "vch_2")).get()!.usedCount).toBe(1);
     expect(redemptionCount("vch_1")).toBe(1);
@@ -104,7 +126,7 @@ describe("priceOrder + consumeRedemptions round trip", () => {
 
   it("rejects WELCOME10 after the same user's per-user limit is consumed", () => {
     const priced = priceOrder(db, USER, [{ variantId: "var_7", qty: 1 }], ["WELCOME10"]);
-    db.transaction((tx) => consumeRedemptions(tx, USER, priced.appliedVouchers));
+    db.transaction((tx) => consumeRedemptions(tx, USER, priced.appliedVouchers, insertOrder()));
 
     const again = priceOrder(db, USER, [{ variantId: "var_7", qty: 1 }], ["WELCOME10"]);
     expect(again.rejectedVouchers).toEqual([{ code: "WELCOME10", reason: "USER_LIMIT" }]);
@@ -118,9 +140,12 @@ describe("priceOrder + consumeRedemptions round trip", () => {
     const before = db.select().from(voucherRedemptions).all().length;
     const code = errorCode(() =>
       db.transaction((tx) =>
-        consumeRedemptions(tx, USER, [
-          { voucherId: "vch_2", code: "SHOP2FIX", discountVnd: 20000 },
-        ]),
+        consumeRedemptions(
+          tx,
+          USER,
+          [{ voucherId: "vch_2", code: "SHOP2FIX", discountVnd: 20000 }],
+          insertOrder(),
+        ),
       ),
     );
     expect(code).toBe("VOUCHER_INVALID");
@@ -134,16 +159,20 @@ describe("priceOrder + consumeRedemptions round trip", () => {
       .run();
     const code = errorCode(() =>
       db.transaction((tx) =>
-        consumeRedemptions(tx, USER, [
-          { voucherId: "vch_1", code: "WELCOME10", discountVnd: 1000 },
-        ]),
+        consumeRedemptions(
+          tx,
+          USER,
+          [{ voucherId: "vch_1", code: "WELCOME10", discountVnd: 1000 }],
+          insertOrder(),
+        ),
       ),
     );
     expect(code).toBe("VOUCHER_INVALID");
     expect(db.select().from(vouchers).where(eq(vouchers.id, "vch_1")).get()!.usedCount).toBe(0);
   });
 
-  it("writes one redemption per voucher and honors the unique voucher+order key", () => {
+  it("writes one redemption per voucher against a real order", () => {
+    const orderId = insertOrder();
     db.transaction((tx) =>
       consumeRedemptions(
         tx,
@@ -152,9 +181,23 @@ describe("priceOrder + consumeRedemptions round trip", () => {
           { voucherId: "vch_1", code: "WELCOME10", discountVnd: 1000 },
           { voucherId: "vch_2", code: "SHOP2FIX", discountVnd: 20000 },
         ],
-        null,
+        orderId,
       ),
     );
     expect(db.select().from(voucherRedemptions).all()).toHaveLength(2);
+
+    // UNIQUE(voucherId, orderId) blocks consuming the same voucher twice on
+    // one order — the second tx's used_count increment must roll back too.
+    expect(() =>
+      db.transaction((tx) =>
+        consumeRedemptions(
+          tx,
+          USER,
+          [{ voucherId: "vch_2", code: "SHOP2FIX", discountVnd: 20000 }],
+          orderId,
+        ),
+      ),
+    ).toThrow();
+    expect(db.select().from(vouchers).where(eq(vouchers.id, "vch_2")).get()!.usedCount).toBe(1);
   });
 });

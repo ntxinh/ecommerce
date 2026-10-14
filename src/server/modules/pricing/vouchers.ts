@@ -82,13 +82,17 @@ export type AppliedVoucher = { voucherId: string; code: string; discountVnd: num
 /**
  * Consumes redemptions inside the caller's checkout transaction: a conditional
  * UPDATE guards the total limit, then one voucher_redemptions row per voucher.
- * Throws VOUCHER_INVALID on an exhausted/competing limit → caller rolls back.
+ * `orderId` is required — UNIQUE(voucherId, orderId) is the consume-once-per-
+ * order guard, and SQLite NULLs are distinct so a null orderId would defeat it.
+ * The caller must create the orders row first, then call this inside the same
+ * transaction. Throws VOUCHER_INVALID on an exhausted/competing limit →
+ * caller rolls back.
  */
 export function consumeRedemptions(
   tx: Tx,
   userId: string,
   applied: AppliedVoucher[],
-  orderId: string | null = null,
+  orderId: string,
 ): void {
   const now = Date.now();
   for (const { voucherId } of applied) {
