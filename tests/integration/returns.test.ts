@@ -227,6 +227,20 @@ describe("requestReturn", () => {
       ),
     ).toBe("INVALID_STATE");
   });
+
+  it("rejects an unparsed empty items array", async () => {
+    const soId = await deliveredLeg("var_1", 1);
+    expect(
+      await errorCode(() =>
+        requestReturn(db, CUSTOMER, {
+          sellerOrderId: soId,
+          items: [],
+          reason: "no lines",
+          evidence: [],
+        }),
+      ),
+    ).toBe("INVALID_INPUT");
+  });
 });
 
 describe("decideReturn / disputeReturn", () => {
@@ -257,6 +271,13 @@ describe("decideReturn / disputeReturn", () => {
     expect(await errorCode(() => disputeReturn(db, CUSTOMER2, id))).toBe("FORBIDDEN");
     disputeReturn(db, CUSTOMER, id);
     expect(rr(id).status).toBe("DISPUTED");
+
+    // A DISPUTED claim still holds the qty — no overlapping second request.
+    expect(
+      await errorCode(() =>
+        requestReturn(db, CUSTOMER, input(soId, [{ orderItemId: item.id, qty: 1 }])),
+      ),
+    ).toBe("INVALID_INPUT");
 
     // Seller can't decide a DISPUTED request; admin can.
     expect(await errorCode(() => decideReturn(db, SHOP1_OWNER, id, "APPROVED"))).toBe(

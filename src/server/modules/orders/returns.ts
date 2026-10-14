@@ -15,8 +15,10 @@ import { type Tx, transitionSellerOrder } from "./transitions";
 type ReturnRequest = typeof returnRequests.$inferSelect;
 type ReturnItem = typeof returnItems.$inferSelect;
 
-/** Return-request statuses that still consume an order item's returnable qty. */
-const QTY_HOLDING = ["PENDING", "APPROVED", "REFUNDED"] as const;
+/** Return-request statuses that still consume an item's returnable qty —
+ *  DISPUTED included: an unresolved claim can't be re-sold to a second
+ *  request. */
+const QTY_HOLDING = ["PENDING", "APPROVED", "REFUNDED", "DISPUTED"] as const;
 
 function loadLeg(tx: Tx, sellerOrderId: string) {
   const so = tx.select().from(sellerOrders).where(eq(sellerOrders.id, sellerOrderId)).get();
@@ -34,6 +36,9 @@ function loadLeg(tx: Tx, sellerOrderId: string) {
  */
 export function requestReturn(db: DB, actor: Actor, input: RequestReturnInputType): string {
   return db.transaction((tx) => {
+    if (!input.items.length) {
+      throw new AuthError("INVALID_INPUT", 400, "no items");
+    }
     const { so, order } = loadLeg(tx, input.sellerOrderId);
     if (order.userId !== actor.userId) {
       throw new AuthError("FORBIDDEN", 403, "only the buyer can file a return");

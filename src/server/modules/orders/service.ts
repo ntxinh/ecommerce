@@ -21,7 +21,7 @@ import { releaseOrderReservations } from "@/server/modules/inventory/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
 import { dispatchMockPayment, dispatchStripePayment, type PlaceOrderResult } from "./checkout";
 import { legShareVnd } from "./fulfillment";
-import { settledPaymentRef } from "./outcome";
+import { persistPaymentOutcome, settledPaymentRef } from "./outcome";
 import { transitionOrder, transitionSellerOrder } from "./transitions";
 
 type Order = typeof orders.$inferSelect;
@@ -323,16 +323,27 @@ export async function retryPayment(
   });
   const sellerOrderIds = detail.sellerOrders.map((s) => s.id);
   if (payment.method === "STRIPE") {
-    const { redirectUrl, orderStatus } = await dispatchStripePayment(
-      db,
-      orderId,
-      payment.id,
-      attemptId,
-      payment.amountVnd,
-      opts.origin!,
-      opts.locale ?? "en",
-    );
-    return { orderId, sellerOrderIds, status: orderStatus, redirectUrl };
+    try {
+      const { redirectUrl, orderStatus } = await dispatchStripePayment(
+        db,
+        orderId,
+        payment.id,
+        attemptId,
+        payment.amountVnd,
+        opts.origin!,
+        opts.locale ?? "en",
+      );
+      return { orderId, sellerOrderIds, status: orderStatus, redirectUrl };
+    } catch (e) {
+      // AuthError here = config/env problem (e.g. keys removed), not a payment
+      // outcome — re-wedge attempt+payment+order via the shared settle path so
+      // a later retry stays legal (the PENDING_PAYMENT gate would otherwise
+      // permanently reject this order).
+      if (e instanceof AuthError) {
+        persistPaymentOutcome(db, payment.id, "FAILED", attemptId);
+      }
+      throw e;
+    }
   }
   const outcome = await dispatchMockPayment(
     db,

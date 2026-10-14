@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { mkdirSync, rmSync } from "node:fs";
 import { eq } from "drizzle-orm";
+import { AuthError } from "@/server/api/errors";
 import Stripe from "stripe";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { Actor } from "@/server/auth/permissions";
@@ -289,6 +290,55 @@ describe("money-path review fixes", () => {
     await expect(retryPayment(db, CUSTOMER, orderId)).rejects.toMatchObject({
       code: "INVALID_INPUT",
     });
+  });
+
+  it("retry with keys absent re-wedges PAYMENT_FAILED — order stays retryable", async () => {
+    // Wedge the order: sessions.create failure leaves it PAYMENT_FAILED.
+    clearCart(db, CUSTOMER.userId);
+    const view = addItem(db, CUSTOMER.userId, "var_3", 1);
+    const cartItemId = view.items.find((i) => i.variantId === "var_3")!.cartItemId;
+    setStripeForTests({
+      checkout: { sessions: { create: async () => ({ id: `cs_test_${++keySeq}` }) } },
+    } as unknown as Stripe);
+    const { orderId } = await placeOrder(
+      db,
+      CUSTOMER,
+      {
+        cartItemIds: [cartItemId],
+        addressId: ADDRESS,
+        shippingByShop: {},
+        voucherCodes: [],
+        paymentMethod: "STRIPE",
+        idempotencyKey: `stripe_${++keySeq}`,
+      },
+      { origin: "https://shop.test", locale: "en" },
+    );
+    db.update(orders).set({ status: "PAYMENT_FAILED" }).where(eq(orders.id, orderId)).run();
+    // Keys "removed" at retry time → dispatch AuthError; order must land back at
+    // PAYMENT_FAILED (not stranded PENDING_PAYMENT under the retry gate).
+    setStripeForTests(null);
+    await expect(
+      retryPayment(db, CUSTOMER, orderId, undefined, { origin: "https://shop.test" }),
+    ).rejects.toBeInstanceOf(AuthError);
+    expect(db.select().from(orders).where(eq(orders.id, orderId)).get()!.status).toBe(
+      "PAYMENT_FAILED",
+    );
+    // Keys restored → retry still legal.
+    setStripeForTests({
+      checkout: {
+        sessions: {
+          create: async () => ({
+            id: `cs_test_${++keySeq}`,
+            url: "https://checkout.stripe.com/r",
+          }),
+        },
+      },
+    } as unknown as Stripe);
+    const retry = await retryPayment(db, CUSTOMER, orderId, undefined, {
+      origin: "https://shop.test",
+    });
+    expect(retry.status).toBe("PENDING_PAYMENT");
+    expect(retry.redirectUrl).toBe("https://checkout.stripe.com/r");
   });
 });
 
