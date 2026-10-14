@@ -7,10 +7,6 @@ const PASSWORD = "Marketflow123!";
 const SELLER = "seller@marketflow.dev"; // shop_1 (Saigon Crafts) owner
 const customerEmail = () => `e2e-fulfillment-${Date.now()}@marketflow.dev`;
 
-// Serial: the whole journey is one order's lifecycle — customer places, seller
-// fulfills, customer verifies — so each leg depends on the previous.
-test.describe.configure({ mode: "serial" });
-
 async function login(page: Page, email: string) {
   await page.goto("/en/login");
   await page.getByLabel("Email").fill(email);

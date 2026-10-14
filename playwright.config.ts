@@ -14,6 +14,7 @@ export default defineConfig({
   // test-results/ sits inside the watched repo: Playwright writes artifacts
   // mid-run, Turbopack sees the churn, Fast Refresh reloads the page under the
   // test mid-action. Keep output outside the tree like the DB above.
+  outputDir: join(tmpdir(), "marketflow-e2e-artifacts"),
   // One worker: Turbopack compiles on demand, and a compile triggered by any
   // page load broadcasts a Fast Refresh reload to every connected browser —
   // parallel workers knock each other over mid-click. The seeded SQLite e2e
