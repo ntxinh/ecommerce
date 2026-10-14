@@ -259,7 +259,9 @@ describe("money path", () => {
     expect(reversal?.url).toContain(`/transfers/${transfer.id}/reversals`);
     expect(reversal?.body).toMatchObject({
       refund_amount: amountVnd,
-      idempotency_id: `${transfer.id}:refund:${amountVnd}`,
+      // Keyed per refunds row (rfd_…), so two same-amount refunds on one
+      // transfer can't collapse into a single Finix reversal.
+      idempotency_id: expect.stringContaining(`:refund:rfd_`),
     });
     expect(db.select().from(payments).where(eq(payments.orderId, orderId)).get()!.status).toBe(
       "REFUNDED",
@@ -300,6 +302,22 @@ describe("money path", () => {
     await expect(
       paymentProviderFor("FINIX").refund({ ref: "checkout_form_cf2", amountVnd: 1 }),
     ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+  });
+
+  it("two equal-amount refunds on one transfer mint distinct idempotency keys", async () => {
+    const { finix, calls } = stubFinix({});
+    setFinixForTests(finix);
+    const finixCard = paymentProviderFor("FINIX");
+    await finixCard.refund({ ref: "TR_settled", amountVnd: 50000, refundId: "rfd_a" });
+    await finixCard.refund({ ref: "TR_settled", amountVnd: 50000, refundId: "rfd_b" });
+    const keys = calls
+      .filter((c) => c.method === "POST" && c.url.includes("/reversals"))
+      .map((c) =>
+        c.body && typeof c.body === "object" && "idempotency_id" in c.body
+          ? c.body.idempotency_id
+          : undefined,
+      );
+    expect(keys).toEqual(["TR_settled:refund:rfd_a", "TR_settled:refund:rfd_b"]);
   });
 
   it("settle records externalRef so webhook replays resolve O(1)", async () => {

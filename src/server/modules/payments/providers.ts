@@ -33,7 +33,7 @@ export type AttemptResult = { ref: string; redirectUrl?: string };
 export interface PaymentProvider {
   createAttempt(ctx: AttemptContext): AttemptResult | Promise<AttemptResult>;
   confirm(ctx: { ref: string }): Promise<PaymentStatus>;
-  refund(ctx: { ref: string; amountVnd: number }): Promise<PaymentStatus>;
+  refund(ctx: { ref: string; amountVnd: number; refundId?: string }): Promise<PaymentStatus>;
 }
 
 // Ref → simulate, shared by createAttempt/confirm within a request process.

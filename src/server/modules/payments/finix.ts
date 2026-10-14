@@ -352,7 +352,7 @@ export const finixCard: PaymentProvider = {
     const t = await finixFormTransfer(finix, ref);
     return t ? transferOutcome(t.state) : "PENDING";
   },
-  refund: async ({ ref, amountVnd }) => {
+  refund: async ({ ref, amountVnd, refundId }) => {
     const finix = getFinix();
     if (!finix) throw new AuthError("INVALID_INPUT", 422, "finix is not configured");
     // settledPaymentRef yields the settled transfer id (attempt.external_ref);
@@ -369,8 +369,10 @@ export const finixCard: PaymentProvider = {
     }
     await finixRequest(finix, "POST", `/transfers/${encodeURIComponent(transferId)}/reversals`, {
       refund_amount: amountVnd,
-      // Stable key: a retried refund replays the same reversal at Finix.
-      idempotency_id: `${transferId}:refund:${amountVnd}`,
+      // Keyed per refund row — two equal-amount refunds on one transfer must
+      // not collapse into a single reversal at Finix. Callers without a
+      // booking row (direct adapter use) fall back to amount.
+      idempotency_id: `${transferId}:refund:${refundId ?? amountVnd}`,
     });
     return "REFUNDED";
   },

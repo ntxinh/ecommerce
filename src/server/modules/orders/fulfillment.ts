@@ -303,6 +303,7 @@ export async function cancelSellerOrder(
     await paymentProviderFor(refund.payment.method).refund({
       ref: settledPaymentRef(db, refund.payment.id),
       amountVnd: refund.refundVnd,
+      refundId: refund.refundId,
     });
     if (refund.refundId) completeRefund(db, refund.refundId);
   }

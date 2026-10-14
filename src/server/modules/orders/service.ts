@@ -278,6 +278,7 @@ export async function cancelOrder(
     await paymentProviderFor(payment.method).refund({
       ref: settledPaymentRef(db, payment.id),
       amountVnd: booked.refundVnd,
+      refundId: booked.refundId,
     });
     if (booked.refundId) completeRefund(db, booked.refundId);
   }
