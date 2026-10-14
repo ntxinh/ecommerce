@@ -29,6 +29,13 @@
       "when": 1791938969003,
       "tag": "0003_early_iron_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791942829186,
+      "tag": "0004_colossal_katie_power",
+      "breakpoints": true
     }
   ]
 }

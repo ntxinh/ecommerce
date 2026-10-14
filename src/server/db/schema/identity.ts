@@ -62,3 +62,22 @@ export const passwordResetTokens = sqliteTable(
   },
   (t) => [uniqueIndex("prt_token_hash_unique").on(t.tokenHash)],
 );
+
+export const addresses = sqliteTable(
+  "addresses",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    recipientName: text("recipient_name").notNull(),
+    phone: text("phone").notNull(),
+    line1: text("line1").notNull(),
+    ward: text("ward").notNull(),
+    district: text("district").notNull(),
+    city: text("city").notNull(),
+    isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("addresses_user_idx").on(t.userId)],
+);
