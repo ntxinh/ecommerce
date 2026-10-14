@@ -2,10 +2,11 @@ import { mkdirSync, rmSync } from "node:fs";
 import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { type DB, getDb, migrateDb } from "@/server/db/client";
-import { inventory } from "@/server/db/schema";
+import { inventory, shops } from "@/server/db/schema";
 import { seedCatalog } from "@/server/db/seed/catalog";
 import { seedIdentity } from "@/server/db/seed/identity";
 import {
+  cardsForIds,
   getHomepageData,
   getProductBySlug,
   getShopBySlug,
@@ -220,5 +221,28 @@ describe("getHomepageData", () => {
     expect(h.trending.map((i) => i.id)).toEqual(["prod_1", "prod_3", "prod_4", "prod_6"]);
     expect(h.newest.items[0].id).toBe("prod_6");
     expect(h.newest.items).toHaveLength(6);
+  });
+});
+
+describe("suspended shops", () => {
+  it("excludes suspended-shop products from listings, ids, detail, and homepage", () => {
+    db.update(shops).set({ status: "SUSPENDED" }).where(eq(shops.id, "shop_2")).run();
+    try {
+      const ids = listProducts(db, {}).items.map((i) => i.id);
+      expect(ids).not.toContain("prod_4");
+      expect(ids).not.toContain("prod_5");
+      expect(ids).not.toContain("prod_6");
+      expect(listProducts(db, { shopId: "shop_2" }).items).toHaveLength(0);
+      expect(cardsForIds(db, ["prod_4", "prod_1"]).map((c) => c.id)).toEqual(["prod_1"]);
+      expect(() => getProductBySlug(db, "straw-hat")).toThrowError(
+        expect.objectContaining({ code: "NOT_FOUND" }),
+      );
+      const h = getHomepageData(db);
+      expect(h.featuredShops.map((s) => s.slug)).toEqual(["saigon-crafts"]);
+      expect(h.trending.map((i) => i.id)).not.toContain("prod_4");
+      expect(h.newest.items.map((i) => i.id)).not.toContain("prod_6");
+    } finally {
+      db.update(shops).set({ status: "ACTIVE" }).where(eq(shops.id, "shop_2")).run();
+    }
   });
 });

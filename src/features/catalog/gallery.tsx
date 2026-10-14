@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +9,7 @@ type Img = { id: string; url: string; alt: string };
 /** Main image + thumbnail strip. No images → caller should pass nothing and
  *  the main area renders a placeholder. */
 export function Gallery({ images, fallbackAlt }: { images: Img[]; fallbackAlt: string }) {
+  const t = useTranslations("storefront");
   const [current, setCurrent] = useState(0);
   const img = images[current];
   return (
@@ -28,7 +30,7 @@ export function Gallery({ images, fallbackAlt }: { images: Img[]; fallbackAlt: s
               key={im.id}
               type="button"
               onClick={() => setCurrent(i)}
-              aria-label={`Image ${i + 1}`}
+              aria-label={t("imageN", { n: i + 1 })}
               className={cn(
                 "size-16 shrink-0 overflow-hidden rounded-md border-2",
                 i === current ? "border-primary" : "border-transparent",

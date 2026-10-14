@@ -80,6 +80,7 @@ export function AddToCart({
           name="variantId"
           value={variantId}
           onChange={(e) => setVariantId(e.target.value)}
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
         >
           {variants.map((v) => (
             <option key={v.id} value={v.id} disabled={v.available === 0}>

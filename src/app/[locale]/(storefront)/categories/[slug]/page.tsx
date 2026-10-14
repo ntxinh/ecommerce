@@ -36,25 +36,40 @@ export default async function CategoryPage({
   }
 
   const sort = SORTS.includes(sp.sort as ProductSort) ? (sp.sort as ProductSort) : undefined;
+  const minPriceVnd = num(sp.minPriceVnd);
+  const maxPriceVnd = num(sp.maxPriceVnd);
+  const minRating = num(sp.minRating);
+  const inStock = sp.inStock === "true" ? true : sp.inStock === "false" ? false : undefined;
+  // Load-more echoes normalized params — raw values could 400 the API route.
   const query: Record<string, string> = { categoryId: category.id };
-  for (const k of ["minPriceVnd", "maxPriceVnd", "minRating", "inStock", "sort"] as const) {
-    if (sp[k]) query[k] = sp[k]!;
-  }
+  if (sort) query.sort = sort;
+  if (minPriceVnd != null) query.minPriceVnd = String(minPriceVnd);
+  if (maxPriceVnd != null) query.maxPriceVnd = String(maxPriceVnd);
+  if (minRating != null) query.minRating = String(minRating);
+  if (inStock != null) query.inStock = String(inStock);
   let page: { items: Parameters<typeof ProductList>[0]["initial"]; nextCursor: string | null };
   try {
     page = listProducts(db, {
       categoryId: category.id,
-      minPriceVnd: num(sp.minPriceVnd),
-      maxPriceVnd: num(sp.maxPriceVnd),
-      minRating: num(sp.minRating),
-      inStock: sp.inStock === "true" ? true : sp.inStock === "false" ? false : undefined,
+      minPriceVnd,
+      maxPriceVnd,
+      minRating,
+      inStock,
       sort,
       cursor: sp.cursor,
       limit: 12,
     });
   } catch {
     // malformed/mismatched cursor → refetch clean
-    page = listProducts(db, { categoryId: category.id, sort, limit: 12 });
+    page = listProducts(db, {
+      categoryId: category.id,
+      minPriceVnd,
+      maxPriceVnd,
+      minRating,
+      inStock,
+      sort,
+      limit: 12,
+    });
   }
 
   return (

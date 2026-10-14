@@ -18,6 +18,7 @@ export function SearchBox() {
   useEffect(() => {
     const term = q.trim();
     if (!term) {
+      ++seq.current; // cancel any in-flight suggest so a stale response can't repopulate
       setSuggestions([]);
       return;
     }

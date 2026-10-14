@@ -12,6 +12,7 @@ import {
   productVariants,
   searchHistory,
   sellerOrders,
+  shops,
 } from "@/server/db/schema";
 import { seedCatalog } from "@/server/db/seed/catalog";
 import { seedIdentity } from "@/server/db/seed/identity";
@@ -321,5 +322,19 @@ describe("SearchQuery contract", () => {
     const base = SearchBase.parse({ q: "cer", mode: "suggest", sort: "bogus", limit: "9999" });
     expect(base.mode).toBe("suggest");
     expect(SearchQuery.safeParse({ q: "x", sort: "bogus" }).success).toBe(false);
+  });
+});
+
+describe("suspended shops", () => {
+  it("excludes suspended-shop products from search and suggest", () => {
+    db.update(shops).set({ status: "SUSPENDED" }).where(eq(shops.id, "shop_1")).run();
+    try {
+      expect(search(db, { q: "aurora" }).items).toHaveLength(0);
+      expect(search(db, { q: "ceramic" }).items).toHaveLength(0);
+      expect(suggest(db, "ceramic")).toEqual([]);
+      expect(suggest(db, "ấm")).toEqual([]);
+    } finally {
+      db.update(shops).set({ status: "ACTIVE" }).where(eq(shops.id, "shop_1")).run();
+    }
   });
 });

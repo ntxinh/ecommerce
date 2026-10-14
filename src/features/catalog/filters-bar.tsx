@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,12 @@ export function FiltersBar({ mode }: { mode: keyof typeof SORTS }) {
   const [, startTransition] = useTransition();
   const [min, setMin] = useState(params.get("minPriceVnd") ?? "");
   const [max, setMax] = useState(params.get("maxPriceVnd") ?? "");
+
+  // URL is the source of truth — Clear filters etc. must resync the inputs.
+  useEffect(() => {
+    setMin(params.get("minPriceVnd") ?? "");
+    setMax(params.get("maxPriceVnd") ?? "");
+  }, [params]);
 
   const push = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params.toString());

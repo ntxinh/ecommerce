@@ -374,7 +374,7 @@ export function listProducts(
   const rows = db
     .select(cardSelect)
     .from(products)
-    .innerJoin(shops, eq(shops.id, products.shopId))
+    .innerJoin(shops, and(eq(shops.id, products.shopId), eq(shops.status, "ACTIVE")))
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
     .leftJoin(inventory, eq(inventory.variantId, productVariants.id))
     .where(and(...where))
@@ -396,7 +396,7 @@ export function getProductBySlug(db: DB, slug: string): ProductDetail {
   const row = db
     .select({ product: products, shop: shops })
     .from(products)
-    .innerJoin(shops, eq(shops.id, products.shopId))
+    .innerJoin(shops, and(eq(shops.id, products.shopId), eq(shops.status, "ACTIVE")))
     .where(eq(products.slug, slug))
     .get();
   // Public callers never see DRAFT/ARCHIVED — same NOT_FOUND as missing.
@@ -538,7 +538,7 @@ export function cardsForIds(db: DB, ids: string[]): ProductCard[] {
   const rows = db
     .select(cardSelect)
     .from(products)
-    .innerJoin(shops, eq(shops.id, products.shopId))
+    .innerJoin(shops, and(eq(shops.id, products.shopId), eq(shops.status, "ACTIVE")))
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
     .leftJoin(inventory, eq(inventory.variantId, productVariants.id))
     .where(and(inArray(products.id, ids), eq(products.status, "ACTIVE")))

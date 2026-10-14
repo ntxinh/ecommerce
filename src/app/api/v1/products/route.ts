@@ -33,13 +33,15 @@ const ProductsQuery = z.object({
  */
 export async function GET(req: Request) {
   try {
-    const raw = Object.fromEntries(new URL(req.url).searchParams);
+    const sp = new URL(req.url).searchParams;
+    const raw = Object.fromEntries(sp);
     const parsed = ProductsQuery.safeParse(raw);
     if (!parsed.success) throw new AuthError("INVALID_INPUT", 400);
-    const { ids, ...params } = parsed.data;
+    const { ids: _ids, ...params } = parsed.data;
     const db = getDb();
-    if (ids != null) {
-      const list = ids
+    // ids presence (not non-empty value) selects the mode: `?ids=` → empty list.
+    if (sp.has("ids")) {
+      const list = (raw.ids ?? "")
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean)

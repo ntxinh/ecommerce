@@ -213,7 +213,7 @@ export function search(
   const total = db
     .select({ id: products.id })
     .from(products)
-    .innerJoin(shops, eq(shops.id, products.shopId))
+    .innerJoin(shops, and(eq(shops.id, products.shopId), eq(shops.status, "ACTIVE")))
     .leftJoin(brands, eq(brands.id, products.brandId))
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
     .leftJoin(inventory, eq(inventory.variantId, productVariants.id))
@@ -229,7 +229,7 @@ export function search(
       sold: soldCount.mapWith(Number),
     })
     .from(products)
-    .innerJoin(shops, eq(shops.id, products.shopId))
+    .innerJoin(shops, and(eq(shops.id, products.shopId), eq(shops.status, "ACTIVE")))
     .leftJoin(brands, eq(brands.id, products.brandId))
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
     .leftJoin(inventory, eq(inventory.variantId, productVariants.id))
@@ -260,6 +260,7 @@ export function suggest(db: DB, q: string, limit = 8): string[] {
   const rows = db
     .select({ nameEn: products.nameEn, nameVi: products.nameVi })
     .from(products)
+    .innerJoin(shops, and(eq(shops.id, products.shopId), eq(shops.status, "ACTIVE")))
     .where(
       and(
         eq(products.status, "ACTIVE"),
