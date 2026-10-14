@@ -109,19 +109,21 @@ export type HomepageData = {
 // --- shared select expressions -------------------------------------------
 
 /** Effective variant price: sale price when set, else base. */
-const effectivePrice = sql`coalesce(${productVariants.salePriceVnd}, ${productVariants.basePriceVnd})`;
+export const effectivePrice = sql`coalesce(${productVariants.salePriceVnd}, ${productVariants.basePriceVnd})`;
 /** Card price = cheapest variant's effective price. */
-const minPrice = sql`min(${effectivePrice})`;
-const availSql = sql`coalesce(sum(${inventory.onHand} - ${inventory.reserved}), 0)`;
+export const minPrice = sql`min(${effectivePrice})`;
+export const availSql = sql`coalesce(sum(${inventory.onHand} - ${inventory.reserved}), 0)`;
 // Correlated aggregates over PUBLISHED reviews only — HIDDEN never counts.
-const ratingAvg = sql<number | null>`(
+export const ratingAvg = sql<number | null>`(
   select avg(r.rating) from ${reviews} r
   where r.product_id = ${products.id} and r.status = ${"PUBLISHED"})`;
 const ratingCount = sql<number>`(
   select count(*) from ${reviews} r
   where r.product_id = ${products.id} and r.status = ${"PUBLISHED"})`;
 
-const cardSelect = {
+// Exported for the search module — card rows must hydrate identically wherever
+// a product list is built.
+export const cardSelect = {
   id: products.id,
   slug: products.slug,
   nameEn: products.nameEn,
@@ -135,7 +137,7 @@ const cardSelect = {
   available: availSql.mapWith(Number),
 };
 
-type CardRow = {
+export type CardRow = {
   id: string;
   slug: string;
   nameEn: string;
@@ -156,7 +158,7 @@ type CardRow = {
 // stable even when sort keys tie (all seeds share createdAt≈).
 type Cursor = { s: ProductSort; v?: number; c?: number; i: string };
 
-function encodeCursor(c: Cursor): string {
+export function encodeCursor(c: object): string {
   return Buffer.from(JSON.stringify(c), "utf8").toString("base64url");
 }
 
@@ -238,7 +240,7 @@ function allCategories(db: DB) {
 
 // ponytail: one fetch + BFS per listing call — the categories table is tiny;
 // recursive CTE only if it ever grows.
-function categoryDescendants(db: DB, categoryId: string): string[] {
+export function categoryDescendants(db: DB, categoryId: string): string[] {
   const byParent = new Map<string | null, string[]>();
   for (const c of allCategories(db)) {
     const list = byParent.get(c.parentId) ?? [];
@@ -255,17 +257,23 @@ function categoryDescendants(db: DB, categoryId: string): string[] {
   return out;
 }
 
+/** Escape LIKE metacharacters in user input. */
+export function escapeLike(q: string): string {
+  return q.replace(/[\\%_]/g, (m) => `\\${m}`);
+}
+
 /** LIKE pattern with user input escaped — matches name/description, en+vi. */
 function textFilter(q: string): SQL {
-  const pat = `%${q.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
-  return sql`(${products.nameEn} like ${pat} escape '\\'
-    or ${products.nameVi} like ${pat} escape '\\'
-    or ${products.descriptionEn} like ${pat} escape '\\'
-    or ${products.descriptionVi} like ${pat} escape '\\')`;
+  const pat = `%${escapeLike(q)}%`;
+  // ulower: Unicode-aware fold registered in db/client (SQLite lower() is ASCII-only).
+  return sql`(ulower(${products.nameEn}) like ${pat} escape '\\'
+    or ulower(${products.nameVi}) like ${pat} escape '\\'
+    or ulower(${products.descriptionEn}) like ${pat} escape '\\'
+    or ulower(${products.descriptionVi}) like ${pat} escape '\\')`;
 }
 
 /** Rows → cards: attach the first product-level image per product. */
-function toCards(db: DB, rows: CardRow[]): ProductCard[] {
+export function toCards(db: DB, rows: CardRow[]): ProductCard[] {
   if (!rows.length) return [];
   const imgs = db
     .select({

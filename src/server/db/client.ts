@@ -15,6 +15,11 @@ export function getDb(path = env.DATABASE_URL.replace("file:", "")): DB {
   if (cached) return cached;
   mkdirSync(dirname(path), { recursive: true });
   const sqlite = new Database(path);
+  // lower() is ASCII-only in SQLite — search needs vi case folding too.
+  // PG port: drop this registration, ulower() → lower().
+  sqlite.function("ulower", { deterministic: true }, (s: string) =>
+    s == null ? s : String(s).toLowerCase(),
+  );
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   const db = drizzle(sqlite, { schema });
