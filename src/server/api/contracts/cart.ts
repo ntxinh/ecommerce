@@ -1,8 +1,12 @@
 import { z } from "zod";
 
-// "" would coerce to 0 (silently deleting the line on update) — treat as missing.
+// Empty/whitespace strings would coerce to 0 (silently deleting the line on
+// update) — treat them as missing.
 const qty = (min: number) =>
-  z.preprocess((v) => (v === "" ? undefined : v), z.coerce.number().int().min(min).max(999));
+  z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.coerce.number().int().min(min).max(999),
+  );
 
 // qty is coerced so the same contract accepts FormData strings (server actions)
 // and JSON numbers (route handlers).

@@ -33,6 +33,7 @@ describe("cart contracts", () => {
     expect(CartUpdateInput.parse({ cartItemId: "ci_1", qty: "0" }).qty).toBe(0);
     expect(CartUpdateInput.parse({ cartItemId: "ci_1", qty: 0 }).qty).toBe(0);
     expect(CartUpdateInput.safeParse({ cartItemId: "ci_1", qty: "" }).success).toBe(false);
+    expect(CartUpdateInput.safeParse({ cartItemId: "ci_1", qty: " \t" }).success).toBe(false);
     expect(CartUpdateInput.safeParse({ cartItemId: "ci_1", qty: -1 }).success).toBe(false);
   });
   it("requires cartItemId on remove", () => {
