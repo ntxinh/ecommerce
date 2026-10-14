@@ -121,7 +121,26 @@
     "vouchersHint": "Phân tách nhiều mã bằng dấu cách hoặc phẩy",
     "paymentMethods": {
       "COD": "Thanh toán khi nhận hàng",
-      "MOCK_WALLET": "Ví giả lập (thử nghiệm)"
+      "MOCK_WALLET": "Ví giả lập (thử nghiệm)",
+      "MOCK_BANK": "Chuyển khoản ngân hàng (thử nghiệm)",
+      "STRIPE": "Thẻ (Stripe)",
+      "FINIX": "Thẻ (Finix)"
+    },
+    "pay": {
+      "title": "Thanh toán",
+      "pending": "Thanh toán đang xử lý. Hoàn tất tại Stripe nếu bạn đã rời cửa sổ thanh toán.",
+      "failed": "Thanh toán thất bại hoặc đã hết hạn. Bạn có thể thử lại bằng phiên thanh toán mới.",
+      "retry": "Thử thanh toán lại",
+      "continue": "Tiếp tục tới Stripe",
+      "viewOrders": "Xem đơn hàng"
+    },
+    "payFinix": {
+      "title": "Thanh toán",
+      "pending": "Thanh toán đang xử lý. Hoàn tất tại Finix nếu bạn đã rời cửa sổ thanh toán.",
+      "failed": "Thanh toán thất bại hoặc đã hết hạn. Bạn có thể thử lại bằng phiên thanh toán mới.",
+      "retry": "Thử thanh toán lại",
+      "continue": "Tiếp tục tới Finix",
+      "viewOrders": "Xem đơn hàng"
     },
     "simulate": "Giả lập kết quả thanh toán",
     "simulateNone": "Kết quả thật",
@@ -165,6 +184,21 @@
     "deliveryAddress": "Địa chỉ giao hàng",
     "backToOrders": "Tất cả đơn hàng",
     "viewOrders": "Xem tất cả đơn hàng",
+    "sellerOrder": "Đơn người bán",
+    "legTotal": "Tổng phần đơn",
+    "shipment": "Vận đơn",
+    "legStatus": {
+      "NEW": "Mới",
+      "CONFIRMED": "Đã xác nhận",
+      "PACKING": "Đang đóng gói",
+      "READY_TO_SHIP": "Sẵn sàng giao",
+      "SHIPPED": "Đã giao cho vận chuyển",
+      "DELIVERED": "Đã giao hàng",
+      "COMPLETED": "Hoàn tất",
+      "CANCELLED": "Đã hủy",
+      "RETURN_REQUESTED": "Yêu cầu trả hàng",
+      "RETURNED": "Đã trả hàng"
+    },
     "nextPage": "Đơn cũ hơn"
   },
   "seller": {
@@ -217,6 +251,53 @@
     "variantAttrs": "Thuộc tính (JSON)",
     "save": "Lưu sản phẩm",
     "saving": "Đang lưu…",
+    "ordersTitle": "Đơn hàng",
+    "ordersEmpty": "Chưa có đơn hàng nào cho cửa hàng này.",
+    "colSellerOrder": "Đơn người bán",
+    "colOrder": "Đơn hàng",
+    "colDate": "Ngày",
+    "colTotal": "Tổng",
+    "nextPage": "Đơn cũ hơn",
+    "backToOrders": "Tất cả đơn hàng",
+    "parentOrder": "Đơn hàng",
+    "orderActionsTitle": "Xử lý đơn",
+    "orderActions": {
+      "confirm": "Xác nhận",
+      "pack": "Đóng gói",
+      "ship": "Giao vận chuyển",
+      "deliver": "Đã giao hàng",
+      "complete": "Hoàn tất",
+      "cancel": "Hủy đơn"
+    },
+    "shipCarrier": "Đơn vị vận chuyển",
+    "shipTracking": "Mã vận đơn",
+    "items": "Sản phẩm",
+    "item": "Sản phẩm",
+    "quantity": "SL",
+    "lineTotal": "Thành tiền",
+    "merchandise": "Hàng hóa",
+    "shipping": "Vận chuyển",
+    "total": "Tổng",
+    "deliveryAddress": "Địa chỉ giao hàng",
+    "shipment": "Vận đơn",
+    "legStatus": {
+      "NEW": "Mới",
+      "CONFIRMED": "Đã xác nhận",
+      "PACKING": "Đang đóng gói",
+      "READY_TO_SHIP": "Sẵn sàng giao",
+      "SHIPPED": "Đã giao cho vận chuyển",
+      "DELIVERED": "Đã giao hàng",
+      "COMPLETED": "Hoàn tất",
+      "CANCELLED": "Đã hủy",
+      "RETURN_REQUESTED": "Yêu cầu trả hàng",
+      "RETURNED": "Đã trả hàng"
+    },
+    "orderErrors": {
+      "UNAUTHORIZED": "Vui lòng đăng nhập",
+      "FORBIDDEN": "Bạn không thể quản lý đơn hàng của cửa hàng này",
+      "NOT_FOUND": "Không tìm thấy đơn hàng",
+      "INVALID_INPUT": "Thao tác không hợp lệ với trạng thái hiện tại"
+    },
     "errors": {
       "UNAUTHORIZED": "Vui lòng đăng nhập",
       "FORBIDDEN": "Bạn không thể quản lý sản phẩm của cửa hàng này",

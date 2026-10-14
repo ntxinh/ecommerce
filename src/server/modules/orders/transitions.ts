@@ -19,14 +19,14 @@ export type Tx = Pick<DB, "select" | "insert" | "update">;
 /** Legal parent-order transitions (spec §5 / order-lifecycle.md). */
 export const ORDER_TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
   PENDING_PAYMENT: ["PAID", "PAYMENT_FAILED", "CANCELLED"],
-  PAID: ["PROCESSING", "CANCELLED"],
-  PAYMENT_FAILED: ["PENDING_PAYMENT", "CANCELLED"],
+  PAID: ["PROCESSING", "CANCELLED", "PARTIALLY_REFUNDED", "REFUNDED"],
+  PAYMENT_FAILED: ["PENDING_PAYMENT", "PAID", "CANCELLED"],
   PROCESSING: ["SHIPPED", "CANCELLED"],
   SHIPPED: ["DELIVERED"],
   DELIVERED: ["COMPLETED", "PARTIALLY_REFUNDED", "REFUNDED"],
   COMPLETED: [],
   CANCELLED: [],
-  PARTIALLY_REFUNDED: [],
+  PARTIALLY_REFUNDED: ["REFUNDED"],
   REFUNDED: [],
 };
 
@@ -41,7 +41,7 @@ export const SELLER_ORDER_TRANSITIONS: Readonly<
   SHIPPED: ["DELIVERED"],
   DELIVERED: ["COMPLETED", "RETURN_REQUESTED"],
   RETURN_REQUESTED: ["RETURNED", "COMPLETED"],
-  COMPLETED: [],
+  COMPLETED: ["RETURNED"],
   CANCELLED: [],
   RETURNED: [],
 };
@@ -56,26 +56,26 @@ export function canTransitionSellerOrder(from: SellerOrderStatus, to: SellerOrde
 
 /** Parent statuses that allow seller-fulfillment progress — anything where the
  *  order has been paid or shipped (partners can't move an unpaid order). */
-const PAID_PARENT: ReadonlySet<OrderStatus> = new Set([
-  "PAID",
-  "PROCESSING",
-  "SHIPPED",
-  "DELIVERED",
-  "COMPLETED",
-  "PARTIALLY_REFUNDED",
-  "REFUNDED",
-]);
+export const PAID_PARENT: Readonly<Partial<Record<OrderStatus, true>>> = {
+  PAID: true,
+  PROCESSING: true,
+  SHIPPED: true,
+  DELIVERED: true,
+  COMPLETED: true,
+  PARTIALLY_REFUNDED: true,
+  REFUNDED: true,
+};
 
 /** Seller-order targets that move fulfillment forward; CANCELLED/RETURN_* are
  *  excluded so owner-cancel and returns still work regardless of parent. */
-const FORWARD_SELLER: ReadonlySet<SellerOrderStatus> = new Set([
-  "CONFIRMED",
-  "PACKING",
-  "READY_TO_SHIP",
-  "SHIPPED",
-  "DELIVERED",
-  "COMPLETED",
-]);
+const FORWARD_SELLER: Readonly<Partial<Record<SellerOrderStatus, true>>> = {
+  CONFIRMED: true,
+  PACKING: true,
+  READY_TO_SHIP: true,
+  SHIPPED: true,
+  DELIVERED: true,
+  COMPLETED: true,
+};
 /**
  * Applies a parent-order transition inside the caller's store/tx: legality
  * check → status update → `audit_logs` row. `actor: null` marks system-initiated
@@ -131,8 +131,10 @@ export function transitionSellerOrder(
     try {
       requirePermission(actor, "order:write", { shopId: so.shopId });
     } catch (e) {
-      // Only non-seller path: the parent order's owner cancelling their own.
-      if (!(to === "CANCELLED" && parent?.userId === actor.userId)) throw e;
+      // Non-seller paths the parent owner may drive: cancelling their own leg
+      // and filing a return on a delivered one.
+      const ownerOnly = to === "CANCELLED" || to === "RETURN_REQUESTED";
+      if (!(ownerOnly && parent?.userId === actor.userId)) throw e;
     }
   }
   if (so.status === to) return so; // idempotent
@@ -145,7 +147,7 @@ export function transitionSellerOrder(
   }
   // Seller fulfillment can't advance while the parent order is unpaid or
   // dead — keeps unpaid orders cancellable and prevents orphan progress.
-  if (FORWARD_SELLER.has(to) && !(parent && PAID_PARENT.has(parent.status))) {
+  if (FORWARD_SELLER[to] && !(parent && PAID_PARENT[parent.status])) {
     throw new AuthError(
       "INVALID_INPUT",
       422,

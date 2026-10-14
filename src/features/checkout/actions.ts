@@ -1,5 +1,7 @@
 "use server";
 
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { ulid } from "ulidx";
 import { z } from "zod";
 import { AuthError } from "@/server/api/errors";
@@ -8,7 +10,8 @@ import type { DB } from "@/server/db/client";
 import { getDb } from "@/server/db/client";
 import { addresses } from "@/server/db/schema";
 import { clearCart, getCart } from "@/server/modules/cart/service";
-import { placeOrder } from "@/server/modules/orders/checkout";
+import { placeOrder, requestOrigin } from "@/server/modules/orders/checkout";
+import { retryPayment } from "@/server/modules/orders/service";
 
 export type CheckoutActionResult = { ok: true; orderId: string } | { ok: false; error: string };
 
@@ -74,25 +77,83 @@ export async function placeOrderAction(
       .filter(Boolean);
 
     const paymentMethod = formData.get("paymentMethod");
-    if (paymentMethod !== "COD" && paymentMethod !== "MOCK_WALLET") {
+    const stripeOn = Boolean(process.env.STRIPE_PUBLISHABLE_KEY);
+    const finixOn = Boolean(
+      process.env.FINIX_USERNAME && process.env.FINIX_PASSWORD && process.env.FINIX_MERCHANT_ID,
+    );
+    if (
+      paymentMethod !== "COD" &&
+      paymentMethod !== "MOCK_WALLET" &&
+      paymentMethod !== "MOCK_BANK" &&
+      !(paymentMethod === "STRIPE" && stripeOn) &&
+      !(paymentMethod === "FINIX" && finixOn)
+    ) {
       return { ok: false, error: "INVALID_INPUT" };
     }
     const simulate = formData.get("simulate");
 
-    const result = await placeOrder(db, actor, {
-      cartItemIds: cart.items.map((i) => i.cartItemId),
-      addressId,
-      shippingByShop,
-      voucherCodes,
-      paymentMethod,
-      idempotencyKey: String(formData.get("idempotencyKey") ?? `ui_${ulid()}`),
-      simulate: simulate === "success" || simulate === "failure" ? simulate : undefined,
-    });
+    const result = await placeOrder(
+      db,
+      actor,
+      {
+        cartItemIds: cart.items.map((i) => i.cartItemId),
+        addressId,
+        shippingByShop,
+        voucherCodes,
+        paymentMethod,
+        idempotencyKey: String(formData.get("idempotencyKey") ?? `ui_${ulid()}`),
+        simulate: simulate === "success" || simulate === "failure" ? simulate : undefined,
+      },
+      {
+        origin: requestOrigin(await headers()),
+        locale: String(formData.get("locale") ?? "en"),
+      },
+    );
 
     clearCart(db, actor.userId);
+    // Hosted checkout (Stripe/Finix): the order is placed but unpaid — hand
+    // the browser to the provider. redirect() throws; the client never sees a result.
+    if (result.redirectUrl) redirect(result.redirectUrl);
     return { ok: true, orderId: result.orderId };
   } catch (e) {
     if (e instanceof AuthError) return { ok: false, error: e.code };
     throw e;
   }
+}
+
+/**
+ * Pay-page retry for a wedged hosted-checkout order: mints a fresh session
+ * and sends the browser back to the provider. A validation failure (e.g. the
+ * order isn't PAYMENT_FAILED) bounces back to the pay page instead of a 500 —
+ * redirect() throws NEXT_REDIRECT, never caught.
+ */
+async function retryHostedPayment(orderId: string, locale: string, payPath: string): Promise<void> {
+  try {
+    const actor = await getActor();
+    if (!actor) redirect(`/${locale}/login`);
+    const result = await retryPayment(getDb(), actor, orderId, undefined, {
+      origin: requestOrigin(await headers()),
+      locale,
+    });
+    if (result.redirectUrl) redirect(result.redirectUrl);
+  } catch (e) {
+    if (!(e instanceof AuthError)) throw e;
+  }
+  redirect(`/${locale}/checkout/${payPath}/${orderId}`);
+}
+
+export async function retryStripePayment(
+  orderId: string,
+  locale: string,
+  _formData: FormData,
+): Promise<void> {
+  return retryHostedPayment(orderId, locale, "pay");
+}
+
+export async function retryFinixPayment(
+  orderId: string,
+  locale: string,
+  _formData: FormData,
+): Promise<void> {
+  return retryHostedPayment(orderId, locale, "pay-finix");
 }

@@ -28,7 +28,6 @@ export default async function SellerPage({ params }: { params: Promise<{ locale:
 
   const tn = await getTranslations({ locale, namespace: "nav" });
   const tSeller = await getTranslations({ locale, namespace: "seller" });
-  const ts = await getTranslations({ locale, namespace: "shell" });
 
   return (
     <div className="space-y-6">
@@ -49,7 +48,9 @@ export default async function SellerPage({ params }: { params: Promise<{ locale:
         <Badge variant="outline">
           <Link href="/seller/products">{tSeller("productsTitle")}</Link>
         </Badge>
-        <Badge variant="outline">{ts("ordersPlanned")}</Badge>
+        <Badge variant="outline">
+          <Link href="/seller/orders">{tSeller("ordersTitle")}</Link>
+        </Badge>
       </div>
     </div>
   );

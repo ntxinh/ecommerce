@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { useRouter } from "@/i18n/navigation";
 import { formatVnd } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { CheckoutInputType } from "@/server/api/contracts/checkout";
 import type { CartShopGroup } from "@/server/modules/cart/service";
 import { type CheckoutActionState, placeOrderAction } from "./actions";
 import { CHECKOUT_STEPS, useCheckoutStep } from "./use-checkout-step";
@@ -35,6 +36,17 @@ const ERROR_KEYS = new Set([
   "IDEMPOTENCY_CONFLICT",
 ]);
 
+const paymentMethods = (
+  stripeEnabled: boolean,
+  finixEnabled: boolean,
+): CheckoutInputType["paymentMethod"][] => [
+  "COD",
+  "MOCK_WALLET",
+  "MOCK_BANK",
+  ...(stripeEnabled ? (["STRIPE"] as const) : []),
+  ...(finixEnabled ? (["FINIX"] as const) : []),
+];
+
 /**
  * Checkout stepper: address → per-shop shipping → payment → review. Zustand
  * holds the step index only; every field stays in the form so one submit sends
@@ -45,11 +57,15 @@ export function CheckoutForm({
   shippingOptions,
   byShop,
   subtotalVnd,
+  stripeEnabled = false,
+  finixEnabled = false,
 }: {
   addresses: CheckoutAddress[];
   shippingOptions: ShippingOption[];
   byShop: CartShopGroup[];
   subtotalVnd: number;
+  stripeEnabled?: boolean;
+  finixEnabled?: boolean;
 }) {
   const t = useTranslations("checkout");
   const locale = useLocale();
@@ -77,6 +93,7 @@ export function CheckoutForm({
   return (
     <form action={dispatch} className="space-y-6">
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+      <input type="hidden" name="locale" value={locale} />
 
       <nav aria-label={t("stepsLabel")} className="flex flex-wrap gap-2">
         {CHECKOUT_STEPS.map((s, i) => (
@@ -169,7 +186,7 @@ export function CheckoutForm({
           </div>
           <Separator />
           <div className="space-y-2">
-            {(["COD", "MOCK_WALLET"] as const).map((m, i) => (
+            {paymentMethods(stripeEnabled, finixEnabled).map((m, i) => (
               <Label key={m} className="flex items-center gap-2 font-normal">
                 <input type="radio" name="paymentMethod" value={m} defaultChecked={i === 0} />
                 {t(`paymentMethods.${m}`)}

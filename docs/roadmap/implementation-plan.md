@@ -20,9 +20,13 @@ the design spec §11.
   OpenAPI coverage.
 - [ ] **Phase 6 — Payments, shipping, fulfillment** — ~~mock payment
   adapters,~~ ~~simulated shipping providers,~~ tracking, seller fulfillment
-  UI, cancellation + inventory release. *(In progress: COD + MOCK_WALLET
-  adapters and flat-fee shipping quotes done; MOCK_BANK, tracking UI, seller
-  fulfillment UI deferred to slice 3.)*
+  UI, cancellation + inventory release. *(Shipped: COD + MOCK_WALLET +
+  MOCK_BANK + STRIPE (Checkout Session + webhook) adapters, flat-fee shipping
+  quotes, seller fulfillment UI (confirm → pack → ship w/ tracking → deliver →
+  complete), shipment + tracking-event timeline on customer/seller order
+  pages, leg-cancel refunds, e2e coverage. Deferred: real carriers
+  (Viettel/GHN adapter seam — `provider_ref` columns), auto-complete cron,
+  admin refund UI → Phase 7.)*
 - [ ] **Phase 7 — Returns and marketplace finance** — returns workflow,
   refunds, commission, ledger, settlements.
 - [x] **Phase 3 — Catalog and discovery** — categories/brands/products/

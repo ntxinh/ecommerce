@@ -23,6 +23,7 @@ export const reviews = sqliteTable(
     rating: integer("rating").notNull(), // 1-5, validated by the service
     title: text("title"),
     body: text("body"),
+    imagesJson: text("images_json").notNull().default("[]"),
     status: text("status", { enum: ["PUBLISHED", "HIDDEN"] })
       .notNull()
       .default("PUBLISHED"),

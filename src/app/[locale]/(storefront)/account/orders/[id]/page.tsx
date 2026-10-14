@@ -37,7 +37,7 @@ export default async function OrderDetailPage({
     if (e instanceof AuthError) notFound();
     throw e;
   }
-  const { order, sellerOrders, items, payment } = detail;
+  const { order, sellerOrders, items, payment, shipments, trackingEvents } = detail;
 
   const address = JSON.parse(order.addressSnapshotJson) as {
     recipientName: string;
@@ -124,22 +124,48 @@ export default async function OrderDetailPage({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("sellerOrders")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          {sellerOrders.map((so) => (
-            <div key={so.id} className="flex items-center justify-between">
-              <span>{so.id}</span>
-              <span className="flex items-center gap-2">
-                <Badge variant="outline">{so.status}</Badge>
-                {formatVnd(so.subtotalVnd + so.shippingVnd, locale)}
-              </span>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      {sellerOrders.map((so) => {
+        const shipment = shipments.find((s) => s.sellerOrderId === so.id);
+        const events = shipment ? trackingEvents.filter((ev) => ev.shipmentId === shipment.id) : [];
+        return (
+          <Card key={so.id}>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between text-base">
+                <span>
+                  {t("sellerOrder")} {so.id}
+                </span>
+                <Badge variant="outline">{t(`legStatus.${so.status}`)}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span>{t("legTotal")}</span>
+                <span>{formatVnd(so.subtotalVnd + so.shippingVnd, locale)}</span>
+              </div>
+              {shipment ? (
+                <div className="space-y-2">
+                  <p>
+                    {t("shipment")}: {shipment.provider} — {shipment.trackingNumber}
+                  </p>
+                  {events.length > 0 ? (
+                    <ol className="space-y-2 border-l pl-4">
+                      {events.map((ev) => (
+                        <li key={ev.id}>
+                          <span className="font-medium">{ev.status}</span>
+                          {ev.detail ? <span> — {ev.detail}</span> : null}
+                          <span className="block text-xs text-muted-foreground">
+                            {formatDate(ev.createdAt, locale)}
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : null}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        );
+      })}
 
       {payment ? (
         <Card>

@@ -49,6 +49,22 @@ stateDiagram-v2
   RETURN_REQUESTED --> COMPLETED
 ```
 
+### Who acts
+
+| Move | Actor | Where |
+|---|---|---|
+| `NEW → CONFIRMED`, `CONFIRMED → PACKING` | Shop member with `order:write` (seller UI buttons) | `confirmOrderAction`/`packOrderAction` |
+| `PACKING|READY_TO_SHIP → SHIPPED` | Same seller; submits carrier + tracking number | `shipOrderAction` — creates the `shipments` row (`IN_TRANSIT`) and the `SHIPPED` tracking event; a `PACKING` leg steps through `READY_TO_SHIP` itself |
+| `SHIPPED → DELIVERED` | Seller marks delivery (auto-complete cron deferred) | `deliverOrderAction` — flips the shipment to `DELIVERED` and logs the `DELIVERED` event |
+| `DELIVERED → COMPLETED` | Seller confirms completion (no return raised) | `completeOrderAction` |
+| `NEW|CONFIRMED → CANCELLED` | Seller or the order owner; refunds the leg's share when the parent is `PAID` | `cancelOrderAction` |
+| `DELIVERED → RETURN_REQUESTED` | Customer (return flow is Phase 7) | — |
+
+All seller moves run through server actions in
+`src/features/seller/order-actions.ts` (session actor →
+`requireSeller` + membership check → `fulfillment.ts` module). Customers see
+the same shipment + tracking-event timeline on their order detail page.
+
 Forward seller-order moves (`CONFIRMED` … `COMPLETED`) are blocked while the
 parent order is unpaid or dead — `PAID_PARENT` gates fulfillment so partners
 can't progress a `PENDING_PAYMENT`/`PAYMENT_FAILED`/`CANCELLED` order. Cancel

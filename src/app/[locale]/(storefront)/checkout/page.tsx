@@ -13,6 +13,7 @@ import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
 import { addresses } from "@/server/db/schema";
 import { getCart } from "@/server/modules/cart/service";
+import { finixConfigured } from "@/server/modules/payments/finix";
 import { quoteShippingFee, shippingMethods } from "@/server/modules/shipping/providers";
 
 export default async function CheckoutPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -50,6 +51,8 @@ export default async function CheckoutPage({ params }: { params: Promise<{ local
         shippingOptions={shippingOptions}
         byShop={cart.byShop}
         subtotalVnd={cart.subtotalVnd}
+        stripeEnabled={Boolean(process.env.STRIPE_PUBLISHABLE_KEY)}
+        finixEnabled={finixConfigured()}
       />
     </section>
   );
