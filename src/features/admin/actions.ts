@@ -7,6 +7,7 @@ import {
   UpdateCategoryInput,
 } from "@/server/api/contracts/catalog";
 import { ReviewPatchInput } from "@/server/api/contracts/reviews";
+import { DecideInput, ShopStatusInput } from "@/server/api/contracts/seller";
 import { AuthError } from "@/server/api/errors";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
@@ -17,6 +18,7 @@ import {
   updateCategory,
 } from "@/server/modules/catalog/moderation";
 import { moderateReview } from "@/server/modules/reviews/service";
+import { decideApplication, setShopStatus } from "@/server/modules/sellers/service";
 
 export type AdminActionResult = { ok: true } | { ok: false; error: string };
 
@@ -86,6 +88,37 @@ export async function deleteCategoryAction(formData: FormData): Promise<AdminAct
     if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
     const actor = await getActor();
     deleteCategory(getDb(), actor, parsed.data.id);
+    return { ok: true };
+  } catch (e) {
+    return toResult(e);
+  }
+}
+
+/** Admin decision on a seller application (approve provisions the shop). */
+export async function decideApplicationAction(formData: FormData): Promise<AdminActionResult> {
+  try {
+    const parsed = DecideInput.safeParse({
+      applicationId: formData.get("applicationId"),
+      decision: formData.get("decision"),
+      note: String(formData.get("note") ?? "") || undefined,
+    });
+    if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
+    const { applicationId, decision, note } = parsed.data;
+    const actor = await getActor();
+    decideApplication(getDb(), actor, applicationId, { decision, note });
+    return { ok: true };
+  } catch (e) {
+    return toResult(e);
+  }
+}
+
+/** Admin suspend/reactivate for a shop (from an approved application's row). */
+export async function setShopStatusAction(formData: FormData): Promise<AdminActionResult> {
+  try {
+    const parsed = ShopStatusInput.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
+    const actor = await getActor();
+    setShopStatus(getDb(), actor, parsed.data.shopId, parsed.data.status);
     return { ok: true };
   } catch (e) {
     return toResult(e);

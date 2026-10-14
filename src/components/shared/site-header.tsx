@@ -30,6 +30,11 @@ export async function SiteHeader({ locale }: { locale: string }) {
         </Link>
         <SearchBox />
         <nav className="hidden items-center gap-1 text-sm md:flex">
+          {actor?.roles.includes("CUSTOMER") ? (
+            <Link href="/sell" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+              {tn("sell")}
+            </Link>
+          ) : null}
           <Link href="/seller" className={buttonVariants({ variant: "ghost", size: "sm" })}>
             {tn("sellerCenter")}
           </Link>

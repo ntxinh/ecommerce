@@ -44,6 +44,9 @@ export default async function AdminLayout({
           <Link href="/admin/refunds" className="block hover:underline">
             {tr("refundsTitle")}
           </Link>
+          <Link href="/admin/applications" className="block hover:underline">
+            {ts("applications")}
+          </Link>
           <p className="text-muted-foreground">{ts("usersPlanned")}</p>
         </nav>
       </aside>

@@ -46,6 +46,7 @@
     "storefront": "Shop",
     "sellerCenter": "Seller Center",
     "admin": "Admin",
+    "sell": "Sell",
     "cart": "Cart",
     "account": "Account"
   },
@@ -65,7 +66,8 @@
     "usersPlanned": "Planned: users",
     "moderationPlanned": "Planned: seller applications",
     "moderation": "Moderation queue",
-    "categories": "Categories"
+    "categories": "Categories",
+    "applications": "Applications"
   },
   "catalog": {
     "fromPrice": "From",
@@ -299,6 +301,7 @@
       "NOT_FOUND": "Order not found",
       "INVALID_INPUT": "That action isn't allowed for the current status"
     },
+    "settingsTitle": "Shop settings",
     "errors": {
       "UNAUTHORIZED": "Please sign in",
       "FORBIDDEN": "You can't manage products for this shop",
@@ -332,6 +335,24 @@
     "fieldSlug": "slug",
     "createCategory": "Create category",
     "queueEmpty": "Nothing awaiting review.",
+    "applicationsTitle": "Seller applications",
+    "applicationsHint": "Approve provisions the applicant's shop, OWNER membership, and SELLER role in one step.",
+    "appsEmpty": "No applications.",
+    "filterAll": "All",
+    "nextPage": "Next page",
+    "requestChanges": "Request changes",
+    "reactivate": "Reactivate",
+    "colStatus": "Status",
+    "appStatus": {
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "CHANGES_REQUESTED": "Changes requested"
+    },
+    "shopStatus": {
+      "ACTIVE": "Shop active",
+      "SUSPENDED": "Shop suspended"
+    },
     "errors": {
       "UNAUTHORIZED": "Please sign in",
       "FORBIDDEN": "Admin access required",
@@ -464,6 +485,11 @@
     "return": {
       "approved": "Your return for order {orderId} was approved.",
       "rejected": "Your return for order {orderId} was rejected."
+    },
+    "seller_application": {
+      "approved": "Your seller application for {shopName} was approved — your shop is live.",
+      "rejected": "Your seller application for {shopName} was rejected.",
+      "changes_requested": "Your seller application for {shopName} needs changes."
     }
   },
   "reviews": {
@@ -502,6 +528,36 @@
       "FORBIDDEN": "You can't review this item",
       "NOT_FOUND": "Review not found",
       "INVALID_INPUT": "Check the rating and fields — or the item was already reviewed"
+    }
+  }
+  ,
+  "sellers": {
+    "title": "Become a seller",
+    "currentStatus": "Your application",
+    "decisionNote": "Reviewer note",
+    "fieldShopName": "Shop name",
+    "fieldDescription": "Description",
+    "fieldRegistration": "Business registration / tax ID",
+    "apply": "Submit application",
+    "applying": "Submitting…",
+    "saveShop": "Save shop",
+    "status": {
+      "PENDING": "Pending review",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "CHANGES_REQUESTED": "Changes requested"
+    },
+    "statusHint": {
+      "PENDING": "We're reviewing your application.",
+      "APPROVED": "Your shop is live — manage it from the Seller Center.",
+      "REJECTED": "Your application was rejected. You can update and apply again.",
+      "CHANGES_REQUESTED": "Update your application below and resubmit."
+    },
+    "errors": {
+      "UNAUTHORIZED": "Please sign in",
+      "FORBIDDEN": "You don't have access to this",
+      "NOT_FOUND": "Not found",
+      "INVALID_INPUT": "Please check the form fields"
     }
   }
 }

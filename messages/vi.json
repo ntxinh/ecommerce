@@ -46,6 +46,7 @@
     "storefront": "Cửa hàng",
     "sellerCenter": "Kênh Người Bán",
     "admin": "Quản trị",
+    "sell": "Bán hàng",
     "cart": "Giỏ hàng",
     "account": "Tài khoản"
   },
@@ -65,7 +66,8 @@
     "usersPlanned": "Dự kiến: người dùng",
     "moderationPlanned": "Dự kiến: đơn đăng ký bán hàng",
     "moderation": "Hàng chờ kiểm duyệt",
-    "categories": "Danh mục"
+    "categories": "Danh mục",
+    "applications": "Đơn đăng ký bán"
   },
   "catalog": {
     "fromPrice": "Từ",
@@ -304,7 +306,8 @@
       "FORBIDDEN": "Bạn không thể quản lý sản phẩm của cửa hàng này",
       "NOT_FOUND": "Không tìm thấy sản phẩm",
       "INVALID_INPUT": "Vui lòng kiểm tra lại — SKU trùng hoặc giá khuyến mãi cao hơn giá gốc"
-    }
+    },
+    "settingsTitle": "Cài đặt cửa hàng"
   },
   "admin": {
     "moderationTitle": "Kiểm duyệt sản phẩm",
@@ -332,6 +335,24 @@
     "fieldSlug": "slug",
     "createCategory": "Tạo danh mục",
     "queueEmpty": "Không có sản phẩm chờ duyệt.",
+    "applicationsTitle": "Đơn đăng ký bán hàng",
+    "applicationsHint": "Duyệt sẽ tạo cửa hàng, quyền sở hữu và vai trò SELLER trong một bước.",
+    "appsEmpty": "Không có đơn nào.",
+    "filterAll": "Tất cả",
+    "nextPage": "Trang sau",
+    "requestChanges": "Yêu cầu sửa",
+    "reactivate": "Kích hoạt lại",
+    "colStatus": "Trạng thái",
+    "appStatus": {
+      "PENDING": "Chờ duyệt",
+      "APPROVED": "Đã duyệt",
+      "REJECTED": "Bị từ chối",
+      "CHANGES_REQUESTED": "Yêu cầu sửa"
+    },
+    "shopStatus": {
+      "ACTIVE": "Cửa hàng đang hoạt động",
+      "SUSPENDED": "Cửa hàng bị đình chỉ"
+    },
     "errors": {
       "UNAUTHORIZED": "Vui lòng đăng nhập",
       "FORBIDDEN": "Cần quyền quản trị",
@@ -464,6 +485,11 @@
     "return": {
       "approved": "Yêu cầu trả hàng cho đơn {orderId} đã được chấp nhận.",
       "rejected": "Yêu cầu trả hàng cho đơn {orderId} đã bị từ chối."
+    },
+    "seller_application": {
+      "approved": "Đơn đăng ký bán hàng {shopName} đã được duyệt — cửa hàng của bạn đã hoạt động.",
+      "rejected": "Đơn đăng ký bán hàng {shopName} đã bị từ chối.",
+      "changes_requested": "Đơn đăng ký bán hàng {shopName} cần chỉnh sửa."
     }
   },
   "reviews": {
@@ -502,6 +528,35 @@
       "FORBIDDEN": "Bạn không thể đánh giá sản phẩm này",
       "NOT_FOUND": "Không tìm thấy đánh giá",
       "INVALID_INPUT": "Kiểm tra điểm đánh giá và các trường — hoặc sản phẩm đã được đánh giá"
+    }
+  },
+  "sellers": {
+    "title": "Trở thành người bán",
+    "currentStatus": "Đơn của bạn",
+    "decisionNote": "Ghi chú của quản trị",
+    "fieldShopName": "Tên cửa hàng",
+    "fieldDescription": "Mô tả",
+    "fieldRegistration": "Mã đăng ký kinh doanh / mã số thuế",
+    "apply": "Gửi đơn đăng ký",
+    "applying": "Đang gửi…",
+    "saveShop": "Lưu cửa hàng",
+    "status": {
+      "PENDING": "Đang chờ duyệt",
+      "APPROVED": "Đã duyệt",
+      "REJECTED": "Bị từ chối",
+      "CHANGES_REQUESTED": "Yêu cầu sửa"
+    },
+    "statusHint": {
+      "PENDING": "Chúng tôi đang xem xét đơn của bạn.",
+      "APPROVED": "Cửa hàng đã hoạt động — quản lý tại Kênh Người Bán.",
+      "REJECTED": "Đơn bị từ chối. Bạn có thể chỉnh sửa và gửi lại.",
+      "CHANGES_REQUESTED": "Cập nhật đơn bên dưới và gửi lại."
+    },
+    "errors": {
+      "UNAUTHORIZED": "Vui lòng đăng nhập",
+      "FORBIDDEN": "Bạn không có quyền truy cập",
+      "NOT_FOUND": "Không tìm thấy",
+      "INVALID_INPUT": "Vui lòng kiểm tra lại các trường"
     }
   }
 }

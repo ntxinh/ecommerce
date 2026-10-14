@@ -10,7 +10,7 @@ created as their phases land.
 |---|---|---|
 | `identity` | users, roles, sessions use-cases, password reset/verify | Implemented |
 | `profiles` | customer profiles, addresses | Planned |
-| `sellers` | shops, memberships, seller applications | Schema + seed only |
+| `sellers` | shops, memberships, seller applications | Implemented |
 | `catalog` | categories, brands, products, variants, images, moderation | Planned |
 | `inventory` | stock levels, movements, reservations | Planned |
 | `search` | product search/filters | Planned |
