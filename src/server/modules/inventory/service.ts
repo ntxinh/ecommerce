@@ -66,11 +66,13 @@ export function reserveStock(
     .where(eq(stockReservations.idempotencyKey, idempotencyKey))
     .get();
   if (existing) {
-    if (existing.status === "ACTIVE") return existing;
+    if (existing.status === "ACTIVE" && existing.variantId === variantId && existing.qty === qty) {
+      return existing;
+    }
     throw new AuthError(
       "IDEMPOTENCY_CONFLICT",
       409,
-      `idempotency key ${idempotencyKey} already resolved as ${existing.status}`,
+      `idempotency key ${idempotencyKey} already used (status ${existing.status}, variant ${existing.variantId}, qty ${existing.qty})`,
     );
   }
   const res = tx
@@ -91,7 +93,8 @@ export function reserveStock(
     .from(applicationSettings)
     .where(eq(applicationSettings.key, "reservation_ttl_minutes"))
     .get();
-  const ttl = ttlMs ?? (ttlRow ? (JSON.parse(ttlRow.value) as number) : 15) * 60 * 1000;
+  const parsedTtl = ttlRow ? (JSON.parse(ttlRow.value) as number) : NaN;
+  const ttl = ttlMs ?? (Number.isFinite(parsedTtl) ? parsedTtl : 15) * 60 * 1000;
   const reservation: Reservation = {
     id: `res_${ulid()}`,
     variantId,
@@ -117,10 +120,12 @@ export function consumeReservation(tx: Tx, reservationId: string): void {
   if (row.status !== "ACTIVE") {
     throw new AuthError("INVALID_INPUT", 409, `reservation ${reservationId} is ${row.status}`);
   }
-  tx.update(stockReservations)
+  const flip = tx
+    .update(stockReservations)
     .set({ status: "CONSUMED" })
     .where(and(eq(stockReservations.id, reservationId), eq(stockReservations.status, "ACTIVE")))
     .run();
+  if (flip.changes === 0) return; // lost a concurrent flip — treat as already consumed
   tx.update(inventory)
     .set({
       onHand: sql`${inventory.onHand} - ${row.qty}`,
@@ -149,10 +154,12 @@ export function releaseReservation(tx: Tx, reservationId: string, reason: string
     .get();
   if (!row) throw new AuthError("NOT_FOUND", 404, `reservation ${reservationId} not found`);
   if (row.status !== "ACTIVE") return;
-  tx.update(stockReservations)
+  const flip = tx
+    .update(stockReservations)
     .set({ status: "RELEASED" })
     .where(and(eq(stockReservations.id, reservationId), eq(stockReservations.status, "ACTIVE")))
     .run();
+  if (flip.changes === 0) return; // concurrently resolved — nothing to free
   tx.update(inventory)
     .set({ reserved: sql`${inventory.reserved} - ${row.qty}`, updatedAt: Date.now() })
     .where(eq(inventory.variantId, row.variantId))
@@ -175,12 +182,15 @@ export function sweepExpiredReservations(db: DB, now = Date.now()): number {
     .from(stockReservations)
     .where(and(eq(stockReservations.status, "ACTIVE"), lt(stockReservations.expiresAt, now)))
     .all();
+  let swept = 0;
   for (const row of expired) {
     db.transaction((tx) => {
-      tx.update(stockReservations)
+      const flip = tx
+        .update(stockReservations)
         .set({ status: "EXPIRED" })
         .where(and(eq(stockReservations.id, row.id), eq(stockReservations.status, "ACTIVE")))
         .run();
+      if (flip.changes === 0) return; // consumed/released since the select
       tx.update(inventory)
         .set({ reserved: sql`${inventory.reserved} - ${row.qty}`, updatedAt: now })
         .where(eq(inventory.variantId, row.variantId))
@@ -194,7 +204,8 @@ export function sweepExpiredReservations(db: DB, now = Date.now()): number {
           createdAt: now,
         })
         .run();
+      swept += 1;
     });
   }
-  return expired.length;
+  return swept;
 }

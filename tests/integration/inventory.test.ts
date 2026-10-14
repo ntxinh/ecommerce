@@ -42,7 +42,7 @@ function reservationStatus(id: string) {
 }
 
 beforeAll(() => {
-  rmSync(PATH, { force: true });
+  for (const suffix of ["", "-wal", "-shm"]) rmSync(`${PATH}${suffix}`, { force: true });
   mkdirSync("./tests/.tmp", { recursive: true });
   db = getDb(PATH);
   migrateDb(db);
@@ -109,6 +109,24 @@ describe("reserveStock", () => {
     const b = db.transaction((tx) => reserveStock(tx, VAR, 2, "k-idem", 60_000));
     expect(b.id).toBe(a.id);
     expect(row().reserved).toBe(2);
+  });
+
+  it("conflicts when the same key replays with different qty or variant", () => {
+    db.transaction((tx) => reserveStock(tx, VAR, 2, "k-clash", 60_000));
+    expect(() => db.transaction((tx) => reserveStock(tx, VAR, 3, "k-clash", 60_000))).toThrowError(
+      expect.objectContaining({ code: "IDEMPOTENCY_CONFLICT", status: 409 }) as AuthError,
+    );
+    expect(() =>
+      db.transaction((tx) => reserveStock(tx, OTHER_VAR, 2, "k-clash", 60_000)),
+    ).toThrowError(expect.objectContaining({ code: "IDEMPOTENCY_CONFLICT" }) as AuthError);
+  });
+
+  it("conflicts when the same key was already resolved", () => {
+    const r = db.transaction((tx) => reserveStock(tx, VAR, 1, "k-done", 60_000));
+    db.transaction((tx) => consumeReservation(tx, r.id));
+    expect(() => db.transaction((tx) => reserveStock(tx, VAR, 1, "k-done", 60_000))).toThrowError(
+      expect.objectContaining({ code: "IDEMPOTENCY_CONFLICT" }) as AuthError,
+    );
   });
 
   it("defaults TTL from application_settings.reservation_ttl_minutes", () => {

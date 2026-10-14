@@ -11,7 +11,7 @@ const PATH = "./tests/.tmp/inventory-unit.db";
 
 describe("availableStock derivation", () => {
   it("is onHand - reserved, clamped at 0, and 0 for unknown variants", () => {
-    rmSync(PATH, { force: true });
+    for (const suffix of ["", "-wal", "-shm"]) rmSync(`${PATH}${suffix}`, { force: true });
     mkdirSync("./tests/.tmp", { recursive: true });
     const db = getDb(PATH);
     migrateDb(db);
