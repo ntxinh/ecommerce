@@ -1,6 +1,8 @@
 import "server-only";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { products } from "./catalog";
+import { users } from "./identity";
+import { orders } from "./orders";
 import { shops } from "./sellers";
 
 export const vouchers = sqliteTable(
@@ -44,5 +46,27 @@ export const promotions = sqliteTable(
   (t) => [
     index("promotions_shop_idx").on(t.shopId),
     index("promotions_product_idx").on(t.productId),
+  ],
+);
+
+// One row per voucher consumed at checkout — backs per-user limits and the
+// consume-once-per-order guarantee (UNIQUE voucher+order; orderId NULL only for
+// rows written ahead of order creation).
+export const voucherRedemptions = sqliteTable(
+  "voucher_redemptions",
+  {
+    id: text("id").primaryKey(),
+    voucherId: text("voucher_id")
+      .notNull()
+      .references(() => vouchers.id),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    orderId: text("order_id").references(() => orders.id),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    index("voucher_redemptions_voucher_user_idx").on(t.voucherId, t.userId),
+    uniqueIndex("voucher_redemptions_voucher_order_unique").on(t.voucherId, t.orderId),
   ],
 );
