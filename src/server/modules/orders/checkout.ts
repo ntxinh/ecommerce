@@ -8,7 +8,6 @@ import type { Actor } from "@/server/auth/permissions";
 import type { DB } from "@/server/db/client";
 import {
   addresses,
-  applicationSettings,
   auditLogs,
   cartItems,
   carts,
@@ -22,6 +21,7 @@ import {
   productVariants,
   sellerOrders,
 } from "@/server/db/schema";
+import { settingNumber } from "@/server/db/settings";
 import {
   consumeReservation,
   reserveStock,
@@ -103,12 +103,6 @@ function ownedCartLines(db: Pick<DB, "select">, userId: string, cartItemIds: str
   return rows;
 }
 
-function settingNumber(db: Pick<DB, "select">, key: string, fallback: number): number {
-  const row = db.select().from(applicationSettings).where(eq(applicationSettings.key, key)).get();
-  const n = row ? (JSON.parse(row.value) as number) : NaN;
-  return Number.isFinite(n) ? n : fallback;
-}
-
 /** Reservation idempotency key per order line — shared-order-key variants would
  *  collide on reserveStock's param check, so the variant disambiguates. */
 const lineKey = (orderKey: string, variantId: string) => `${orderKey}:${variantId}`;
@@ -119,7 +113,7 @@ const lineKey = (orderKey: string, variantId: string) => `${orderKey}:${variantI
 export async function dispatchMockPayment(
   db: DB,
   method: "MOCK_WALLET" | "MOCK_BANK",
-  orderId: string,
+  _orderId: string,
   paymentId: string,
   attemptId: string,
   simulate: string | undefined,

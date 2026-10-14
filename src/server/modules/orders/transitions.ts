@@ -131,8 +131,10 @@ export function transitionSellerOrder(
     try {
       requirePermission(actor, "order:write", { shopId: so.shopId });
     } catch (e) {
-      // Only non-seller path: the parent order's owner cancelling their own.
-      if (!(to === "CANCELLED" && parent?.userId === actor.userId)) throw e;
+      // Non-seller paths the parent owner may drive: cancelling their own leg
+      // and filing a return on a delivered one.
+      const ownerOnly = to === "CANCELLED" || to === "RETURN_REQUESTED";
+      if (!(ownerOnly && parent?.userId === actor.userId)) throw e;
     }
   }
   if (so.status === to) return so; // idempotent
