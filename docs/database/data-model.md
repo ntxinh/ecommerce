@@ -1,10 +1,10 @@
 # Data Model
 
 **Status: Partially implemented** — identity, sellers, settings, addresses,
-catalog, inventory, pricing, cart, orders/payments/shipments, idempotency and
-audit tables exist (`drizzle/0000_*.sql` … `0004_*.sql`). Remaining groups
-(returns, reviews, notifications, ledger/settlements, wishlists) are Planned
-per the roadmap.
+catalog (+ images/attributes), reviews, inventory, pricing, cart,
+orders/payments/shipments, idempotency and audit tables exist
+(`drizzle/0000_*.sql` … `0005_*.sql`). Remaining groups (returns,
+notifications, ledger/settlements, wishlists) are Planned per the roadmap.
 
 ## Conventions
 
@@ -111,6 +111,12 @@ erDiagram
   categories ||--o{ products : classifies
   brands ||--o{ products : brands
   products ||--o{ product_variants : has
+  products ||--o{ product_images : has
+  product_variants ||--o{ product_images : "variant_id (nullable)"
+  products ||--o{ product_attributes : has
+  products ||--o{ reviews : rated
+  order_items |o--o| reviews : "order_item_id UK (nullable)"
+  users ||--o{ reviews : writes
 
   categories {
     text id PK
@@ -146,6 +152,32 @@ erDiagram
     text attributes_json
     integer base_price_vnd
     integer sale_price_vnd "nullable"
+    integer created_at
+  }
+  product_images {
+    text id PK
+    text product_id FK "cascade"
+    text variant_id FK "nullable, cascade"
+    text url
+    text alt
+    integer sort_order
+  }
+  product_attributes {
+    text id PK
+    text product_id FK "cascade"
+    text name
+    text value
+    integer sort_order
+  }
+  reviews {
+    text id PK
+    text order_item_id FK "UK, nullable — seed rows may predate purchases"
+    text product_id FK "cascade"
+    text user_id FK "cascade"
+    integer rating "1-5"
+    text title "nullable"
+    text body "nullable"
+    text status "PUBLISHED|HIDDEN"
     integer created_at
   }
 ```
@@ -371,8 +403,8 @@ erDiagram
 
 ## Planned entity groups
 
-Per design spec §3: returns, reviews, notifications, financial_ledger_entries
-+ seller_settlements, wishlists, product images/moderations, search indexes.
+Per design spec §3: returns, notifications, financial_ledger_entries
++ seller_settlements, wishlists, product moderations, search indexes.
 
 ## Migrations
 

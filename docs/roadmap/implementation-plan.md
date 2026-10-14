@@ -27,7 +27,8 @@ the design spec §11.
   refunds, commission, ledger, settlements.
 - [ ] **Phase 3 — Catalog and discovery** — categories/brands/products/
   variants/images, search, filters, shop storefronts, product management,
-  moderation.
+  moderation. *(In progress: product images + reviews schema, seeded media/
+  reviews/orders, catalog read service (list/detail/shop/homepage) done.)*
 - [ ] **Phase 4 — Cart, pricing, promotions** — ~~carts, server pricing
   engine, vouchers/promotions, checkout review screens.~~ *(Checkout-side
   done: server cart + guest merge, pricing engine, vouchers at checkout,
