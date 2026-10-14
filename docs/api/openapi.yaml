@@ -461,7 +461,7 @@ components:
           default: []
         paymentMethod:
           type: string
-          enum: [COD, MOCK_WALLET]
+          enum: [COD, MOCK_WALLET, MOCK_BANK]
         idempotencyKey:
           type: string
           minLength: 8

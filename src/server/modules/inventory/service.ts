@@ -175,6 +175,51 @@ export function releaseReservation(tx: Tx, reservationId: string, reason: string
     .run();
 }
 
+/**
+ * Frees a cancelled order leg's stock: releases ACTIVE reservations keyed
+ * `${orderKey}:${variantId}`; CONSUMED (COD) ones restore on_hand and flip
+ * RELEASED with a compensating movement. RELEASED/EXPIRED are no-ops.
+ */
+export function releaseOrderReservations(
+  tx: Tx,
+  orderKey: string,
+  variantIds: string[],
+  actorId: string | undefined,
+  reason: string,
+): void {
+  const now = Date.now();
+  for (const variantId of variantIds) {
+    const res = tx
+      .select()
+      .from(stockReservations)
+      .where(eq(stockReservations.idempotencyKey, `${orderKey}:${variantId}`))
+      .get();
+    if (!res) continue;
+    if (res.status === "ACTIVE") {
+      releaseReservation(tx, res.id, reason);
+    } else if (res.status === "CONSUMED") {
+      tx.update(stockReservations)
+        .set({ status: "RELEASED" })
+        .where(eq(stockReservations.id, res.id))
+        .run();
+      tx.update(inventory)
+        .set({ onHand: sql`${inventory.onHand} + ${res.qty}`, updatedAt: now })
+        .where(eq(inventory.variantId, res.variantId))
+        .run();
+      tx.insert(inventoryMovements)
+        .values({
+          id: `mov_${ulid()}`,
+          variantId: res.variantId,
+          delta: res.qty,
+          reason,
+          actorId,
+          createdAt: now,
+        })
+        .run();
+    }
+  }
+}
+
 /** Releases every ACTIVE reservation past expires_at (as EXPIRED) and returns how many. */
 export function sweepExpiredReservations(db: DB, now = Date.now()): number {
   const expired = db

@@ -44,7 +44,7 @@ export type CheckoutInput = {
   /** shopId → method name (validated + priced from settings server-side). */
   shippingByShop: Record<string, string>;
   voucherCodes: string[];
-  paymentMethod: "COD" | "MOCK_WALLET";
+  paymentMethod: "COD" | "MOCK_WALLET" | "MOCK_BANK";
   idempotencyKey: string;
   simulate?: "success" | "failure";
 };
@@ -112,17 +112,18 @@ const lineKey = (orderKey: string, variantId: string) => `${orderKey}:${variantI
 
 type PaymentOutcome = { paymentStatus: "PAID" | "FAILED"; orderStatus: "PAID" | "PAYMENT_FAILED" };
 
-/** Post-commit wallet dispatch: create attempt → confirm → persist outcome in a
+/** Post-commit mock dispatch: create attempt → confirm → persist outcome in a
  *  short second transaction (payment + attempt status, order transition,
  *  reservation consume on success). Outside the checkout tx by design. */
-export async function dispatchWalletPayment(
+export async function dispatchMockPayment(
   db: DB,
+  method: "MOCK_WALLET" | "MOCK_BANK",
   orderId: string,
   paymentId: string,
   attemptId: string,
   simulate: string | undefined,
 ): Promise<PaymentOutcome> {
-  const provider = paymentProviderFor("MOCK_WALLET");
+  const provider = paymentProviderFor(method);
   const amountVnd = db
     .select({ amountVnd: payments.amountVnd })
     .from(payments)
@@ -432,8 +433,15 @@ export async function placeOrder(
     return { orderId, sellerOrderIds, paymentId, attemptId, status };
   });
 
-  if (input.paymentMethod === "MOCK_WALLET") {
-    const outcome = await dispatchWalletPayment(db, orderId, paymentId, attemptId, input.simulate);
+  if (input.paymentMethod !== "COD") {
+    const outcome = await dispatchMockPayment(
+      db,
+      input.paymentMethod,
+      orderId,
+      paymentId,
+      attemptId,
+      input.simulate,
+    );
     return { orderId, sellerOrderIds, status: outcome.orderStatus };
   }
   return { orderId, sellerOrderIds, status };

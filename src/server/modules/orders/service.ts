@@ -1,24 +1,21 @@
 import "server-only";
 
-import { and, desc, eq, lt, sql } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
 import type { Actor } from "@/server/auth/permissions";
 import type { DB } from "@/server/db/client";
 import {
-  inventory,
-  inventoryMovements,
   orderItems,
   orderPricingBreakdowns,
   orders,
   paymentAttempts,
   payments,
   sellerOrders,
-  stockReservations,
 } from "@/server/db/schema";
-import { releaseReservation } from "@/server/modules/inventory/service";
+import { releaseOrderReservations } from "@/server/modules/inventory/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
-import { dispatchWalletPayment, type PlaceOrderResult } from "./checkout";
+import { dispatchMockPayment, type PlaceOrderResult } from "./checkout";
 import { transitionOrder, transitionSellerOrder } from "./transitions";
 
 type Order = typeof orders.$inferSelect;
@@ -107,43 +104,18 @@ export async function cancelOrder(
   const payment = detail.payment;
   db.transaction((tx) => {
     const now = Date.now();
-    const orderKey = order.idempotencyKey;
-    for (const line of tx
-      .select({ variantId: orderItems.variantId, qty: orderItems.qty })
-      .from(orderItems)
-      .where(eq(orderItems.orderId, orderId))
-      .all()) {
-      const res = tx
-        .select()
-        .from(stockReservations)
-        .where(eq(stockReservations.idempotencyKey, `${orderKey}:${line.variantId}`))
-        .get();
-      if (!res) continue;
-      if (res.status === "ACTIVE") {
-        releaseReservation(tx, res.id, "order_cancelled");
-      } else if (res.status === "CONSUMED") {
-        // COD reservations were consumed at creation — restore on_hand.
-        tx.update(stockReservations)
-          .set({ status: "RELEASED" })
-          .where(eq(stockReservations.id, res.id))
-          .run();
-        tx.update(inventory)
-          .set({ onHand: sql`${inventory.onHand} + ${res.qty}`, updatedAt: now })
-          .where(eq(inventory.variantId, res.variantId))
-          .run();
-        tx.insert(inventoryMovements)
-          .values({
-            id: `mov_${ulid()}`,
-            variantId: res.variantId,
-            delta: res.qty,
-            reason: "order_cancelled",
-            actorId: actor.userId,
-            createdAt: now,
-          })
-          .run();
-      }
-      // RELEASED/EXPIRED: nothing to free.
-    }
+    releaseOrderReservations(
+      tx,
+      order.idempotencyKey,
+      tx
+        .select({ variantId: orderItems.variantId })
+        .from(orderItems)
+        .where(eq(orderItems.orderId, orderId))
+        .all()
+        .map((l) => l.variantId),
+      actor.userId,
+      "order_cancelled",
+    );
     for (const so of tx
       .select({ id: sellerOrders.id })
       .from(sellerOrders)
@@ -201,7 +173,14 @@ export async function retryPayment(
       .run();
     return id;
   });
-  const outcome = await dispatchWalletPayment(db, orderId, payment.id, attemptId, simulate);
+  const outcome = await dispatchMockPayment(
+    db,
+    "MOCK_WALLET",
+    orderId,
+    payment.id,
+    attemptId,
+    simulate,
+  );
   return {
     orderId,
     sellerOrderIds: detail.sellerOrders.map((s) => s.id),
