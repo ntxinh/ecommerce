@@ -48,7 +48,7 @@ export default async function PayPage({
     throw e;
   }
   const { order, payment } = detail;
-  if (!payment || payment.method !== "STRIPE") notFound();
+  if (payment?.method !== "STRIPE") notFound();
 
   // Resolve the session: ?session_id= wins (authoritative return), else the
   // latest attempt's providerRef (plain visit / cancel_url).
@@ -81,7 +81,7 @@ export default async function PayPage({
     .select({ status: orders.status })
     .from(orders)
     .where(eq(orders.id, orderId))
-    .get()!.status;
+    .get()?.status;
 
   if (live === "PAID") {
     redirect(`/${locale}/checkout/confirmation?order=${orderId}`);

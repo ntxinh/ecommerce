@@ -1,9 +1,9 @@
 import { createHmac } from "node:crypto";
 import { mkdirSync, rmSync } from "node:fs";
 import { eq } from "drizzle-orm";
-import { AuthError } from "@/server/api/errors";
 import Stripe from "stripe";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { AuthError } from "@/server/api/errors";
 import type { Actor } from "@/server/auth/permissions";
 import { type DB, getDb, migrateDb } from "@/server/db/client";
 import { orders, paymentAttempts, payments } from "@/server/db/schema";
