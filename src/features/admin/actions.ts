@@ -6,6 +6,7 @@ import {
   ModerateProductInput,
   UpdateCategoryInput,
 } from "@/server/api/contracts/catalog";
+import { ReviewPatchInput } from "@/server/api/contracts/reviews";
 import { AuthError } from "@/server/api/errors";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
@@ -15,6 +16,7 @@ import {
   moderateProduct,
   updateCategory,
 } from "@/server/modules/catalog/moderation";
+import { moderateReview } from "@/server/modules/reviews/service";
 
 export type AdminActionResult = { ok: true } | { ok: false; error: string };
 
@@ -30,6 +32,24 @@ export async function moderateProductAction(formData: FormData): Promise<AdminAc
     if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
     const actor = await getActor();
     moderateProduct(getDb(), actor, parsed.data);
+    return { ok: true };
+  } catch (e) {
+    return toResult(e);
+  }
+}
+
+/** Admin HIDE/UNHIDE on a review; optional note lands in the audit row. */
+export async function moderateReviewAction(formData: FormData): Promise<AdminActionResult> {
+  try {
+    const parsed = ReviewPatchInput.safeParse({
+      action: String(formData.get("action") ?? ""),
+      note: String(formData.get("note") ?? "") || undefined,
+    });
+    if (!parsed.success || !parsed.data.action) return { ok: false, error: "INVALID_INPUT" };
+    const reviewId = String(formData.get("reviewId") ?? "");
+    if (!reviewId) return { ok: false, error: "INVALID_INPUT" };
+    const actor = await getActor();
+    moderateReview(getDb(), actor, reviewId, parsed.data.action, parsed.data.note);
     return { ok: true };
   } catch (e) {
     return toResult(e);

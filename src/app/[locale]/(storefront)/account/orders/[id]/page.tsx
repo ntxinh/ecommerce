@@ -18,6 +18,7 @@ import {
 import { DisputeButton } from "@/features/returns/queue";
 import { loadReturnRows } from "@/features/returns/queue-data";
 import { ReturnForm } from "@/features/returns/return-form";
+import { ReviewForm } from "@/features/reviews/review-form";
 import { Link } from "@/i18n/navigation";
 import { formatDate, formatVnd } from "@/lib/format";
 import { AuthError } from "@/server/api/errors";
@@ -27,6 +28,7 @@ import { returnRequests } from "@/server/db/schema";
 import { settingNumber } from "@/server/db/settings";
 import { deliveredAt } from "@/server/modules/orders/fulfillment";
 import { getOrder, type OrderDetail } from "@/server/modules/orders/service";
+import { listReviewableItems } from "@/server/modules/reviews/service";
 export default async function OrderDetailPage({
   params,
 }: {
@@ -59,6 +61,10 @@ export default async function OrderDetailPage({
   );
   const windowMs = settingNumber(db, "return_window_days", 7) * 86_400_000;
   const isOwner = actor.userId === order.userId;
+  // Fulfilled items on this order still open for a review (service-gated).
+  const reviewableItems = isOwner
+    ? listReviewableItems(db, actor).filter((i) => i.orderId === order.id)
+    : [];
 
   const address = JSON.parse(order.addressSnapshotJson) as {
     recipientName: string;
@@ -145,6 +151,22 @@ export default async function OrderDetailPage({
         </CardContent>
       </Card>
 
+      {reviewableItems.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t("writeReview")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {reviewableItems.map((i) => (
+              <ReviewForm
+                key={i.orderItemId}
+                orderItemId={i.orderItemId}
+                productName={i.productName}
+              />
+            ))}
+          </CardContent>
+        </Card>
+      )}
       {sellerOrders.map((so) => {
         const shipment = shipments.find((s) => s.sellerOrderId === so.id);
         const events = shipment ? trackingEvents.filter((ev) => ev.shipmentId === shipment.id) : [];

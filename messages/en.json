@@ -199,7 +199,8 @@
       "RETURN_REQUESTED": "Return requested",
       "RETURNED": "Returned"
     },
-    "nextPage": "Older orders"
+    "nextPage": "Older orders",
+    "writeReview": "Write a review"
   },
   "seller": {
     "productsTitle": "Products",
@@ -463,6 +464,44 @@
     "return": {
       "approved": "Your return for order {orderId} was approved.",
       "rejected": "Your return for order {orderId} was rejected."
+    }
+  },
+  "reviews": {
+    "rating": "Rating",
+    "stars": "{count, plural, one {# star} other {# stars}}",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Summarize your experience",
+    "bodyLabel": "Review",
+    "bodyPlaceholder": "What did you like or dislike?",
+    "images": "Image URLs (optional)",
+    "imagesPlaceholder": "https://…, https://… (max 10)",
+    "submit": "Submit review",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "moderationTitle": "Review moderation",
+    "moderationHint": "Hide or restore reviews. Hidden reviews stop counting toward product ratings.",
+    "moderationEmpty": "No reviews yet.",
+    "notePlaceholder": "Moderation note (optional)",
+    "hide": "Hide",
+    "unhide": "Unhide",
+    "colProduct": "Product",
+    "colAuthor": "Author",
+    "colRating": "Rating",
+    "colReview": "Review",
+    "colStatus": "Status",
+    "colDate": "Date",
+    "colActions": "Actions",
+    "status": {
+      "PUBLISHED": "Published",
+      "HIDDEN": "Hidden"
+    },
+    "errors": {
+      "UNAUTHORIZED": "Please sign in",
+      "FORBIDDEN": "You can't review this item",
+      "NOT_FOUND": "Review not found",
+      "INVALID_INPUT": "Check the rating and fields — or the item was already reviewed"
     }
   }
 }

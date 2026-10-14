@@ -199,7 +199,8 @@
       "RETURN_REQUESTED": "Yêu cầu trả hàng",
       "RETURNED": "Đã trả hàng"
     },
-    "nextPage": "Đơn cũ hơn"
+    "nextPage": "Đơn cũ hơn",
+    "writeReview": "Viết đánh giá"
   },
   "seller": {
     "productsTitle": "Sản phẩm",
@@ -463,6 +464,44 @@
     "return": {
       "approved": "Yêu cầu trả hàng cho đơn {orderId} đã được chấp nhận.",
       "rejected": "Yêu cầu trả hàng cho đơn {orderId} đã bị từ chối."
+    }
+  },
+  "reviews": {
+    "rating": "Đánh giá",
+    "stars": "{count} sao",
+    "titleLabel": "Tiêu đề",
+    "titlePlaceholder": "Tóm tắt trải nghiệm của bạn",
+    "bodyLabel": "Nội dung đánh giá",
+    "bodyPlaceholder": "Bạn thích hay không thích điều gì?",
+    "images": "URL hình ảnh (tuỳ chọn)",
+    "imagesPlaceholder": "https://…, https://… (tối đa 10)",
+    "submit": "Gửi đánh giá",
+    "edit": "Sửa",
+    "delete": "Xoá",
+    "save": "Lưu",
+    "cancel": "Huỷ",
+    "moderationTitle": "Kiểm duyệt đánh giá",
+    "moderationHint": "Ẩn hoặc khôi phục đánh giá. Đánh giá bị ẩn không còn tính vào điểm sản phẩm.",
+    "moderationEmpty": "Chưa có đánh giá nào.",
+    "notePlaceholder": "Ghi chú kiểm duyệt (tuỳ chọn)",
+    "hide": "Ẩn",
+    "unhide": "Hiện lại",
+    "colProduct": "Sản phẩm",
+    "colAuthor": "Tác giả",
+    "colRating": "Đánh giá",
+    "colReview": "Nội dung",
+    "colStatus": "Trạng thái",
+    "colDate": "Ngày",
+    "colActions": "Thao tác",
+    "status": {
+      "PUBLISHED": "Đã đăng",
+      "HIDDEN": "Đã ẩn"
+    },
+    "errors": {
+      "UNAUTHORIZED": "Vui lòng đăng nhập",
+      "FORBIDDEN": "Bạn không thể đánh giá sản phẩm này",
+      "NOT_FOUND": "Không tìm thấy đánh giá",
+      "INVALID_INPUT": "Kiểm tra điểm đánh giá và các trường — hoặc sản phẩm đã được đánh giá"
     }
   }
 }
