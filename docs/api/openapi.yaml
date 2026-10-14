@@ -27,6 +27,54 @@ paths:
                       status:
                         type: string
                         enum: [ok]
+  /api/v1/ready:
+    get:
+      summary: Readiness probe
+      description: >-
+        200 only when the DB answers a trivial query; 500 (INTERNAL) otherwise.
+        No dependency details leaked.
+      responses:
+        "200":
+          description: DB reachable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [status]
+                    properties:
+                      status:
+                        type: string
+                        enum: [ready]
+        "500":
+          description: DB unreachable.
+  /api/v1/internal/auto-complete:
+    post:
+      summary: Cron sweep — auto-complete delivered seller orders
+      description: >-
+        Internal job. Bearer INTERNAL_CRON_TOKEN, not a session cookie.
+        DELIVERED seller orders whose last DELIVERED tracking event is older
+        than application_settings.auto_complete_days move to COMPLETED.
+      responses:
+        "200":
+          description: Sweep ran.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [completed]
+                    properties:
+                      completed:
+                        type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/v1/cart:
     get:
       summary: Current session user's cart

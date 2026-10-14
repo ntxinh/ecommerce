@@ -1,11 +1,12 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
 import { type Actor, requirePermission } from "@/server/auth/permissions";
 import type { DB } from "@/server/db/client";
 import {
+  applicationSettings,
   auditLogs,
   orderItems,
   orders,
@@ -153,6 +154,54 @@ export function completeSellerOrder(db: DB, actor: Actor, sellerOrderId: string)
   return db.transaction((tx) => {
     leg(tx, actor, sellerOrderId);
     return transitionSellerOrder(tx, sellerOrderId, "COMPLETED", actor);
+  });
+}
+/**
+ * Delivery timestamp of a seller order: the newest `DELIVERED` tracking event
+ * on its shipment, or null when it has never been delivered.
+ */
+export function deliveredAt(tx: Pick<DB, "select">, sellerOrderId: string): number | null {
+  const row = tx
+    .select({ createdAt: trackingEvents.createdAt })
+    .from(trackingEvents)
+    .innerJoin(shipments, eq(trackingEvents.shipmentId, shipments.id))
+    .where(and(eq(shipments.sellerOrderId, sellerOrderId), eq(trackingEvents.status, "DELIVERED")))
+    .orderBy(desc(trackingEvents.createdAt))
+    .limit(1)
+    .get();
+  return row?.createdAt ?? null;
+}
+
+/**
+ * Cron sweep: DELIVERED legs whose deliveredAt is older than
+ * `application_settings.auto_complete_days` (JSON number, fallback 3) move to
+ * COMPLETED with a system (null) actor. Returns the count completed.
+ */
+export function autoCompleteSellerOrders(db: DB, now = Date.now()): number {
+  return db.transaction((tx) => {
+    const row = tx
+      .select()
+      .from(applicationSettings)
+      .where(eq(applicationSettings.key, "auto_complete_days"))
+      .get();
+    const parsed = row ? (JSON.parse(row.value) as number) : NaN;
+    const days = Number.isFinite(parsed) ? parsed : 3;
+    const cutoff = now - days * 86_400_000;
+
+    const delivered = tx
+      .select({ id: sellerOrders.id })
+      .from(sellerOrders)
+      .where(eq(sellerOrders.status, "DELIVERED"))
+      .all();
+    let completed = 0;
+    for (const so of delivered) {
+      const at = deliveredAt(tx, so.id);
+      if (at !== null && at < cutoff) {
+        transitionSellerOrder(tx, so.id, "COMPLETED", null);
+        completed += 1;
+      }
+    }
+    return completed;
   });
 }
 
