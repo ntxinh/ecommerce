@@ -38,13 +38,7 @@ export async function PATCH(req: Request) {
     const parsed = NotificationMarkInput.safeParse(body);
     if (!parsed.success) throw new AuthError("INVALID_INPUT", 400);
     const db = getDb();
-    let marked = 0;
-    if (parsed.data.id) {
-      markRead(db, actor, parsed.data.id);
-      marked = 1;
-    } else {
-      marked = markAllRead(db, actor);
-    }
+    const marked = parsed.data.id ? markRead(db, actor, parsed.data.id) : markAllRead(db, actor);
     return Response.json({ data: { marked } });
   } catch (e) {
     return toErrorResponse(e);

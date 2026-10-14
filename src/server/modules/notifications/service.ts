@@ -79,13 +79,19 @@ export function listNotifications(
   return { items, nextCursor: rows.length > limit ? items[items.length - 1].id : null, unread };
 }
 
-/** Marks one notification read. Owner only — FORBIDDEN on another user's id. */
-export function markRead(db: DB, actor: Actor, id: string): void {
+/** Marks one notification read. Owner only — FORBIDDEN on another user's id.
+ *  Returns 1 when it actually marked, 0 when the row was already read. */
+export function markRead(db: DB, actor: Actor, id: string): number {
   const n = db.select().from(notifications).where(eq(notifications.id, id)).get();
   if (!n) throw new AuthError("NOT_FOUND", 404, "notification not found");
   if (n.userId !== actor.userId) throw new AuthError("FORBIDDEN", 403);
-  if (n.readAt) return;
-  db.update(notifications).set({ readAt: Date.now() }).where(eq(notifications.id, id)).run();
+  if (n.readAt) return 0;
+  // Conditional update keeps the 0/1 honest under a racing double-mark.
+  return db
+    .update(notifications)
+    .set({ readAt: Date.now() })
+    .where(and(eq(notifications.id, id), isNull(notifications.readAt)))
+    .run().changes;
 }
 
 /** Marks every unread notification of the actor read; returns the count marked. */

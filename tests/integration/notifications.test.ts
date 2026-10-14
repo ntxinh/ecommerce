@@ -81,13 +81,16 @@ describe("notify + list", () => {
     expect(page1.items).toHaveLength(1);
     expect(page1.unread).toBe(2);
     expect(page1.nextCursor).toBe(page1.items[0].id);
-    expect(page1.items[0].title).toBe("order.created");
-    expect(JSON.parse(page1.items[0].body)).toEqual({ orderId: "ord_x" });
-
     const page2 = listNotifications(db, SELLER2, { limit: 1, cursor: page1.nextCursor! });
     expect(page2.items).toHaveLength(1);
     expect(page2.nextCursor).toBeNull();
+    // Same-ms ULIDs don't guarantee which row pages first — assert the set.
+    expect(new Set([...page1.items, ...page2.items].map((i) => i.title))).toEqual(
+      new Set(["order.created", "return.approved"]),
+    );
     expect(page2.items[0].id).not.toBe(page1.items[0].id);
+    const created = [...page1.items, ...page2.items].find((i) => i.title === "order.created")!;
+    expect(JSON.parse(created.body)).toEqual({ orderId: "ord_x" });
   });
 
   it("disabled preference suppresses the row; absent row means enabled", () => {
@@ -115,7 +118,8 @@ describe("read markers", () => {
     expect(await errorCode(() => markRead(db, CUSTOMER, mine.id))).toBe("FORBIDDEN");
     expect(await errorCode(() => markRead(db, SELLER2, "ntf_missing"))).toBe("NOT_FOUND");
 
-    markRead(db, SELLER2, mine.id);
+    expect(markRead(db, SELLER2, mine.id)).toBe(1);
+    expect(markRead(db, SELLER2, mine.id)).toBe(0); // already read — no-op
     const after = listNotifications(db, SELLER2);
     expect(after.items.find((i) => i.id === mine.id)!.readAt).not.toBeNull();
 
@@ -145,19 +149,21 @@ describe("wiring", () => {
     expect(JSON.parse(created!.body)).toEqual({ orderId: res.orderId });
   });
 
-  it("deliverSellerOrder → buyer gets a shipment notification", async () => {
+  it("ship/deliver → buyer gets one notification each; idempotent re-calls don't re-notify", async () => {
     const res = await codOrder("var_2", 1);
     const so = db.select().from(sellerOrders).where(eq(sellerOrders.orderId, res.orderId)).get()!;
     confirmSellerOrder(db, SHOP1_OWNER, so.id);
     packSellerOrder(db, SHOP1_OWNER, so.id);
     shipSellerOrder(db, SHOP1_OWNER, so.id, { carrier: "ghn", trackingNumber: nextKey() });
+    // Idempotent re-call while still SHIPPED — no second notification.
+    shipSellerOrder(db, SHOP1_OWNER, so.id, { carrier: "ghn", trackingNumber: "x-dup" });
+    deliverSellerOrder(db, SHOP1_OWNER, so.id);
     deliverSellerOrder(db, SHOP1_OWNER, so.id);
 
     const titles = listNotifications(db, CUSTOMER)
       .items.filter((i) => i.type === "shipment")
       .map((i) => i.title);
-    expect(titles).toContain("shipment.shipped");
-    expect(titles).toContain("shipment.delivered");
+    expect([...titles].sort()).toEqual(["shipment.delivered", "shipment.shipped"]);
   });
 });
 
