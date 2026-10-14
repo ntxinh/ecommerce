@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
 import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
 import { type Actor, requirePermission } from "@/server/auth/permissions";
@@ -100,6 +100,7 @@ export function getOrder(db: DB, actor: Actor, orderId: string): OrderDetail {
             legShipments.map((s) => s.id),
           ),
         )
+        .orderBy(asc(trackingEvents.id))
         .all()
     : [];
   return {
@@ -164,7 +165,12 @@ export function getSellerOrder(db: DB, actor: Actor, sellerOrderId: string): Sel
     items: db.select().from(orderItems).where(eq(orderItems.sellerOrderId, sellerOrderId)).all(),
     shipment,
     trackingEvents: shipment
-      ? db.select().from(trackingEvents).where(eq(trackingEvents.shipmentId, shipment.id)).all()
+      ? db
+          .select()
+          .from(trackingEvents)
+          .where(eq(trackingEvents.shipmentId, shipment.id))
+          .orderBy(asc(trackingEvents.id))
+          .all()
       : [],
   };
 }

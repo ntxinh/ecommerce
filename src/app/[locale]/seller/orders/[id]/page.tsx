@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { type FulfillmentAction, OrderActionButtons } from "@/features/seller/order-action-buttons";
-import { Link } from "@/i18n/navigation";
+import { Link, redirect } from "@/i18n/navigation";
 import { formatDate, formatVnd } from "@/lib/format";
 import { AuthError } from "@/server/api/errors";
 import { requireSeller } from "@/server/auth/actor";
@@ -27,10 +27,13 @@ import {
 } from "@/server/modules/orders/transitions";
 
 /** Seller-order target → the action button that performs it. RETURN_REQUESTED
- *  is customer-initiated, so it never appears as a seller action. */
+ *  and RETURNED are return-flow states: RETURN_REQUESTED is customer-initiated
+ *  (not a seller action) and the seller's accept-return action is Phase 7
+ *  scope — deliberately unmapped here so nobody inherits the gap. */
 const TARGET_ACTION = {
   CONFIRMED: "confirm",
   PACKING: "pack",
+  READY_TO_SHIP: "ship", // shipSellerOrder steps PACKING → READY_TO_SHIP → SHIPPED itself
   SHIPPED: "ship",
   DELIVERED: "deliver",
   COMPLETED: "complete",
@@ -46,15 +49,18 @@ export default async function SellerOrderDetailPage({
   let actor: Actor;
   try {
     actor = await requireSeller();
-  } catch {
-    notFound(); // layout already guards; defensive only
+  } catch (e) {
+    if (e instanceof AuthError && e.status === 403) redirect({ href: "/", locale });
+    if (e instanceof AuthError) redirect({ href: "/login", locale });
+    throw e;
   }
 
   let detail: SellerOrderDetail;
   try {
     detail = getSellerOrder(getDb(), actor, id);
   } catch (e) {
-    if (e instanceof AuthError) notFound();
+    // Cross-shop seller-order reads are FORBIDDEN — same 404 surface as missing.
+    if (e instanceof AuthError && (e.status === 403 || e.status === 404)) notFound();
     throw e;
   }
   const { sellerOrder, order, shop, items, shipment, trackingEvents } = detail;
