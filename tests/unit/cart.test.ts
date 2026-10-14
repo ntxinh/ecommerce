@@ -22,17 +22,19 @@ describe("cart contracts", () => {
       { variantId: "var_1", qty: -2 },
       { variantId: "var_1", qty: 1.5 },
       { variantId: "var_1", qty: "abc" },
+      { variantId: "var_1", qty: "" }, // "" must not coerce to 0
       { variantId: "var_1" },
     ]) {
       expect(CartAddInput.safeParse(bad).success).toBe(false);
     }
   });
 
-  it("allows qty 0 on update (line delete) but not negatives", () => {
+  it('allows qty 0 on update (line delete) but rejects ""/negatives', () => {
     expect(CartUpdateInput.parse({ cartItemId: "ci_1", qty: "0" }).qty).toBe(0);
+    expect(CartUpdateInput.parse({ cartItemId: "ci_1", qty: 0 }).qty).toBe(0);
+    expect(CartUpdateInput.safeParse({ cartItemId: "ci_1", qty: "" }).success).toBe(false);
     expect(CartUpdateInput.safeParse({ cartItemId: "ci_1", qty: -1 }).success).toBe(false);
   });
-
   it("requires cartItemId on remove", () => {
     expect(CartRemoveInput.safeParse({ cartItemId: "ci_1" }).success).toBe(true);
     expect(CartRemoveInput.safeParse({}).success).toBe(false);

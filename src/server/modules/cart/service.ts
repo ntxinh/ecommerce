@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
 import type { DB } from "@/server/db/client";
@@ -76,11 +76,13 @@ function parseAttrs(json: string): Record<string, unknown> {
   }
 }
 
-function variantExists(db: CartStore, variantId: string) {
+/** Variant exists AND its product is sellable (ACTIVE). */
+function isSellable(db: CartStore, variantId: string) {
   return !!db
     .select({ id: productVariants.id })
     .from(productVariants)
-    .where(eq(productVariants.id, variantId))
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .where(and(eq(productVariants.id, variantId), eq(products.status, "ACTIVE")))
     .get();
 }
 
@@ -172,7 +174,7 @@ export function getCart(db: DB, userId: string): CartView {
 /** Additive upsert: repeats of the same variant increment qty. */
 export function addItem(db: DB, userId: string, variantId: string, qty: number): CartView {
   assertQty(qty);
-  if (!variantExists(db, variantId)) throw new AuthError("NOT_FOUND", 404, "variant not found");
+  if (!isSellable(db, variantId)) throw new AuthError("NOT_FOUND", 404, "variant not found");
   const cartId = cartIdFor(db, userId, true);
   upsertItem(db, cartId, variantId, qty);
   touch(db, cartId);
@@ -219,7 +221,7 @@ export function mergeGuestCart(
     const cartId = cartIdFor(tx, userId, true);
     for (const { variantId, qty } of items) {
       assertQty(qty);
-      if (!variantExists(tx, variantId)) continue;
+      if (!isSellable(tx, variantId)) continue;
       upsertItem(tx, cartId, variantId, qty);
     }
     touch(tx, cartId);

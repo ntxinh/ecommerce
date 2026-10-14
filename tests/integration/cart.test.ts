@@ -131,6 +131,15 @@ describe("addItem", () => {
     db.update(products).set({ status: "ARCHIVED" }).where(eq(products.id, "prod_1")).run();
     expect(getCart(db, USER).items[0].available).toBe(false);
   });
+
+  it("rejects variants whose product is not ACTIVE", () => {
+    db.update(products).set({ status: "DRAFT" }).where(eq(products.id, "prod_1")).run();
+    expect(errorCode(() => addItem(db, USER, SHOP1_VAR, 1))).toEqual({
+      code: "NOT_FOUND",
+      status: 404,
+    });
+    expect(getCart(db, USER).items).toHaveLength(0);
+  });
 });
 
 describe("updateQty / removeItem", () => {
@@ -193,9 +202,11 @@ describe("mergeGuestCart", () => {
     expect(v6.qty).toBe(4);
   });
 
-  it("skips dead variants and creates the cart when needed", () => {
+  it("skips dead and non-ACTIVE variants and creates the cart when needed", () => {
+    db.update(products).set({ status: "DRAFT" }).where(eq(products.id, "prod_1")).run();
     const merged = mergeGuestCart(db, USER, [
       { variantId: "var_gone", qty: 2 },
+      { variantId: SHOP1_VAR, qty: 5 }, // product DRAFT → skipped
       { variantId: SHOP2_VAR, qty: 1 },
     ]);
     expect(merged.items).toHaveLength(1);
