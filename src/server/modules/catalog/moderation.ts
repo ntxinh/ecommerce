@@ -121,15 +121,16 @@ export function listProductModerations(db: DB, actor: Actor | null, productId: s
     .select()
     .from(productModerations)
     .where(eq(productModerations.productId, productId))
-    .orderBy(asc(productModerations.createdAt), asc(productModerations.id))
+    .orderBy(sql`${productModerations}.rowid`) // ULIDs don't order ties within the same ms
     .all();
 }
 
 /**
- * Admin decision. approve: SUBMITTED|SUSPENDED → ACTIVE+APPROVED.
- * reject: SUBMITTED → DRAFT+REJECTED (note required). suspend: any non-archived
- * product → SUSPENDED while keeping its seller status (note required);
- * the public gate hides it until an approve restores visibility.
+ * Admin decision. approve: SUBMITTED|SUSPENDED → APPROVED, seller status
+ * untouched (a suspended DRAFT/ARCHIVED stays so — it only becomes public if
+ * the seller publishes it). reject: SUBMITTED → DRAFT+REJECTED (note
+ * required). suspend: any non-archived product → SUSPENDED while keeping its
+ * seller status (note required); the public gate hides it until approved.
  */
 export function moderateProduct(db: DB, actor: Actor | null, input: ModerateIn): void {
   const a = requirePermission(actor, "admin:*");
@@ -142,8 +143,6 @@ export function moderateProduct(db: DB, actor: Actor | null, input: ModerateIn):
     let next: "APPROVED" | "REJECTED" | "SUSPENDED";
     if (input.action === "approve") {
       if (mod !== "SUBMITTED" && mod !== "SUSPENDED") invalid("product is not awaiting review");
-      assertPublishable(tx, product.id);
-      status = "ACTIVE";
       next = "APPROVED";
     } else if (input.action === "reject") {
       if (mod !== "SUBMITTED") invalid("product is not awaiting review");

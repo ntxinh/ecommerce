@@ -153,7 +153,11 @@ export function priceOrder(
       .innerJoin(products, eq(productVariants.productId, products.id))
       .where(eq(productVariants.id, variantId))
       .get();
-    if (!row || row.p.status !== "ACTIVE") {
+    if (
+      !row ||
+      row.p.status !== "ACTIVE" ||
+      !["NONE", "APPROVED"].includes(row.p.moderationStatus)
+    ) {
       throw new AuthError("NOT_FOUND", 404, `variant ${variantId} not found or not sellable`);
     }
     const { v, p } = row;

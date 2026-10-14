@@ -7,7 +7,8 @@ import { type DB, getDb, migrateDb } from "@/server/db/client";
 import { products } from "@/server/db/schema";
 import { seedCatalog } from "@/server/db/seed/catalog";
 import { seedIdentity } from "@/server/db/seed/identity";
-import { createProduct } from "@/server/modules/catalog/manage";
+import { addItem } from "@/server/modules/cart/service";
+import { createProduct, setProductStatus } from "@/server/modules/catalog/manage";
 import {
   createCategory,
   deleteCategory,
@@ -24,6 +25,7 @@ import {
   getShopBySlug,
   listProducts,
 } from "@/server/modules/catalog/service";
+import { placeOrder } from "@/server/modules/orders/checkout";
 import { search, suggest } from "@/server/modules/search/service";
 
 const PATH = "./tests/.tmp/moderation-test.db";
@@ -113,16 +115,21 @@ describe("submit for review", () => {
 });
 
 describe("admin moderation decisions", () => {
-  it("approve publishes the product (ACTIVE+APPROVED) and records the row", () => {
+  it("approve clears the gate without touching the seller status", () => {
     const id = listModerationQueue(db, admin)[0].productId;
     moderateProduct(db, admin, { productId: id, action: "approve" });
     expect(modStatus(id)).toBe("APPROVED");
-    expect(pStatus(id)).toBe("ACTIVE");
-    expect(publicIds()).toContain(id);
+    // Reviewer fix: approve must not publish — the seller decides that.
+    expect(pStatus(id)).toBe("DRAFT");
+    expect(publicIds()).not.toContain(id);
     expect(listModerationQueue(db, admin).map((r) => r.productId)).not.toContain(id);
 
     const audit = listProductModerations(db, admin, id);
     expect(audit.map((a) => a.action)).toEqual(["SUBMIT", "APPROVE"]);
+
+    // Seller publishes → publicly visible.
+    setProductStatus(db, seller1, id, "ACTIVE");
+    expect(publicIds()).toContain(id);
   });
 
   it("reject returns the product to DRAFT+REJECTED and keeps the note", () => {
@@ -138,10 +145,13 @@ describe("admin moderation decisions", () => {
     const audit = listProductModerations(db, admin, id);
     expect(audit.at(-1)).toMatchObject({ action: "REJECT", note: "bad photos" });
 
-    // Resubmission is allowed after a rejection.
+    // Resubmission is allowed after a rejection; approve clears the gate and
+    // the seller publishes.
     submitForReview(db, seller1, id);
     expect(modStatus(id)).toBe("SUBMITTED");
     moderateProduct(db, admin, { productId: id, action: "approve" });
+    expect(pStatus(id)).toBe("DRAFT");
+    setProductStatus(db, seller1, id, "ACTIVE");
     expect(publicIds()).toContain(id);
   });
 
@@ -167,6 +177,39 @@ describe("admin moderation decisions", () => {
     expect(modStatus("prod_1")).toBe("APPROVED");
     expect(publicIds()).toContain("prod_1");
     expect(getProductBySlug(db, "handmade-ceramic-mug").id).toBe("prod_1");
+  });
+
+  it("approve keeps the seller status — a suspended archived product stays archived", () => {
+    moderateProduct(db, admin, { productId: "prod_2", action: "suspend", note: "policy" });
+    setProductStatus(db, seller1, "prod_2", "ARCHIVED");
+    moderateProduct(db, admin, { productId: "prod_2", action: "approve" });
+    expect(modStatus("prod_2")).toBe("APPROVED");
+    expect(pStatus("prod_2")).toBe("ARCHIVED");
+    expect(publicIds()).not.toContain("prod_2");
+    setProductStatus(db, seller1, "prod_2", "ACTIVE"); // restore for other tests
+  });
+
+  it("suspended products are unsellable at checkout", async () => {
+    // prod_5 (shop_2) is ACTIVE+NONE: line added first, then the admin suspends.
+    const view = addItem(db, customer.userId, "var_7", 1);
+    const line = view.items.find((i) => i.variantId === "var_7");
+    if (!line) throw new Error("cart line missing");
+    expect(line.available).toBe(true);
+    moderateProduct(db, admin, { productId: "prod_5", action: "suspend", note: "fraud review" });
+    try {
+      await placeOrder(db, customer, {
+        cartItemIds: [line.cartItemId],
+        addressId: "addr_1",
+        shippingByShop: {},
+        voucherCodes: [],
+        paymentMethod: "COD",
+        idempotencyKey: "mod_suspended_order",
+      });
+      expect.unreachable("expected NOT_FOUND");
+    } catch (e) {
+      expect((e as AuthError).code).toBe("NOT_FOUND");
+    }
+    moderateProduct(db, admin, { productId: "prod_5", action: "approve", note: "cleared" });
   });
 
   it("requires a note on reject/suspend and valid queue states on approve/reject", () => {
