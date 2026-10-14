@@ -134,7 +134,7 @@ describe("sessionOutcome", () => {
     expect(sessionOutcome({ status: "expired", payment_status: "unpaid" })).toBe("FAILED");
     expect(sessionOutcome({ status: "complete", payment_status: "unpaid" })).toBe("PENDING");
     expect(sessionOutcome({ status: "complete", payment_status: "no_payment_required" })).toBe(
-      "PENDING",
+      "PAID",
     );
   });
 });

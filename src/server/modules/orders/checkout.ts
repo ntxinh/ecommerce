@@ -37,6 +37,7 @@ import {
 import { consumeRedemptions } from "@/server/modules/pricing/vouchers";
 import { quoteShippingFee } from "@/server/modules/shipping/providers";
 import { type PaymentOutcome, persistPaymentOutcome } from "./outcome";
+import type { OrderStatus } from "./transitions";
 
 export type CheckoutInput = {
   cartItemIds: string[];
@@ -151,7 +152,7 @@ export async function dispatchStripePayment(
   amountVnd: number,
   origin: string,
   locale: string,
-): Promise<{ redirectUrl?: string; orderStatus: "PENDING_PAYMENT" | "PAYMENT_FAILED" }> {
+): Promise<{ redirectUrl?: string; orderStatus: OrderStatus }> {
   try {
     const { ref, redirectUrl } = await paymentProviderFor("STRIPE").createAttempt({
       amountVnd,
@@ -170,7 +171,7 @@ export async function dispatchStripePayment(
       // Config/usage errors surface to the caller as validation failures.
       throw e;
     }
-    persistPaymentOutcome(db, paymentId, "FAILED", attemptId);
+    const { orderStatus } = persistPaymentOutcome(db, paymentId, "FAILED", attemptId);
     db.insert(auditLogs)
       .values({
         id: `aud_${ulid()}`,
@@ -182,7 +183,9 @@ export async function dispatchStripePayment(
         createdAt: Date.now(),
       })
       .run();
-    return { orderStatus: "PAYMENT_FAILED" };
+    // A concurrently-cancelled order reports CANCELLED (persistPaymentOutcome
+    // leaves forward states alone), not a phantom retryable wedge.
+    return { orderStatus };
   }
 }
 

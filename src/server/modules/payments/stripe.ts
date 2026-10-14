@@ -26,15 +26,16 @@ export function getStripe(): Stripe | null {
 
 export type AttemptOutcome = "PAID" | "FAILED" | "PENDING";
 
-/** Stripe Checkout Session → our coarse outcome. `expired` is the only
- *  terminal failure — `complete`+unpaid is a delayed/async method still
- *  settling (async_payment_succeeded/failed arrives later), so marking it
- *  FAILED would strand real money and invite a double-charge retry. */
+/** Stripe Checkout Session → our coarse outcome. `paid` and
+ *  `no_payment_required` (zero-total orders) are settled PAID; `expired` is
+ *  the only terminal failure — `complete`+unpaid is a delayed/async method
+ *  still settling (async_payment_succeeded/failed arrives later), so marking
+ *  it FAILED would strand real money and invite a double-charge retry. */
 export function sessionOutcome(s: {
   status: Stripe.Checkout.Session.Status | string | null;
   payment_status: string;
 }): AttemptOutcome {
-  if (s.payment_status === "paid") return "PAID";
+  if (s.payment_status === "paid" || s.payment_status === "no_payment_required") return "PAID";
   if (s.status === "expired") return "FAILED";
   return "PENDING";
 }
