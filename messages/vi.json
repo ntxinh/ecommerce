@@ -39,6 +39,7 @@
     "verifyStatus": "Trạng thái email",
     "verifyPending": "Chưa xác minh",
     "accountTitle": "Tài khoản",
+    "wishlistLink": "Yêu thích của tôi",
     "toAccount": "Đi tới tài khoản",
     "mergeFailed": "Không thể khôi phục giỏ hàng đã lưu"
   },
@@ -58,6 +59,7 @@
   "shell": {
     "planned": "Dự kiến",
     "searchPlaceholder": "Tìm sản phẩm",
+    "clearHistory": "Xóa lịch sử",
     "footerTagline": "Mua bán mọi thứ",
     "catalogPlanned": "Dự kiến: danh mục sản phẩm",
     "moderationPlanned": "Dự kiến: đơn đăng ký bán hàng",
@@ -253,6 +255,12 @@
     "variantSalePrice": "Giá khuyến mãi (₫)",
     "variantStock": "Tồn kho",
     "variantAttrs": "Thuộc tính (JSON)",
+    "attributes": "Thông số",
+    "attributesHint": "Các dòng thông số hiển thị trên trang sản phẩm (chất liệu, xuất xứ, …).",
+    "addAttribute": "Thêm thuộc tính",
+    "removeAttribute": "Xóa",
+    "attributeName": "Tên",
+    "attributeValue": "Giá trị",
     "save": "Lưu sản phẩm",
     "saving": "Đang lưu…",
     "ordersTitle": "Đơn hàng",
@@ -323,6 +331,20 @@
       "cancelRatePct": "Tỷ lệ hủy",
       "returnRatePct": "Tỷ lệ trả hàng",
       "lowStockCount": "Biến thể sắp hết hàng"
+    },
+    "promotionsTitle": "Khuyến mãi",
+    "promotions": {
+      "title": "Khuyến mãi của shop",
+      "empty": "Chưa có khuyến mãi nào.",
+      "colKind": "Loại",
+      "fieldValue": "Giá trị (bps cho PERCENT, VND cho loại khác)",
+      "colWindow": "Thời hạn",
+      "colStatus": "Trạng thái",
+      "kind": {
+        "PERCENT": "Phần trăm",
+        "FIXED": "Số tiền cố định",
+        "FLASH_PRICE": "Giá chớp nhoáng"
+      }
     },
     "settingsTitle": "Cài đặt cửa hàng"
   },
@@ -459,7 +481,35 @@
       "FIXED": "Số tiền cố định",
       "SHIPPING": "Vận chuyển"
     },
-    "voucherCreated": "Đã tạo voucher"
+    "voucherCreated": "Đã tạo voucher",
+    "promotions": {
+      "title": "Khuyến mãi",
+      "empty": "Chưa có khuyến mãi nào.",
+      "create": "Tạo khuyến mãi",
+      "created": "Đã tạo khuyến mãi",
+      "fieldScope": "Phạm vi",
+      "fieldShop": "Mã shop",
+      "fieldProduct": "Mã sản phẩm",
+      "fieldKind": "Loại",
+      "fieldValue": "Giá trị (bps cho PERCENT, VND cho loại khác)",
+      "fieldStarts": "Bắt đầu",
+      "fieldEnds": "Kết thúc",
+      "colScope": "Phạm vi",
+      "colTarget": "Áp dụng cho",
+      "colKind": "Loại",
+      "colWindow": "Thời hạn",
+      "colStatus": "Trạng thái",
+      "scope": {
+        "PRODUCT": "Sản phẩm",
+        "SHOP": "Shop",
+        "FLASH": "Chớp nhoáng"
+      },
+      "kind": {
+        "PERCENT": "Phần trăm",
+        "FIXED": "Số tiền cố định",
+        "FLASH_PRICE": "Giá chớp nhoáng"
+      }
+    }
   },
   "storefront": {
     "categories": "Danh mục",
@@ -507,7 +557,14 @@
       "newest": "Mới nhất",
       "popular": "Bán chạy"
     },
-    "imageN": "Ảnh {n}"
+    "imageN": "Ảnh {n}",
+    "wishlist": {
+      "title": "Yêu thích của tôi",
+      "empty": "Chưa có gì — chạm trái tim trên sản phẩm để lưu lại.",
+      "add": "Lưu vào yêu thích",
+      "remove": "Bỏ yêu thích",
+      "toggleFailed": "Không thể cập nhật yêu thích"
+    }
   },
   "returns": {
     "requestReturn": "Yêu cầu trả hàng",

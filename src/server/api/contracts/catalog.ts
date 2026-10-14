@@ -49,10 +49,18 @@ export const ProductInput = z.object({
   status: z.enum(["DRAFT", "ACTIVE"]).default("DRAFT"),
 });
 
+/** One spec-sheet row on product_attributes (name/value pairs, display order). */
+export const AttributeInput = z.object({
+  name: z.string().trim().min(1).max(100),
+  value: z.string().trim().min(1).max(500),
+});
+
 /** Full save payload: `id` set = update, plus the variant repeater rows. */
 export const ProductSaveInput = ProductInput.extend({
   id: opt(z.string().min(1)),
   variants: z.array(VariantInput).max(100).default([]),
+  // When present the whole attribute set is replace-saved; absent = leave alone.
+  attributes: z.array(AttributeInput).max(100).optional(),
 });
 
 export const SetProductStatusInput = z.object({

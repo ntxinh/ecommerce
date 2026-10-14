@@ -14,8 +14,8 @@ created as their phases land.
 | `catalog` | categories, brands, products, variants, images, moderation | Planned |
 | `inventory` | stock levels, movements, reservations | Planned |
 | `search` | product search/filters | Planned |
-| `cart` | carts, wishlists, merge | Planned |
-| `pricing` | promotions, vouchers, `priceOrder` | Planned |
+| `cart` | carts, wishlists, merge | Implemented |
+| `pricing` | promotions, vouchers, `priceOrder` | Implemented |
 | `orders` | orders, seller_orders, items, transitions | Planned |
 | `payments` | payments, attempts, refunds, adapters | Planned |
 | `shipping` | shipments, tracking, providers | Planned |

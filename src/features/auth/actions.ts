@@ -8,6 +8,7 @@ import {
   ResetRequestInput,
 } from "@/server/api/contracts/auth";
 import { CartMergeInput } from "@/server/api/contracts/cart";
+import { WishlistMergeInput } from "@/server/api/contracts/wishlist";
 import { AuthError } from "@/server/api/errors";
 import { getActor } from "@/server/auth/actor";
 import { clearSessionCookie, getSessionToken, setSessionCookie } from "@/server/auth/cookies";
@@ -16,6 +17,7 @@ import { createSession, revokeSession } from "@/server/auth/sessions";
 import { hashToken } from "@/server/auth/tokens";
 import { getDb } from "@/server/db/client";
 import { mergeGuestCart } from "@/server/modules/cart/service";
+import { mergeGuestWishlist } from "@/server/modules/cart/wishlist";
 import {
   authenticate,
   createPasswordReset,
@@ -94,6 +96,22 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
       } else {
         merged = false;
       }
+    }
+  }
+  // Guest-wishlist merge: same JSON-hidden-field contract as guestItems.
+  const rawWl = String(formData.get("wishlistIds") ?? "");
+  if (rawWl && rawWl !== "[]") {
+    try {
+      const wl = WishlistMergeInput.safeParse({ productIds: JSON.parse(rawWl) });
+      if (wl.success) {
+        if (wl.data.productIds.length > 0) {
+          mergeGuestWishlist(getDb(), user.id, wl.data.productIds);
+        }
+      } else {
+        merged = false;
+      }
+    } catch {
+      merged = false;
     }
   }
   // `next` is an internal path (e.g. /checkout) — reject anything else.

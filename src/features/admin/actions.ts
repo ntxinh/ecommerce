@@ -12,7 +12,7 @@ import { DecideInput, ShopStatusInput } from "@/server/api/contracts/seller";
 import { AuthError } from "@/server/api/errors";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
-import { createPlatformVoucher, setSetting } from "@/server/modules/admin/ops";
+import { createPlatformVoucher, createPromotion, setSetting } from "@/server/modules/admin/ops";
 import { revokeUserSessions, setUserStatus } from "@/server/modules/admin/service";
 import {
   createCategory,
@@ -184,6 +184,7 @@ export async function setSettingAction(formData: FormData): Promise<AdminActionR
 const optInt = (schema: z.ZodType<number>) =>
   z.preprocess((v) => (v === "" || v == null ? undefined : v), schema.optional());
 const epochMs = z.preprocess((v) => new Date(String(v)).getTime(), z.number().int().positive());
+const optStr = z.preprocess((v) => (v === "" ? undefined : v), z.string().optional());
 
 const PlatformVoucherForm = z.object({
   code: z.string().min(1).max(64),
@@ -204,6 +205,34 @@ export async function createPlatformVoucherAction(formData: FormData): Promise<A
     if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
     const actor = await getActor();
     createPlatformVoucher(getDb(), actor, parsed.data);
+    return { ok: true };
+  } catch (e) {
+    return toResult(e);
+  }
+}
+
+const PromotionFormInput = z.object({
+  scope: z.enum(["PRODUCT", "SHOP", "FLASH"]),
+  // Empty strings are "not set" — the service enforces scope requirements.
+  shopId: optStr,
+  productId: optStr,
+  kind: z.enum(["PERCENT", "FIXED", "FLASH_PRICE"]),
+  value: z.coerce.number().int().positive(),
+  startsAt: epochMs,
+  endsAt: epochMs,
+});
+
+/** Admin/seller create-promotion form; perm gate is in the service by scope. */
+export async function createPromotionAction(formData: FormData): Promise<AdminActionResult> {
+  try {
+    const parsed = PromotionFormInput.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
+    const actor = await getActor();
+    createPromotion(getDb(), actor, {
+      ...parsed.data,
+      shopId: parsed.data.shopId || undefined,
+      productId: parsed.data.productId || undefined,
+    });
     return { ok: true };
   } catch (e) {
     return toResult(e);

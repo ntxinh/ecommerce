@@ -10,6 +10,7 @@ import { getDb } from "@/server/db/client";
 import { getCart } from "@/server/modules/cart/service";
 import { listCategories } from "@/server/modules/catalog/service";
 import { listNotifications } from "@/server/modules/notifications/service";
+import { listRecentSearches } from "@/server/modules/search/service";
 import { LocaleSwitcher } from "./locale-switcher";
 import { ThemeSwitcher } from "./theme-switcher";
 
@@ -21,6 +22,7 @@ export async function SiteHeader({ locale }: { locale: string }) {
   const cartCount = actor ? getCart(getDb(), actor.userId).items.reduce((n, i) => n + i.qty, 0) : 0;
   const unread = actor ? listNotifications(getDb(), actor, { limit: 1 }).unread : 0;
   const topCategories = listCategories(getDb());
+  const recentSearches = actor ? listRecentSearches(getDb(), actor.userId) : undefined;
 
   return (
     <header className="border-b">
@@ -28,7 +30,7 @@ export async function SiteHeader({ locale }: { locale: string }) {
         <Link href="/" className="text-lg font-semibold">
           {tc("appName")}
         </Link>
-        <SearchBox />
+        <SearchBox recent={recentSearches} />
         <nav className="hidden items-center gap-1 text-sm md:flex">
           {actor?.roles.includes("CUSTOMER") ? (
             <Link href="/sell" className={buttonVariants({ variant: "ghost", size: "sm" })}>

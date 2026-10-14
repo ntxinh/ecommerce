@@ -59,6 +59,9 @@ export default async function AdminLayout({
           <Link href="/admin/vouchers" className="block hover:underline">
             {ts("vouchers")}
           </Link>
+          <Link href="/admin/promotions" className="block hover:underline">
+            {ts("promotions")}
+          </Link>
           <Link href="/admin/settings" className="block hover:underline">
             {ts("settings")}
           </Link>

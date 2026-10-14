@@ -6,7 +6,15 @@ import { z } from "zod";
 import { AuthError } from "@/server/api/errors";
 import { type Actor, requirePermission } from "@/server/auth/permissions";
 import type { DB } from "@/server/db/client";
-import { applicationSettings, auditLogs, orders, users, vouchers } from "@/server/db/schema";
+import {
+  applicationSettings,
+  auditLogs,
+  orders,
+  products,
+  promotions,
+  users,
+  vouchers,
+} from "@/server/db/schema";
 import { getOrder, type OrderDetail } from "@/server/modules/orders/service";
 
 const invalid = (msg: string): never => {
@@ -185,6 +193,98 @@ export function createPlatformVoucher(
         targetType: "voucher",
         targetId: id,
         metaJson: JSON.stringify({ code }),
+        createdAt: Date.now(),
+      })
+      .run();
+  });
+  return id;
+}
+
+export type PromotionInput = {
+  /** SHOP needs `shopId`; PRODUCT needs `productId`; FLASH needs `productId` and admin. */
+  scope: "PRODUCT" | "SHOP" | "FLASH";
+  shopId?: string;
+  productId?: string;
+  kind: "PERCENT" | "FIXED" | "FLASH_PRICE";
+  /** PERCENT: basis points; FIXED/FLASH_PRICE: VND. */
+  value: number;
+  startsAt: number;
+  endsAt: number;
+};
+
+/**
+ * Inserts a promotion (mirrors the prm_* seed shapes). Permission follows
+ * scope: SHOP → `shop:manage` on that shop; PRODUCT → `product:write` on the
+ * product's shop; FLASH → `admin:*` only. Returns the new id.
+ */
+export function createPromotion(db: DB, actor: Actor | null, input: PromotionInput): string {
+  if (!Number.isInteger(input.value) || input.value <= 0) {
+    invalid("value must be a positive integer");
+  }
+  if (input.kind === "PERCENT" && input.value > 10_000) {
+    invalid("percent is basis points ≤ 10000");
+  }
+  if (
+    !Number.isFinite(input.startsAt) ||
+    !Number.isFinite(input.endsAt) ||
+    input.endsAt <= input.startsAt
+  ) {
+    invalid("endsAt must be after startsAt");
+  }
+
+  let a: Actor;
+  if (input.scope === "FLASH") {
+    if (!input.productId) invalid("FLASH promotions need a productId");
+    a = requirePermission(actor, "admin:*");
+  } else if (input.scope === "SHOP") {
+    if (!input.shopId) invalid("SHOP promotions need a shopId");
+    a = requirePermission(actor, "shop:manage", { shopId: input.shopId });
+  } else {
+    // PRODUCT
+    const productId: string = input.productId ?? "";
+    if (!productId) invalid("PRODUCT promotions need a productId");
+    const product = db
+      .select({ id: products.id, shopId: products.shopId })
+      .from(products)
+      .where(eq(products.id, productId))
+      .get();
+    if (!product) throw new AuthError("NOT_FOUND", 404, "product not found");
+    a = requirePermission(actor, "product:write", { shopId: product.shopId });
+  }
+
+  if (input.productId) {
+    const found = db
+      .select({ id: products.id })
+      .from(products)
+      .where(eq(products.id, input.productId))
+      .get();
+    if (!found) throw new AuthError("NOT_FOUND", 404, "product not found");
+  }
+
+  const id = `prm_${ulid()}`;
+  db.transaction((tx) => {
+    tx.insert(promotions)
+      .values({
+        id,
+        scope: input.scope,
+        shopId: input.shopId ?? null,
+        productId: input.productId ?? null,
+        kind: input.kind,
+        value: input.value,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+        // Mirrors priceOrder's window semantics: future starts stay SCHEDULED.
+        status: input.startsAt > Date.now() ? "SCHEDULED" : "ACTIVE",
+      })
+      .run();
+    tx.insert(auditLogs)
+      .values({
+        id: `aud_${ulid()}`,
+        actorId: a.userId,
+        action: "promotion.create",
+        targetType: "promotion",
+        targetId: id,
+        metaJson: JSON.stringify({ scope: input.scope, shopId: input.shopId }),
         createdAt: Date.now(),
       })
       .run();

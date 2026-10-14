@@ -249,6 +249,27 @@ paths:
           description: Signature verification failed.
         "404":
           description: Finix webhook not configured on this deployment.
+  /api/v1/me/wishlist:
+    get:
+      summary: Product ids on the current user's wishlist
+      responses:
+        "200":
+          description: Wishlist product ids, oldest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [productIds]
+                    properties:
+                      productIds:
+                        type: array
+                        items: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/v1/search:
     get:
       summary: Search products or fetch autocomplete suggestions

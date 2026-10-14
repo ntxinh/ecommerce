@@ -34,14 +34,14 @@ the design spec §11.
   moderation. *(Shipped: homepage sections, category/shop/search pages,
   `/api/v1/products` + `/api/v1/search` (incl. `mode=suggest`), seller
   product CRUD + submit-for-review, admin moderation queue + category CRUD,
-  e2e coverage. Deferred: `product_attributes` management UI, search-history
-  UI, wishlists (Phase 4), reviews submission + moderation notifications
-  (Phase 8).)*
-- [ ] **Phase 4 — Cart, pricing, promotions** — ~~carts, server pricing
-  engine, vouchers/promotions, checkout review screens.~~ *(Checkout-side
-  done: server cart + guest merge + cart page, pricing engine, vouchers at
-  checkout, review stepper. Remaining Phase 4 scope: promotions management
-  UI, wishlists.)*
+  e2e coverage. `product_attributes` management UI, search-history UI and
+  wishlists landed with the Phase-9 deferred sweep. Deferred: reviews
+  submission + moderation notifications (Phase 8).)*
+- [x] **Phase 4 — Cart, pricing, promotions** — carts, server pricing
+  engine, vouchers/promotions, checkout review screens. *(Shipped: server
+  cart + guest merge + cart page, pricing engine, vouchers at checkout,
+  review stepper, wishlists + guest merge (`/account/wishlist`), promotions
+  management UI at `/admin/promotions` and `/seller/promotions`.)*
 - [ ] **Phase 8 — Engagement and administration** — reviews, notifications,
   admin console, seller onboarding, analytics.
 - [ ] **Phase 9 — Quality and operational hardening** — coverage thresholds,

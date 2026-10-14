@@ -26,6 +26,9 @@ export type VariantDraft = {
   baseline?: string;
 };
 
+/** Spec-sheet row as the server returns it; `rowId` is added client-side for keys. */
+export type AttributeDraft = { name: string; value: string };
+
 export type ProductFormValues = {
   id?: string;
   nameEn: string;
@@ -35,7 +38,10 @@ export type ProductFormValues = {
   categoryId: string;
   brandId?: string | null;
   variants: VariantDraft[];
+  attributes?: AttributeDraft[];
 };
+
+type AttributeRow = AttributeDraft & { rowId: string };
 
 const fieldClass =
   "w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
@@ -93,6 +99,9 @@ export function ProductForm({
   const router = useRouter();
   const [state, dispatch, pending] = useActionState(saveProductAction, null);
   const [variants, setVariants] = useState<VariantDraft[]>(product?.variants ?? []);
+  const [attrs, setAttrs] = useState<AttributeRow[]>(
+    (product?.attributes ?? []).map((a, i) => ({ ...a, rowId: `a${i}` })),
+  );
   const [shopId, setShopId] = useState(shops[0]?.id ?? "");
 
   useEffect(() => {
@@ -111,6 +120,16 @@ export function ProductForm({
       ) : null}
       {product?.id ? <input type="hidden" name="id" value={product.id} /> : null}
       <input type="hidden" name="variants" value={serializeVariants(variants)} readOnly />
+      <input
+        type="hidden"
+        name="attributes"
+        value={JSON.stringify(
+          attrs
+            .filter((a) => a.name.trim() && a.value.trim())
+            .map((a) => ({ name: a.name.trim(), value: a.value.trim() })),
+        )}
+        readOnly
+      />
 
       {shops.length > 1 ? (
         <div className="space-y-1.5">
@@ -298,6 +317,63 @@ export function ProductForm({
                   {t("removeVariant")}
                 </Button>
               ) : null}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-medium">{t("attributes")}</h2>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              setAttrs((rows) => [...rows, { rowId: crypto.randomUUID(), name: "", value: "" }])
+            }
+          >
+            {t("addAttribute")}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">{t("attributesHint")}</p>
+        {attrs.map((a, i) => (
+          <div
+            key={a.rowId}
+            className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_auto]"
+          >
+            <div className="space-y-1">
+              <Label>{t("attributeName")}</Label>
+              <Input
+                required
+                value={a.name}
+                onChange={(e) =>
+                  setAttrs((rows) =>
+                    rows.map((r, j) => (j === i ? { ...r, name: e.target.value } : r)),
+                  )
+                }
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>{t("attributeValue")}</Label>
+              <Input
+                required
+                value={a.value}
+                onChange={(e) =>
+                  setAttrs((rows) =>
+                    rows.map((r, j) => (j === i ? { ...r, value: e.target.value } : r)),
+                  )
+                }
+              />
+            </div>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setAttrs((rows) => rows.filter((_, j) => j !== i))}
+              >
+                {t("removeAttribute")}
+              </Button>
             </div>
           </div>
         ))}

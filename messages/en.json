@@ -39,6 +39,7 @@
     "verifyStatus": "Email status",
     "verifyPending": "Not verified",
     "accountTitle": "Account",
+    "wishlistLink": "My wishlist",
     "toAccount": "Go to account",
     "mergeFailed": "Your saved cart couldn't be restored"
   },
@@ -58,6 +59,7 @@
   "shell": {
     "planned": "Planned",
     "searchPlaceholder": "Search products",
+    "clearHistory": "Clear history",
     "footerTagline": "Buy and sell anything",
     "catalogPlanned": "Planned: product catalog",
     "moderationPlanned": "Planned: seller applications",
@@ -253,6 +255,12 @@
     "variantSalePrice": "Sale price (₫)",
     "variantStock": "Stock",
     "variantAttrs": "Attributes (JSON)",
+    "attributes": "Specifications",
+    "attributesHint": "Spec-sheet rows shown on the product page (material, origin, …).",
+    "addAttribute": "Add attribute",
+    "removeAttribute": "Remove",
+    "attributeName": "Name",
+    "attributeValue": "Value",
     "save": "Save product",
     "saving": "Saving…",
     "ordersTitle": "Orders",
@@ -319,6 +327,20 @@
       "lowStockCount": "Low-stock variants"
     },
     "settingsTitle": "Shop settings",
+    "promotionsTitle": "Promotions",
+    "promotions": {
+      "title": "Shop promotions",
+      "empty": "No promotions yet.",
+      "colKind": "Kind",
+      "fieldValue": "Value (bps for PERCENT, VND otherwise)",
+      "colWindow": "Window",
+      "colStatus": "Status",
+      "kind": {
+        "PERCENT": "Percent",
+        "FIXED": "Fixed amount",
+        "FLASH_PRICE": "Flash price"
+      }
+    },
     "errors": {
       "UNAUTHORIZED": "Please sign in",
       "FORBIDDEN": "You can't manage products for this shop",
@@ -459,7 +481,35 @@
       "FIXED": "Fixed amount",
       "SHIPPING": "Shipping"
     },
-    "voucherCreated": "Voucher created"
+    "voucherCreated": "Voucher created",
+    "promotions": {
+      "title": "Promotions",
+      "empty": "No promotions yet.",
+      "create": "Create promotion",
+      "created": "Promotion created",
+      "fieldScope": "Scope",
+      "fieldShop": "Shop id",
+      "fieldProduct": "Product id",
+      "fieldKind": "Kind",
+      "fieldValue": "Value (bps for PERCENT, VND otherwise)",
+      "fieldStarts": "Starts",
+      "fieldEnds": "Ends",
+      "colScope": "Scope",
+      "colTarget": "Target",
+      "colKind": "Kind",
+      "colWindow": "Window",
+      "colStatus": "Status",
+      "scope": {
+        "PRODUCT": "Product",
+        "SHOP": "Shop",
+        "FLASH": "Flash sale"
+      },
+      "kind": {
+        "PERCENT": "Percent",
+        "FIXED": "Fixed amount",
+        "FLASH_PRICE": "Flash price"
+      }
+    }
   },
   "storefront": {
     "categories": "Categories",
@@ -507,7 +557,14 @@
       "newest": "Newest",
       "popular": "Best sellers"
     },
-    "imageN": "Image {n}"
+    "imageN": "Image {n}",
+    "wishlist": {
+      "title": "My wishlist",
+      "empty": "Nothing saved yet — tap the heart on a product to keep it here.",
+      "add": "Save to wishlist",
+      "remove": "Remove from wishlist",
+      "toggleFailed": "Could not update the wishlist"
+    }
   },
   "returns": {
     "requestReturn": "Request a return",

@@ -36,15 +36,25 @@ export async function saveProductAction(
     const actor = await getActor();
     if (!actor) return { ok: false, error: "UNAUTHORIZED" };
     let variants: unknown = [];
-    const raw = formData.get("variants");
-    if (typeof raw === "string" && raw !== "") {
-      try {
-        variants = JSON.parse(raw);
-      } catch {
-        return { ok: false, error: "INVALID_INPUT" };
+    let attributes: unknown;
+    for (const [key, ref] of [
+      ["variants", (v: unknown) => (variants = v)],
+      ["attributes", (v: unknown) => (attributes = v)],
+    ] as const) {
+      const raw = formData.get(key);
+      if (typeof raw === "string" && raw !== "") {
+        try {
+          ref(JSON.parse(raw));
+        } catch {
+          return { ok: false, error: "INVALID_INPUT" };
+        }
       }
     }
-    const parsed = ProductSaveInput.safeParse({ ...Object.fromEntries(formData), variants });
+    const parsed = ProductSaveInput.safeParse({
+      ...Object.fromEntries(formData),
+      variants,
+      attributes,
+    });
     if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
     const input = parsed.data;
     const db = getDb();

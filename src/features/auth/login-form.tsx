@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { useGuestCart } from "@/features/cart/use-guest-cart";
+import { useWishlist } from "@/features/wishlist/use-wishlist";
 import { loginAction } from "./actions";
 import { errorKey, fieldKey } from "./errors";
 import { Field, Submit } from "./ui";
@@ -18,10 +19,13 @@ export function LoginForm({ next }: { next?: string }) {
   // Persisted guest cart only exists client-side — read it post-mount, not in
   // the SSR initialiser (hydration would keep value="[]" and drop the merge).
   const [guestItems, setGuestItems] = useState("[]");
+  const [wishlistIds, setWishlistIds] = useState("[]");
   const guestClear = useGuestCart((s) => s.clear);
+  const wishlistClear = useWishlist((s) => s.clear);
 
   useEffect(() => {
     setGuestItems(JSON.stringify(useGuestCart.getState().items));
+    setWishlistIds(JSON.stringify(useWishlist.getState().productIds));
   }, []);
 
   useEffect(() => {
@@ -30,8 +34,9 @@ export function LoginForm({ next }: { next?: string }) {
       toast.warning(t("mergeFailed"));
     } else {
       guestClear();
+      wishlistClear();
     }
-  }, [state, guestClear, t]);
+  }, [state, guestClear, wishlistClear, t]);
 
   return (
     <form action={dispatch} className="space-y-4">
@@ -65,6 +70,7 @@ export function LoginForm({ next }: { next?: string }) {
         />
       </Field>
       <input type="hidden" name="guestItems" value={guestItems} readOnly />
+      <input type="hidden" name="wishlistIds" value={wishlistIds} readOnly />
       {next ? <input type="hidden" name="next" value={next} readOnly /> : null}
       <Submit pending={pending}>{tc("signIn")}</Submit>
     </form>

@@ -10,6 +10,7 @@ import {
   brands,
   inventory,
   inventoryMovements,
+  productAttributes,
   productImages,
   products,
   productVariants,
@@ -47,7 +48,10 @@ export type SellerVariant = {
   onHand: number;
 };
 
-export type SellerProductDetail = typeof products.$inferSelect & { variants: SellerVariant[] };
+export type SellerProductDetail = typeof products.$inferSelect & {
+  variants: SellerVariant[];
+  attributes: { name: string; value: string }[];
+};
 
 function loadProduct(tx: Tx, productId: string) {
   const product = tx.select().from(products).where(eq(products.id, productId)).get();
@@ -256,6 +260,13 @@ export function getSellerProduct(
     .where(eq(productVariants.productId, productId))
     .orderBy(asc(productVariants.id))
     .all();
+  const attributes = db
+    .select({ name: productAttributes.name, value: productAttributes.value })
+    .from(productAttributes)
+    .where(eq(productAttributes.productId, productId))
+    .orderBy(asc(productAttributes.sortOrder), asc(productAttributes.id))
+    .all();
+
   return {
     ...product,
     variants: variants.map(({ v, onHand }) => ({
@@ -268,6 +279,7 @@ export function getSellerProduct(
       salePriceVnd: v.salePriceVnd,
       onHand: onHand ?? 0,
     })),
+    attributes,
   };
 }
 
@@ -292,6 +304,27 @@ export function listFormOptions(
 }
 
 // --- writes -------------------------------------------------------------------
+
+/** Replace-saves the spec sheet: absent rows delete, present rows re-index. */
+function writeAttributes(
+  tx: Pick<DB, "select" | "insert" | "update" | "delete">,
+  productId: string,
+  attrs: { name: string; value: string }[],
+): void {
+  tx.delete(productAttributes).where(eq(productAttributes.productId, productId)).run();
+  if (attrs.length === 0) return;
+  tx.insert(productAttributes)
+    .values(
+      attrs.map((a, i) => ({
+        id: `pattr_${ulid()}`,
+        productId,
+        name: a.name,
+        value: a.value,
+        sortOrder: i,
+      })),
+    )
+    .run();
+}
 
 /** Creates a product (plus its variants when `input.variants` is present). */
 export function createProduct(db: DB, actor: Actor | null, input: ProductIn | SaveIn): string {
@@ -323,6 +356,7 @@ export function createProduct(db: DB, actor: Actor | null, input: ProductIn | Sa
     for (const v of "variants" in input ? input.variants : []) {
       upsertVariantRow(tx, auth, id, v);
     }
+    if ("attributes" in input && input.attributes) writeAttributes(tx, id, input.attributes);
     return id;
   });
 }
@@ -352,6 +386,7 @@ export function updateProduct(db: DB, actor: Actor | null, productId: string, in
       mapConstraint(e);
     }
     for (const v of input.variants) upsertVariantRow(tx, auth, productId, v);
+    if (input.attributes) writeAttributes(tx, productId, input.attributes);
   });
 }
 
