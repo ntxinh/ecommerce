@@ -22,6 +22,32 @@ export function availableStock(db: DB, variantId: string): number {
   return Math.max(0, (row?.onHand ?? 0) - (row?.reserved ?? 0));
 }
 
+/** Conditional on_hand += delta (never below zero) + movement row, inside the
+ *  caller's tx — the variant return-restock needs when it's already mid-tx. */
+export function adjustStockTx(
+  tx: Tx,
+  variantId: string,
+  delta: number,
+  reason: string,
+  actorId?: string,
+): void {
+  const res = tx
+    .update(inventory)
+    .set({ onHand: sql`${inventory.onHand} + ${delta}`, updatedAt: Date.now() })
+    .where(and(eq(inventory.variantId, variantId), sql`${inventory.onHand} + ${delta} >= 0`))
+    .run();
+  if (res.changes === 0) {
+    throw new AuthError(
+      "INVALID_INPUT",
+      400,
+      `adjustStock would make onHand negative or variant ${variantId} unknown`,
+    );
+  }
+  tx.insert(inventoryMovements)
+    .values({ id: `mov_${ulid()}`, variantId, delta, reason, actorId, createdAt: Date.now() })
+    .run();
+}
+
 export function adjustStock(
   db: DB,
   variantId: string,
@@ -29,23 +55,7 @@ export function adjustStock(
   reason: string,
   actorId?: string,
 ): void {
-  db.transaction((tx) => {
-    const res = tx
-      .update(inventory)
-      .set({ onHand: sql`${inventory.onHand} + ${delta}`, updatedAt: Date.now() })
-      .where(and(eq(inventory.variantId, variantId), sql`${inventory.onHand} + ${delta} >= 0`))
-      .run();
-    if (res.changes === 0) {
-      throw new AuthError(
-        "INVALID_INPUT",
-        400,
-        `adjustStock would make onHand negative or variant ${variantId} unknown`,
-      );
-    }
-    tx.insert(inventoryMovements)
-      .values({ id: `mov_${ulid()}`, variantId, delta, reason, actorId, createdAt: Date.now() })
-      .run();
-  });
+  db.transaction((tx) => adjustStockTx(tx, variantId, delta, reason, actorId));
 }
 
 /**

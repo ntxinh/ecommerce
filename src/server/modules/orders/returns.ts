@@ -6,10 +6,19 @@ import type { RequestReturnInputType } from "@/server/api/contracts/returns";
 import { AuthError } from "@/server/api/errors";
 import { type Actor, requirePermission } from "@/server/auth/permissions";
 import type { DB } from "@/server/db/client";
-import { orderItems, orders, returnItems, returnRequests, sellerOrders } from "@/server/db/schema";
+import {
+  orderItems,
+  orders,
+  payments,
+  returnItems,
+  returnRequests,
+  sellerOrders,
+} from "@/server/db/schema";
 import { settingNumber } from "@/server/db/settings";
-import { issueReturnRefunds } from "@/server/modules/payments/refunds";
+import { paymentProviderFor } from "@/server/modules/payments/providers";
+import { completeRefund, issueReturnRefunds } from "@/server/modules/payments/refunds";
 import { deliveredAt } from "./fulfillment";
+import { settledPaymentRef } from "./outcome";
 import { type Tx, transitionSellerOrder } from "./transitions";
 
 type ReturnRequest = typeof returnRequests.$inferSelect;
@@ -178,18 +187,19 @@ export function getReturnRequest(
 
 /**
  * Seller decision on a return request: PENDING only for shop members
- * (`order:write`); ADMIN may additionally decide a DISPUTED one. APPROVED fires
- * `issueReturnRefunds` (no-op until Task 5); REJECTED releases a
+ * (`order:write`); ADMIN may additionally decide a DISPUTED one. APPROVED books
+ * PENDING refunds + initiation postings inside the tx, then dispatches the
+ * provider refund and completes each refund post-commit; REJECTED releases a
  * RETURN_REQUESTED leg back to COMPLETED.
  */
-export function decideReturn(
+export async function decideReturn(
   db: DB,
   actor: Actor,
   id: string,
   decision: "APPROVED" | "REJECTED",
   note?: string,
-): void {
-  db.transaction((tx) => {
+): Promise<void> {
+  const pending = db.transaction((tx) => {
     const request = tx.select().from(returnRequests).where(eq(returnRequests.id, id)).get();
     if (!request) throw new AuthError("NOT_FOUND", 404, "return request not found");
     const { so } = loadLeg(tx, request.sellerOrderId);
@@ -211,13 +221,29 @@ export function decideReturn(
       .run();
 
     if (decision === "APPROVED") {
-      issueReturnRefunds(tx, id);
-    } else if (so.status === "RETURN_REQUESTED") {
+      return issueReturnRefunds(tx, id);
+    }
+    if (so.status === "RETURN_REQUESTED") {
       transitionSellerOrder(tx, so.id, "COMPLETED", actor);
     }
+    return [];
   });
-}
 
+  // Provider calls stay post-commit: a slow/down gateway can't wedge the
+  // decision tx, and completed refunds close the earmark + move statuses.
+  for (const p of pending) {
+    const method = db
+      .select({ method: payments.method })
+      .from(payments)
+      .where(eq(payments.id, p.paymentId))
+      .get()!.method;
+    await paymentProviderFor(method).refund({
+      ref: settledPaymentRef(db, p.paymentId),
+      amountVnd: p.amountVnd,
+    });
+    completeRefund(db, p.refundId);
+  }
+}
 /** Buyer escalates a REJECTED request to DISPUTED for admin adjudication. */
 export function disputeReturn(db: DB, actor: Actor, id: string): void {
   db.transaction((tx) => {

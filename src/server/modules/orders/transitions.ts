@@ -19,14 +19,14 @@ export type Tx = Pick<DB, "select" | "insert" | "update">;
 /** Legal parent-order transitions (spec §5 / order-lifecycle.md). */
 export const ORDER_TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
   PENDING_PAYMENT: ["PAID", "PAYMENT_FAILED", "CANCELLED"],
-  PAID: ["PROCESSING", "CANCELLED"],
+  PAID: ["PROCESSING", "CANCELLED", "PARTIALLY_REFUNDED", "REFUNDED"],
   PAYMENT_FAILED: ["PENDING_PAYMENT", "PAID", "CANCELLED"],
   PROCESSING: ["SHIPPED", "CANCELLED"],
   SHIPPED: ["DELIVERED"],
   DELIVERED: ["COMPLETED", "PARTIALLY_REFUNDED", "REFUNDED"],
   COMPLETED: [],
   CANCELLED: [],
-  PARTIALLY_REFUNDED: [],
+  PARTIALLY_REFUNDED: ["REFUNDED"],
   REFUNDED: [],
 };
 

@@ -17,6 +17,7 @@ import {
 } from "@/server/db/schema";
 import { releaseOrderReservations } from "@/server/modules/inventory/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
+import { completeRefund, insertCancellationRefund } from "@/server/modules/payments/refunds";
 import { settledPaymentRef } from "./outcome";
 import { PAID_PARENT, type Tx, transitionSellerOrder } from "./transitions";
 
@@ -285,13 +286,25 @@ export async function cancelSellerOrder(
         })
         .run();
     }
-    return { next, refundVnd, payment };
+    // Refunds row + initiation postings ride this tx; completeRefund closes
+    // them once the provider call lands post-commit.
+    const refundId =
+      refundVnd > 0 && payment
+        ? insertCancellationRefund(tx, {
+            paymentId: payment.id,
+            amountVnd: refundVnd,
+            shares: [{ sellerOrderId, amountVnd: refundVnd }],
+            reason: "seller_order_cancelled",
+          })
+        : undefined;
+    return { next, refundVnd, payment, refundId };
   });
   if (refund.refundVnd > 0 && refund.payment) {
     await paymentProviderFor(refund.payment.method).refund({
       ref: settledPaymentRef(db, refund.payment.id),
       amountVnd: refund.refundVnd,
     });
+    if (refund.refundId) completeRefund(db, refund.refundId);
   }
   return { sellerOrderId, status: "CANCELLED", refundedVnd: refund.refundVnd };
 }

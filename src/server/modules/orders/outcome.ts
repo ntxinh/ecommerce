@@ -11,6 +11,7 @@ import {
   payments,
   stockReservations,
 } from "@/server/db/schema";
+import { postOrderRecognition } from "@/server/modules/finance/ledger";
 import { consumeReservation } from "@/server/modules/inventory/service";
 import { type OrderStatus, transitionOrder } from "./transitions";
 
@@ -110,6 +111,9 @@ export function persistPaymentOutcome(
       return "PAYMENT_FAILED";
     }
     transitionOrder(tx, orderId, "PAID", null);
+    // Recognition postings share the tx — a rollback leaves neither the PAID
+    // status nor half a ledger behind; the guard inside keeps redelivery safe.
+    postOrderRecognition(tx, orderId);
     return "PAID";
   });
   return { paymentStatus: status, orderStatus };

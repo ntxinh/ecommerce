@@ -19,6 +19,7 @@ import {
 } from "@/server/db/schema";
 import { releaseOrderReservations } from "@/server/modules/inventory/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
+import { completeRefund, insertCancellationRefund } from "@/server/modules/payments/refunds";
 import { dispatchHostedPayment, dispatchMockPayment, type PlaceOrderResult } from "./checkout";
 import { legShareVnd } from "./fulfillment";
 import { persistPaymentOutcome, settledPaymentRef } from "./outcome";
@@ -208,7 +209,7 @@ export async function cancelOrder(
   }
 
   const payment = detail.payment;
-  const refundVnd = db.transaction((tx) => {
+  const booked = db.transaction((tx) => {
     const now = Date.now();
     releaseOrderReservations(
       tx,
@@ -225,6 +226,7 @@ export async function cancelOrder(
     // Refund only the legs being cancelled now — legs already CANCELLED by the
     // seller were refunded their share by cancelSellerOrder.
     let refundVnd = 0;
+    const shares: { sellerOrderId: string; amountVnd: number }[] = [];
     for (const so of tx
       .select()
       .from(sellerOrders)
@@ -236,6 +238,7 @@ export async function cancelOrder(
         const share = legShareVnd(tx, so);
         refundVnd += share;
         if (share > 0) {
+          shares.push({ sellerOrderId: so.id, amountVnd: share });
           tx.insert(auditLogs)
             .values({
               id: `aud_${ulid()}`,
@@ -251,20 +254,32 @@ export async function cancelOrder(
       }
     }
     transitionOrder(tx, orderId, "CANCELLED", actor);
+    // Book the refund row + initiation postings in the same tx as the status
+    // moves; the provider call completes it post-commit.
+    const refundId =
+      payment?.status === "PAID" && refundVnd > 0
+        ? insertCancellationRefund(tx, {
+            paymentId: payment.id,
+            amountVnd: refundVnd,
+            shares,
+            reason: "order_cancelled",
+          })
+        : undefined;
     if (payment?.status === "PAID") {
       tx.update(payments)
         .set({ status: "REFUNDED", updatedAt: now })
         .where(eq(payments.id, payment.id))
         .run();
     }
-    return refundVnd;
+    return { refundVnd, refundId };
   });
 
-  if (payment?.status === "PAID" && refundVnd > 0) {
+  if (payment?.status === "PAID" && booked.refundVnd > 0) {
     await paymentProviderFor(payment.method).refund({
       ref: settledPaymentRef(db, payment.id),
-      amountVnd: refundVnd,
+      amountVnd: booked.refundVnd,
     });
+    if (booked.refundId) completeRefund(db, booked.refundId);
   }
   return { orderId, status: "CANCELLED" };
 }
