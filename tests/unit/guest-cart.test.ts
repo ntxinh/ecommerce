@@ -37,6 +37,12 @@ describe("useGuestCart", () => {
     expect(useGuestCart.getState().items).toEqual([]);
   });
 
+  it("setQty clamps above the 999 max so a bad line can't poison the merge", () => {
+    useGuestCart.getState().add(line("var_1"));
+    useGuestCart.getState().setQty("var_1", 5000);
+    expect(useGuestCart.getState().items[0].qty).toBe(999);
+  });
+
   it("clear() empties the cart after merge", () => {
     useGuestCart.getState().add(line("var_1"));
     useGuestCart.getState().clear();

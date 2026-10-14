@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -18,6 +18,7 @@ import { useGuestCart } from "./use-guest-cart";
  *  mirror the server cart's +/- pattern. */
 export function GuestCart() {
   const t = useTranslations("cart");
+  const locale = useLocale();
   const items = useGuestCart((s) => s.items);
   const setQty = useGuestCart((s) => s.setQty);
   const remove = useGuestCart((s) => s.remove);
@@ -28,6 +29,8 @@ export function GuestCart() {
     else byShop[item.shopName] = [item];
   }
   const subtotal = items.reduce((sum, i) => sum + i.unitPriceVnd * i.qty, 0);
+
+  if (items.length === 0) return <p className="text-muted-foreground">{t("empty")}</p>;
 
   return (
     <div className="space-y-6">
@@ -50,7 +53,7 @@ export function GuestCart() {
                     {line.name}
                     <span className="block text-xs text-muted-foreground">{line.sku}</span>
                   </TableCell>
-                  <TableCell>{formatVnd(line.unitPriceVnd)}</TableCell>
+                  <TableCell>{formatVnd(line.unitPriceVnd, locale)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <Button
@@ -85,7 +88,7 @@ export function GuestCart() {
       ))}
       <div className="flex items-center justify-between border-t pt-4">
         <p className="font-medium">
-          {t("subtotal")}: {formatVnd(subtotal)}
+          {t("subtotal")}: {formatVnd(subtotal, locale)}
         </p>
         <Button asChild>
           <Link href={{ pathname: "/login", query: { next: "/cart" } }}>

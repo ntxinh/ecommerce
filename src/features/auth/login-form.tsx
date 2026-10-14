@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { useGuestCart } from "@/features/cart/use-guest-cart";
 import { loginAction } from "./actions";
@@ -14,13 +15,23 @@ export function LoginForm({ next }: { next?: string }) {
   const tc = useTranslations("common");
   const { state, dispatch, pending } = useAuthAction(loginAction);
   const fe = state && !state.ok ? state.fieldErrors : undefined;
-  // Snapshot the guest cart once — a re-render must not resend merged items.
-  const [guestItems] = useState(() => JSON.stringify(useGuestCart.getState().items));
+  // Persisted guest cart only exists client-side — read it post-mount, not in
+  // the SSR initialiser (hydration would keep value="[]" and drop the merge).
+  const [guestItems, setGuestItems] = useState("[]");
   const guestClear = useGuestCart((s) => s.clear);
 
   useEffect(() => {
-    if (state?.ok) guestClear();
-  }, [state, guestClear]);
+    setGuestItems(JSON.stringify(useGuestCart.getState().items));
+  }, []);
+
+  useEffect(() => {
+    if (!state?.ok) return;
+    if (state.merged === false) {
+      toast.warning(t("mergeFailed"));
+    } else {
+      guestClear();
+    }
+  }, [state, guestClear, t]);
 
   return (
     <form action={dispatch} className="space-y-4">

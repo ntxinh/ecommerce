@@ -38,14 +38,16 @@ export const useGuestCart = create<GuestCartState>()(
               ),
             };
           }
-          return { items: [...s.items, line] };
+          return { items: [...s.items, { ...line, qty: Math.min(999, Math.max(1, line.qty)) }] };
         }),
       setQty: (variantId, qty) =>
         set((s) => ({
           items:
             qty <= 0
               ? s.items.filter((i) => i.variantId !== variantId)
-              : s.items.map((i) => (i.variantId === variantId ? { ...i, qty } : i)),
+              : s.items.map((i) =>
+                  i.variantId === variantId ? { ...i, qty: Math.min(999, qty) } : i,
+                ),
         })),
       remove: (variantId) =>
         set((s) => ({ items: s.items.filter((i) => i.variantId !== variantId) })),

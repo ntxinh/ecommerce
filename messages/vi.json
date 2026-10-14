@@ -39,7 +39,8 @@
     "verifyStatus": "Trạng thái email",
     "verifyPending": "Chưa xác minh",
     "accountTitle": "Tài khoản",
-    "toAccount": "Đi tới tài khoản"
+    "toAccount": "Đi tới tài khoản",
+    "mergeFailed": "Không thể khôi phục giỏ hàng đã lưu"
   },
   "nav": {
     "storefront": "Cửa hàng",

@@ -39,7 +39,8 @@
     "verifyStatus": "Email status",
     "verifyPending": "Not verified",
     "accountTitle": "Account",
-    "toAccount": "Go to account"
+    "toAccount": "Go to account",
+    "mergeFailed": "Your saved cart couldn't be restored"
   },
   "nav": {
     "storefront": "Shop",

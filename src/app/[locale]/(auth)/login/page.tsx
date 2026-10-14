@@ -1,6 +1,7 @@
 // Session read + params access are runtime data; block instead of instant-shell.
 export const instant = false;
 
+import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { LoginForm } from "@/features/auth/login-form";
 import { Link, redirect } from "@/i18n/navigation";
@@ -18,7 +19,10 @@ export default async function LoginPage({
   // Post-login target: honor the same validated `next` the action returns —
   // this page re-renders with a live session during the action round-trip.
   const dest = next?.startsWith("/") && !next.startsWith("//") ? next : "/";
-  if (await getActor()) redirect({ href: dest, locale });
+  // Skip during a server-action POST: a redirect in that render path discards
+  // the action's returned state, so the client would never see merged/redirect.
+  const isActionCall = !!(await headers()).get("next-action");
+  if (!isActionCall && (await getActor())) redirect({ href: dest, locale });
 
   const t = await getTranslations({ locale, namespace: "auth" });
   return (

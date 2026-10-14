@@ -1,7 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useActionState, useEffect } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,8 +52,12 @@ export function CheckoutForm({
   subtotalVnd: number;
 }) {
   const t = useTranslations("checkout");
-  const router = useRouter();
+  const locale = useLocale();
   const { step, goTo } = useCheckoutStep();
+  const router = useRouter();
+  // One idempotency key per form lifetime — a transport-error retry must replay
+  // the same key, not mint a fresh one (crypto.randomUUID() in render would).
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [state, dispatch, pending] = useActionState<CheckoutActionState, FormData>(
     placeOrderAction,
     null,
@@ -61,17 +65,18 @@ export function CheckoutForm({
 
   useEffect(() => {
     if (state?.ok) {
+      goTo(0); // reset the stepper before leaving so a later visit starts fresh
       router.push({ pathname: "/checkout/confirmation", query: { order: state.orderId } });
     } else if (state && !state.ok) {
       toast.error(
         t(ERROR_KEYS.has(state.error) ? `errors.${state.error}` : "errors.INVALID_INPUT"),
       );
     }
-  }, [state, router, t]);
+  }, [state, router, t, goTo]);
 
   return (
     <form action={dispatch} className="space-y-6">
-      <input type="hidden" name="idempotencyKey" value={crypto.randomUUID()} />
+      <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
 
       <nav aria-label={t("stepsLabel")} className="flex flex-wrap gap-2">
         {CHECKOUT_STEPS.map((s, i) => (
@@ -143,7 +148,7 @@ export function CheckoutForm({
               >
                 {shippingOptions.map((o) => (
                   <option key={o.method} value={o.method}>
-                    {t(`shippingMethods.${o.method}`)} — {formatVnd(o.feeVnd)}
+                    {t(`shippingMethods.${o.method}`)} — {formatVnd(o.feeVnd, locale)}
                   </option>
                 ))}
               </select>
@@ -199,7 +204,7 @@ export function CheckoutForm({
               <ul className="list-disc space-y-1 pl-5 text-sm">
                 {group.items.map((item) => (
                   <li key={item.cartItemId}>
-                    {item.name} × {item.qty} — {formatVnd(item.unitPriceVnd * item.qty)}
+                    {item.name} × {item.qty} — {formatVnd(item.unitPriceVnd * item.qty, locale)}
                   </li>
                 ))}
               </ul>
@@ -207,7 +212,7 @@ export function CheckoutForm({
           ))}
           <Separator />
           <p className="text-sm">
-            {t("merchandiseSubtotal")}: {formatVnd(subtotalVnd)}
+            {t("merchandiseSubtotal")}: {formatVnd(subtotalVnd, locale)}
           </p>
           <p className="text-xs text-muted-foreground">{t("totalNote")}</p>
         </CardContent>
