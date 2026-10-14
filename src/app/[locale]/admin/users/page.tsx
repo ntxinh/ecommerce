@@ -66,7 +66,7 @@ export default async function AdminUsersPage({
           ))}
         </nav>
       </div>
-      <UsersTable rows={items} />
+      <UsersTable rows={items} locale={locale} />
       {nextCursor ? (
         <Link href={href({ cursor: nextCursor })} className="text-sm underline underline-offset-2">
           {t("nextPage")}

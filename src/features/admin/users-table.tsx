@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Link, useRouter } from "@/i18n/navigation";
+import { formatDate } from "@/lib/format";
 import type { AdminUserRow } from "@/server/modules/admin/service";
 import { revokeUserSessionsAction, setUserStatusAction } from "./actions";
 
@@ -25,7 +26,7 @@ const ERROR_KEYS = new Set([
   "INVALID_STATE",
 ]);
 
-function Row({ row }: { row: AdminUserRow }) {
+function Row({ row, locale }: { row: AdminUserRow; locale: string }) {
   const t = useTranslations("admin");
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -64,9 +65,7 @@ function Row({ row }: { row: AdminUserRow }) {
         </Badge>
       </TableCell>
       <TableCell className="text-muted-foreground">{row.roles.join(", ")}</TableCell>
-      <TableCell className="text-muted-foreground">
-        {new Date(row.createdAt).toLocaleDateString()}
-      </TableCell>
+      <TableCell className="text-muted-foreground">{formatDate(row.createdAt, locale)}</TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-1">
           <Button type="button" variant="ghost" size="sm" asChild>
@@ -103,7 +102,7 @@ function Row({ row }: { row: AdminUserRow }) {
 }
 
 /** Admin user table: status badge, suspend/reactivate, revoke sessions, detail link. */
-export function UsersTable({ rows }: { rows: AdminUserRow[] }) {
+export function UsersTable({ rows, locale }: { rows: AdminUserRow[]; locale: string }) {
   const t = useTranslations("admin");
   if (rows.length === 0) return <p className="text-muted-foreground">{t("usersEmpty")}</p>;
   return (
@@ -119,7 +118,7 @@ export function UsersTable({ rows }: { rows: AdminUserRow[] }) {
       </TableHeader>
       <TableBody>
         {rows.map((r) => (
-          <Row key={r.id} row={r} />
+          <Row key={r.id} row={r} locale={locale} />
         ))}
       </TableBody>
     </Table>

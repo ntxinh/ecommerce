@@ -88,7 +88,19 @@ export function adminDashboard(db: DB, actor: Actor | null): AdminDashboard {
   };
 }
 
-export type AdminUserRow = typeof users.$inferSelect & { roles: string[] };
+/** Everything except the credential — admin rows cross the RSC→client boundary. */
+export type SafeUser = Omit<typeof users.$inferSelect, "passwordHash">;
+const safeUserCols = {
+  id: users.id,
+  email: users.email,
+  name: users.name,
+  status: users.status,
+  createdAt: users.createdAt,
+  updatedAt: users.updatedAt,
+  emailVerifiedAt: users.emailVerifiedAt,
+};
+
+export type AdminUserRow = SafeUser & { roles: string[] };
 
 /** Admin user list, id-desc keyset cursor; `q` matches email or name. */
 export function listUsers(
@@ -99,7 +111,7 @@ export function listUsers(
   requirePermission(actor, "admin:*");
   const limit = pageLimit(opts.limit);
   const rows = db
-    .select()
+    .select(safeUserCols)
     .from(users)
     .where(
       and(
@@ -138,7 +150,7 @@ export function listUsers(
 }
 
 export type UserDetail = {
-  user: typeof users.$inferSelect;
+  user: SafeUser;
   roles: string[];
   memberships: { shopId: string; shopName: string; role: string }[];
   recentAudit: (typeof auditLogs.$inferSelect)[];
@@ -147,7 +159,7 @@ export type UserDetail = {
 /** User profile + roles + shops + last 20 audit rows touching the user. */
 export function getUserDetail(db: DB, actor: Actor | null, userId: string): UserDetail {
   requirePermission(actor, "admin:*");
-  const user = db.select().from(users).where(eq(users.id, userId)).get();
+  const user = db.select(safeUserCols).from(users).where(eq(users.id, userId)).get();
   if (!user) throw new AuthError("NOT_FOUND", 404, "user not found");
 
   const roles = db
