@@ -15,7 +15,7 @@ import {
 } from "@/server/db/schema";
 import { seedCatalog } from "@/server/db/seed/catalog";
 import { seedIdentity } from "@/server/db/seed/identity";
-import { addItem } from "@/server/modules/cart/service";
+import { addItem, clearCart } from "@/server/modules/cart/service";
 import { placeOrder } from "@/server/modules/orders/checkout";
 import {
   completeSellerOrder,
@@ -62,8 +62,9 @@ async function errorCode(fn: () => Promise<unknown> | unknown): Promise<string> 
 }
 
 function cartItemId(variantId: string, qty: number): string {
-  const view = addItem(db, CUSTOMER.userId, variantId, qty);
-  return view.items.find((i) => i.variantId === variantId)!.cartItemId;
+  clearCart(db, CUSTOMER.userId); // cart persists across tests — qty must be exact
+  return addItem(db, CUSTOMER.userId, variantId, qty).items.find((i) => i.variantId === variantId)!
+    .cartItemId;
 }
 
 function leg(orderId: string, shopId: string) {
