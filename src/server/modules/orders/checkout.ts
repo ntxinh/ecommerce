@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
 import type { Actor } from "@/server/auth/permissions";
@@ -141,8 +141,16 @@ export async function dispatchWalletPayment(
       .set({ status: paymentStatus })
       .where(eq(paymentAttempts.id, attemptId))
       .run();
+    // A failed retry must never downgrade an already-captured payment —
+    // money captured once stays PAID until refunded, or cancelOrder misses it.
     tx.update(payments)
-      .set({ status: paymentStatus, updatedAt: now })
+      .set({
+        status:
+          paymentStatus === "PAID"
+            ? "PAID"
+            : sql`case when ${payments.status} = 'PAID' then 'PAID' else 'FAILED' end`,
+        updatedAt: now,
+      })
       .where(eq(payments.id, paymentId))
       .run();
     if (paymentStatus !== "PAID") {

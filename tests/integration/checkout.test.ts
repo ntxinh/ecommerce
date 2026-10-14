@@ -359,4 +359,39 @@ describe("placeOrder", () => {
       .all();
     expect(audit).toHaveLength(1);
   });
+
+  it("a failed retry never downgrades a captured payment; cancel still refunds it", async () => {
+    // var_3's cart line accumulated across earlier tests — reset to qty 1.
+    for (const p of db.select().from(cartItems).where(eq(cartItems.variantId, "var_3")).all()) {
+      db.delete(cartItems).where(eq(cartItems.id, p.id)).run();
+    }
+    const res = await placeOrder(
+      db,
+      CUSTOMER,
+      baseInput([cartItemId("var_3", 1)], { paymentMethod: "MOCK_WALLET", simulate: "failure" }),
+    );
+    // Stock lost: release the reservation, then a succeeding retry pays but
+    // can't consume → PAYMENT_FAILED with a PAID (captured) payment.
+    const key = db.select().from(orders).where(eq(orders.id, res.orderId)).get()!.idempotencyKey;
+    for (const r of reservationsFor(key)) {
+      releaseReservation(db, r.id, "sweep_test");
+    }
+    const paidRetry = await retryPayment(db, CUSTOMER, res.orderId, "success");
+    expect(paidRetry.status).toBe("PAYMENT_FAILED");
+    const pay = db.select().from(payments).where(eq(payments.orderId, res.orderId)).get()!;
+    expect(pay.status).toBe("PAID");
+
+    // A later failed retry must not downgrade the captured payment.
+    const failedRetry = await retryPayment(db, CUSTOMER, res.orderId, "failure");
+    expect(failedRetry.status).toBe("PAYMENT_FAILED");
+    expect(db.select().from(payments).where(eq(payments.orderId, res.orderId)).get()!.status).toBe(
+      "PAID",
+    );
+
+    // Cancel refunds the captured amount.
+    await cancelOrder(db, CUSTOMER, res.orderId);
+    expect(db.select().from(payments).where(eq(payments.orderId, res.orderId)).get()!.status).toBe(
+      "REFUNDED",
+    );
+  });
 });
