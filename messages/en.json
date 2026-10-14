@@ -440,5 +440,29 @@
       "INVALID_STATE": "That action isn't allowed for the current status",
       "RETURN_WINDOW_EXPIRED": "The return window has expired"
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "empty": "No notifications yet.",
+    "account": {
+      "welcome": "Welcome to Marketflow — your account is ready."
+    },
+    "order": {
+      "created": "Order {orderId} placed — complete payment to confirm.",
+      "cancelled": "Order {orderId} was cancelled."
+    },
+    "payment": {
+      "paid": "Payment for order {orderId} confirmed.",
+      "failed": "Payment for order {orderId} failed — you can retry."
+    },
+    "shipment": {
+      "shipped": "Order {orderId} shipped (tracking {trackingNumber}).",
+      "delivered": "Order {orderId} was delivered."
+    },
+    "return": {
+      "approved": "Your return for order {orderId} was approved.",
+      "rejected": "Your return for order {orderId} was rejected."
+    }
   }
 }

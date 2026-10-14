@@ -15,6 +15,7 @@ import {
   sellerOrders,
 } from "@/server/db/schema";
 import { settingNumber } from "@/server/db/settings";
+import { notify } from "@/server/modules/notifications/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
 import { completeRefund, issueReturnRefunds } from "@/server/modules/payments/refunds";
 import { deliveredAt } from "./fulfillment";
@@ -202,7 +203,7 @@ export async function decideReturn(
   const pending = db.transaction((tx) => {
     const request = tx.select().from(returnRequests).where(eq(returnRequests.id, id)).get();
     if (!request) throw new AuthError("NOT_FOUND", 404, "return request not found");
-    const { so } = loadLeg(tx, request.sellerOrderId);
+    const { so, order } = loadLeg(tx, request.sellerOrderId);
     requirePermission(actor, "order:write", { shopId: so.shopId });
 
     const adminOverride = actor.roles.includes("ADMIN") && request.status === "DISPUTED";
@@ -219,6 +220,11 @@ export async function decideReturn(
       })
       .where(eq(returnRequests.id, id))
       .run();
+    notify(tx, request.userId, "return", {
+      title: decision === "APPROVED" ? "return.approved" : "return.rejected",
+      body: { orderId: order.id },
+      href: `/account/orders/${order.id}`,
+    });
 
     if (decision === "APPROVED") {
       return issueReturnRefunds(tx, id, actor.userId);

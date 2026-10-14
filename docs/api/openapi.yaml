@@ -400,6 +400,89 @@ paths:
         "400":
           $ref: "#/components/responses/InvalidInput"
 
+  /api/v1/notifications:
+    get:
+      summary: List the session user's notifications
+      description: >-
+        Newest first, ULID-desc keyset cursor (max 50). Returns
+        {data: {items, nextCursor, unread}}. Item `title` is an i18n key under
+        the `notifications` namespace and `body` its JSON interpolation params;
+        `href` is a locale-free path — clients prepend the locale.
+      parameters:
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: Notification page + unread count.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [items, nextCursor, unread]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          required: [id, type, title, body, href, readAt, createdAt]
+                          properties:
+                            id: { type: string }
+                            type:
+                              type: string
+                              enum: [account, seller_application, order, payment, shipment, return, voucher]
+                            title: { type: string }
+                            body: { type: string }
+                            href: { type: string, nullable: true }
+                            readAt: { type: integer, nullable: true }
+                            createdAt: { type: integer }
+                      nextCursor:
+                        type: string
+                        nullable: true
+                      unread:
+                        type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      summary: Mark notifications read
+      description: "{id} marks one (owner only); {} marks all. Returns {data: {marked}}."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  minLength: 1
+      responses:
+        "200":
+          description: "{data: {marked}} — count of notifications marked read."
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Notification belongs to a different user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: Notification id not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
 components:
   responses:
     Unauthorized:

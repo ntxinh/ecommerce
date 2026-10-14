@@ -13,6 +13,7 @@ import {
 } from "@/server/db/schema";
 import { postOrderRecognition } from "@/server/modules/finance/ledger";
 import { consumeReservation } from "@/server/modules/inventory/service";
+import { notify } from "@/server/modules/notifications/service";
 import { type OrderStatus, transitionOrder } from "./transitions";
 
 export type PaymentOutcome = {
@@ -65,6 +66,11 @@ export function persistPaymentOutcome(
       // moved forward (PAID via retry/return) leaves the order alone.
       if (order.status === "PENDING_PAYMENT" || order.status === "PAYMENT_FAILED") {
         transitionOrder(tx, orderId, "PAYMENT_FAILED", null);
+        notify(tx, order.userId, "payment", {
+          title: "payment.failed",
+          body: { orderId },
+          href: `/account/orders/${orderId}`,
+        });
         return "PAYMENT_FAILED";
       }
       return order.status;
@@ -112,12 +118,22 @@ export function persistPaymentOutcome(
       // the ledger reflects the capture and the cancel path's clawbacks close
       // against it instead of over-drawing the accounts.
       postOrderRecognition(tx, orderId);
+      notify(tx, order.userId, "payment", {
+        title: "payment.failed",
+        body: { orderId },
+        href: `/account/orders/${orderId}`,
+      });
       return "PAYMENT_FAILED";
     }
     transitionOrder(tx, orderId, "PAID", null);
     // Recognition postings share the tx — a rollback leaves neither the PAID
     // status nor half a ledger behind; the guard inside keeps redelivery safe.
     postOrderRecognition(tx, orderId);
+    notify(tx, order.userId, "payment", {
+      title: "payment.paid",
+      body: { orderId },
+      href: `/account/orders/${orderId}`,
+    });
     return "PAID";
   });
   return { paymentStatus: status, orderStatus };

@@ -18,6 +18,7 @@ import {
   trackingEvents,
 } from "@/server/db/schema";
 import { releaseOrderReservations } from "@/server/modules/inventory/service";
+import { notify } from "@/server/modules/notifications/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
 import { completeRefund, insertCancellationRefund } from "@/server/modules/payments/refunds";
 import { dispatchHostedPayment, dispatchMockPayment, type PlaceOrderResult } from "./checkout";
@@ -254,6 +255,11 @@ export async function cancelOrder(
       }
     }
     transitionOrder(tx, orderId, "CANCELLED", actor);
+    notify(tx, order.userId, "order", {
+      title: "order.cancelled",
+      body: { orderId },
+      href: `/account/orders/${orderId}`,
+    });
     // Book the refund row + initiation postings in the same tx as the status
     // moves; the provider call completes it post-commit.
     const refundId =

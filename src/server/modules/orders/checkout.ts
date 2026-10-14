@@ -27,6 +27,7 @@ import {
   reserveStock,
   sweepExpiredReservations,
 } from "@/server/modules/inventory/service";
+import { notify } from "@/server/modules/notifications/service";
 import { finixCheckoutLink, getFinix } from "@/server/modules/payments/finix";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
 import { getStripe } from "@/server/modules/payments/stripe";
@@ -462,6 +463,12 @@ export async function placeOrder(
           createdAt: now,
         })
         .run();
+
+      notify(tx, actor.userId, "order", {
+        title: "order.created",
+        body: { orderId },
+        href: `/account/orders/${orderId}`,
+      });
 
       // Record inserted COMPLETED inside the tx: SQLite serializes writers, so no
       // observable IN_PROGRESS window; a failed tx leaves no record → retry-allowed.

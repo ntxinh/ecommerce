@@ -440,5 +440,29 @@
       "INVALID_STATE": "Thao tác không hợp lệ với trạng thái hiện tại",
       "RETURN_WINDOW_EXPIRED": "Đã quá thời hạn trả hàng"
     }
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "markAllRead": "Đánh dấu tất cả đã đọc",
+    "empty": "Chưa có thông báo nào.",
+    "account": {
+      "welcome": "Chào mừng bạn đến với Marketflow — tài khoản đã sẵn sàng."
+    },
+    "order": {
+      "created": "Đã đặt đơn hàng {orderId} — hoàn tất thanh toán để xác nhận.",
+      "cancelled": "Đơn hàng {orderId} đã bị hủy."
+    },
+    "payment": {
+      "paid": "Đã xác nhận thanh toán cho đơn hàng {orderId}.",
+      "failed": "Thanh toán cho đơn hàng {orderId} thất bại — bạn có thể thử lại."
+    },
+    "shipment": {
+      "shipped": "Đơn hàng {orderId} đã được giao cho vận chuyển (mã {trackingNumber}).",
+      "delivered": "Đơn hàng {orderId} đã được giao."
+    },
+    "return": {
+      "approved": "Yêu cầu trả hàng cho đơn {orderId} đã được chấp nhận.",
+      "rejected": "Yêu cầu trả hàng cho đơn {orderId} đã bị từ chối."
+    }
   }
 }
