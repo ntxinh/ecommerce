@@ -173,8 +173,8 @@ export function CheckoutForm({
           <Separator />
           <div className="space-y-2">
             {(stripeEnabled
-              ? (["COD", "MOCK_WALLET", "STRIPE"] as const)
-              : (["COD", "MOCK_WALLET"] as const)
+              ? (["COD", "MOCK_WALLET", "MOCK_BANK", "STRIPE"] as const)
+              : (["COD", "MOCK_WALLET", "MOCK_BANK"] as const)
             ).map((m, i) => (
               <Label key={m} className="flex items-center gap-2 font-normal">
                 <input type="radio" name="paymentMethod" value={m} defaultChecked={i === 0} />

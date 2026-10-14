@@ -1,9 +1,9 @@
 import "server-only";
 
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
-import type { Actor } from "@/server/auth/permissions";
+import { type Actor, requirePermission } from "@/server/auth/permissions";
 import type { DB } from "@/server/db/client";
 import {
   auditLogs,
@@ -13,6 +13,9 @@ import {
   paymentAttempts,
   payments,
   sellerOrders,
+  shipments,
+  shops,
+  trackingEvents,
 } from "@/server/db/schema";
 import { releaseOrderReservations } from "@/server/modules/inventory/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
@@ -22,13 +25,27 @@ import { transitionOrder, transitionSellerOrder } from "./transitions";
 
 type Order = typeof orders.$inferSelect;
 type OrderStatus = Order["status"];
+type SellerOrder = typeof sellerOrders.$inferSelect;
+export type SellerOrderStatus = SellerOrder["status"];
 
 export type OrderDetail = {
   order: Order;
-  sellerOrders: (typeof sellerOrders.$inferSelect)[];
+  sellerOrders: SellerOrder[];
   items: (typeof orderItems.$inferSelect)[];
   breakdowns: (typeof orderPricingBreakdowns.$inferSelect)[];
   payment: typeof payments.$inferSelect | undefined;
+  /** Shipment rows plus their tracking events, for the customer timeline. */
+  shipments: (typeof shipments.$inferSelect)[];
+  trackingEvents: (typeof trackingEvents.$inferSelect)[];
+};
+
+export type SellerOrderDetail = {
+  sellerOrder: SellerOrder;
+  order: Order;
+  shop: typeof shops.$inferSelect | undefined;
+  items: (typeof orderItems.$inferSelect)[];
+  shipment: typeof shipments.$inferSelect | undefined;
+  trackingEvents: (typeof trackingEvents.$inferSelect)[];
 };
 
 /** Customer-scoped page: ULID ids sort by creation time, so id desc is a stable
@@ -60,9 +77,34 @@ export function getOrder(db: DB, actor: Actor, orderId: string): OrderDetail {
   if (order.userId !== actor.userId && !actor.roles.includes("ADMIN")) {
     throw new AuthError("FORBIDDEN", 403);
   }
+  const legs = db.select().from(sellerOrders).where(eq(sellerOrders.orderId, orderId)).all();
+  const legShipments = legs.length
+    ? db
+        .select()
+        .from(shipments)
+        .where(
+          inArray(
+            shipments.sellerOrderId,
+            legs.map((l) => l.id),
+          ),
+        )
+        .all()
+    : [];
+  const events = legShipments.length
+    ? db
+        .select()
+        .from(trackingEvents)
+        .where(
+          inArray(
+            trackingEvents.shipmentId,
+            legShipments.map((s) => s.id),
+          ),
+        )
+        .all()
+    : [];
   return {
     order,
-    sellerOrders: db.select().from(sellerOrders).where(eq(sellerOrders.orderId, orderId)).all(),
+    sellerOrders: legs,
     items: db.select().from(orderItems).where(eq(orderItems.orderId, orderId)).all(),
     breakdowns: db
       .select()
@@ -70,6 +112,60 @@ export function getOrder(db: DB, actor: Actor, orderId: string): OrderDetail {
       .where(eq(orderPricingBreakdowns.orderId, orderId))
       .all(),
     payment: db.select().from(payments).where(eq(payments.orderId, orderId)).get(),
+    shipments: legShipments,
+    trackingEvents: events,
+  };
+}
+
+/** Shop-scoped seller order list (seller center). `order:read` on the shop;
+ *  same ULID-desc cursor style as listOrders. */
+export function listSellerOrders(
+  db: DB,
+  actor: Actor,
+  opts: { shopId: string; status?: SellerOrderStatus; cursor?: string; limit?: number },
+): { items: SellerOrder[]; nextCursor: string | null } {
+  requirePermission(actor, "order:read", { shopId: opts.shopId });
+  const limit = Math.min(Math.max(opts.limit ?? 20, 1), 50);
+  const conds = [eq(sellerOrders.shopId, opts.shopId)];
+  if (opts.status) conds.push(eq(sellerOrders.status, opts.status));
+  if (opts.cursor) conds.push(lt(sellerOrders.id, opts.cursor));
+  const rows = db
+    .select()
+    .from(sellerOrders)
+    .where(and(...conds))
+    .orderBy(desc(sellerOrders.id))
+    .limit(limit + 1)
+    .all();
+  const items = rows.slice(0, limit);
+  return { items, nextCursor: rows.length > limit ? items[items.length - 1].id : null };
+}
+
+/** Seller-order detail for the shop member (order:read) — parent order, line
+ *  items, shipment + tracking events for the detail page and action buttons. */
+export function getSellerOrder(db: DB, actor: Actor, sellerOrderId: string): SellerOrderDetail {
+  const sellerOrder = db
+    .select()
+    .from(sellerOrders)
+    .where(eq(sellerOrders.id, sellerOrderId))
+    .get();
+  if (!sellerOrder) throw new AuthError("NOT_FOUND", 404, "seller order not found");
+  requirePermission(actor, "order:read", { shopId: sellerOrder.shopId });
+  const order = db.select().from(orders).where(eq(orders.id, sellerOrder.orderId)).get();
+  if (!order) throw new AuthError("NOT_FOUND", 404, "order not found");
+  const shipment = db
+    .select()
+    .from(shipments)
+    .where(eq(shipments.sellerOrderId, sellerOrderId))
+    .get();
+  return {
+    sellerOrder,
+    order,
+    shop: db.select().from(shops).where(eq(shops.id, sellerOrder.shopId)).get(),
+    items: db.select().from(orderItems).where(eq(orderItems.sellerOrderId, sellerOrderId)).all(),
+    shipment,
+    trackingEvents: shipment
+      ? db.select().from(trackingEvents).where(eq(trackingEvents.shipmentId, shipment.id)).all()
+      : [],
   };
 }
 

@@ -81,6 +81,7 @@ export async function placeOrderAction(
     if (
       paymentMethod !== "COD" &&
       paymentMethod !== "MOCK_WALLET" &&
+      paymentMethod !== "MOCK_BANK" &&
       !(paymentMethod === "STRIPE" && stripeOn)
     ) {
       return { ok: false, error: "INVALID_INPUT" };

@@ -27,7 +27,6 @@ export default async function SellerLayout({
 
   const tSeller = await getTranslations({ locale, namespace: "seller" });
   const tn = await getTranslations({ locale, namespace: "nav" });
-  const ts = await getTranslations({ locale, namespace: "shell" });
 
   return (
     <div className="flex min-h-screen">
@@ -39,7 +38,9 @@ export default async function SellerLayout({
           <Link href="/seller/products" className="block hover:underline">
             {tSeller("productsTitle")}
           </Link>
-          <p className="text-muted-foreground">{ts("ordersPlanned")}</p>
+          <Link href="/seller/orders" className="block hover:underline">
+            {tSeller("ordersTitle")}
+          </Link>
         </nav>
       </aside>
       <div className="flex flex-1 flex-col">

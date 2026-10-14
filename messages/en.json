@@ -122,6 +122,7 @@
     "paymentMethods": {
       "COD": "Cash on delivery",
       "MOCK_WALLET": "Mock wallet (test)",
+      "MOCK_BANK": "Bank transfer (test)",
       "STRIPE": "Card (Stripe)"
     },
     "pay": {
@@ -174,6 +175,21 @@
     "deliveryAddress": "Delivery address",
     "backToOrders": "All orders",
     "viewOrders": "View all orders",
+    "sellerOrder": "Seller order",
+    "legTotal": "Leg total",
+    "shipment": "Shipment",
+    "legStatus": {
+      "NEW": "New",
+      "CONFIRMED": "Confirmed",
+      "PACKING": "Packing",
+      "READY_TO_SHIP": "Ready to ship",
+      "SHIPPED": "Shipped",
+      "DELIVERED": "Delivered",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled",
+      "RETURN_REQUESTED": "Return requested",
+      "RETURNED": "Returned"
+    },
     "nextPage": "Older orders"
   },
   "seller": {
@@ -226,6 +242,53 @@
     "variantAttrs": "Attributes (JSON)",
     "save": "Save product",
     "saving": "Saving…",
+    "ordersTitle": "Orders",
+    "ordersEmpty": "No orders for this shop yet.",
+    "colSellerOrder": "Seller order",
+    "colOrder": "Order",
+    "colDate": "Date",
+    "colTotal": "Total",
+    "nextPage": "Older orders",
+    "backToOrders": "All orders",
+    "parentOrder": "Order",
+    "orderActionsTitle": "Fulfillment",
+    "orderActions": {
+      "confirm": "Confirm",
+      "pack": "Pack",
+      "ship": "Ship",
+      "deliver": "Deliver",
+      "complete": "Complete",
+      "cancel": "Cancel order"
+    },
+    "shipCarrier": "Carrier",
+    "shipTracking": "Tracking number",
+    "items": "Items",
+    "item": "Item",
+    "quantity": "Qty",
+    "lineTotal": "Line total",
+    "merchandise": "Merchandise",
+    "shipping": "Shipping",
+    "total": "Total",
+    "deliveryAddress": "Delivery address",
+    "shipment": "Shipment",
+    "legStatus": {
+      "NEW": "New",
+      "CONFIRMED": "Confirmed",
+      "PACKING": "Packing",
+      "READY_TO_SHIP": "Ready to ship",
+      "SHIPPED": "Shipped",
+      "DELIVERED": "Delivered",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled",
+      "RETURN_REQUESTED": "Return requested",
+      "RETURNED": "Returned"
+    },
+    "orderErrors": {
+      "UNAUTHORIZED": "Please sign in",
+      "FORBIDDEN": "You can't manage orders for this shop",
+      "NOT_FOUND": "Order not found",
+      "INVALID_INPUT": "That action isn't allowed for the current status"
+    },
     "errors": {
       "UNAUTHORIZED": "Please sign in",
       "FORBIDDEN": "You can't manage products for this shop",
