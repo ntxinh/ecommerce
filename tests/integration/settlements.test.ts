@@ -6,6 +6,10 @@ import type { Actor } from "@/server/auth/permissions";
 import { type DB, getDb, migrateDb } from "@/server/db/client";
 import {
   financialLedgerEntries,
+  orderItems,
+  refunds,
+  returnItems,
+  returnRequests,
   sellerOrders,
   sellerSettlements,
   settlementItems,
@@ -13,6 +17,7 @@ import {
 import { seedCatalog } from "@/server/db/seed/catalog";
 import { seedIdentity } from "@/server/db/seed/identity";
 import { addItem } from "@/server/modules/cart/service";
+import { balance } from "@/server/modules/finance/ledger";
 import {
   generateSettlement,
   listSettlements,
@@ -26,6 +31,8 @@ import {
   packSellerOrder,
   shipSellerOrder,
 } from "@/server/modules/orders/fulfillment";
+import { decideReturn, requestReturn } from "@/server/modules/orders/returns";
+import { issueReturnRefunds } from "@/server/modules/payments/refunds";
 
 const PATH = "./tests/.tmp/settlements-test.db";
 const CUSTOMER: Actor = { userId: "usr_customer", roles: ["CUSTOMER"], memberships: [] };
@@ -71,8 +78,9 @@ function leg(orderId: string, shopId: string) {
     .find((s) => s.shopId === shopId)!;
 }
 
-/** One paid order → shop_1 leg driven NEW → … → COMPLETED by its owner. */
-async function completedLeg(variantId: string, qty = 1) {
+/** One paid order → leg of `shopId` driven NEW → … → COMPLETED by its owner. */
+async function completedLeg(variantId: string, shopId = "shop_1", qty = 1) {
+  const owner = shopId === "shop_1" ? SHOP1_OWNER : SHOP2_OWNER;
   const res = await placeOrder(db, CUSTOMER, {
     cartItemIds: [cartItemId(variantId, qty)],
     addressId: ADDRESS,
@@ -81,13 +89,13 @@ async function completedLeg(variantId: string, qty = 1) {
     paymentMethod: "MOCK_WALLET",
     idempotencyKey: nextKey(),
   });
-  const so = leg(res.orderId, "shop_1");
-  confirmSellerOrder(db, SHOP1_OWNER, so.id);
-  packSellerOrder(db, SHOP1_OWNER, so.id);
-  shipSellerOrder(db, SHOP1_OWNER, so.id, { carrier: "ghn", trackingNumber: nextKey() });
-  deliverSellerOrder(db, SHOP1_OWNER, so.id);
-  completeSellerOrder(db, SHOP1_OWNER, so.id);
-  return leg(res.orderId, "shop_1");
+  const so = leg(res.orderId, shopId);
+  confirmSellerOrder(db, owner, so.id);
+  packSellerOrder(db, owner, so.id);
+  shipSellerOrder(db, owner, so.id, { carrier: "ghn", trackingNumber: nextKey() });
+  deliverSellerOrder(db, owner, so.id);
+  completeSellerOrder(db, owner, so.id);
+  return leg(res.orderId, shopId);
 }
 
 const settlement = (id: string) =>
@@ -222,5 +230,97 @@ describe("listSettlements", () => {
       cursor: first.nextCursor!,
     });
     expect(rest.items[0].id).not.toBe(first.items[0].id);
+  });
+});
+
+describe("refunded legs", () => {
+  it("a COMPLETED leg with a completed partial refund settles at subtotal − c − (r − rebate)", async () => {
+    const so = await completedLeg("var_6", "shop_2", 2);
+    const item = db.select().from(orderItems).where(eq(orderItems.sellerOrderId, so.id)).get()!;
+
+    const rrId = requestReturn(db, CUSTOMER, {
+      sellerOrderId: so.id,
+      items: [{ orderItemId: item.id, qty: 1, restock: false }],
+      reason: "arrived damaged",
+      evidence: [],
+    });
+    await decideReturn(db, SHOP2_OWNER, rrId, "APPROVED");
+    // Partial qty → leg stays COMPLETED and remains settleable.
+    expect(leg(so.orderId, "shop_2").status).toBe("COMPLETED");
+
+    const legRefunds = db
+      .select()
+      .from(refunds)
+      .innerJoin(returnItems, eq(refunds.returnItemId, returnItems.id))
+      .innerJoin(returnRequests, eq(returnItems.returnRequestId, returnRequests.id))
+      .where(eq(returnRequests.sellerOrderId, so.id))
+      .all();
+    expect(legRefunds).toHaveLength(1);
+    expect(legRefunds[0].refunds.status).toBe("COMPLETED");
+    const x = legRefunds[0].refunds.amountVnd;
+    const c = comm(so.subtotalVnd);
+    const rebate = Math.floor((x * BPS) / 10_000);
+
+    const id = generateSettlement(db, SHOP2_OWNER, "shop_2");
+    const s = settlement(id)!;
+    expect(s.grossVnd).toBe(so.subtotalVnd);
+    expect(s.refundVnd).toBe(x); // gross refunded amount is recorded
+    expect(s.netVnd).toBe(so.subtotalVnd - c - (x - rebate));
+
+    // Recognition +subtotal−c, refund initiation −(x−rebate), payout −net → 0.
+    markSettlementPaid(db, ADMIN, id);
+    expect(balance(db, "SELLER_PAYABLE", "shop_2")).toBe(0);
+  });
+
+  it("a leg carrying a PENDING return refund is excluded until the refund resolves", async () => {
+    const so = await completedLeg("var_7", "shop_2", 1);
+    const item = db.select().from(orderItems).where(eq(orderItems.sellerOrderId, so.id)).get()!;
+
+    const rrId = requestReturn(db, CUSTOMER, {
+      sellerOrderId: so.id,
+      items: [{ orderItemId: item.id, qty: 1, restock: false }],
+      reason: "arrived damaged",
+      evidence: [],
+    });
+    // APPROVED + refund row left PENDING (provider call not yet dispatched).
+    db.transaction((tx) => {
+      tx.update(returnRequests)
+        .set({ status: "APPROVED" })
+        .where(eq(returnRequests.id, rrId))
+        .run();
+      issueReturnRefunds(tx, rrId, SHOP2_OWNER.userId);
+    });
+    expect(
+      db
+        .select()
+        .from(refunds)
+        .all()
+        .some((x) => x.status === "PENDING"),
+    ).toBe(true);
+
+    // Only that leg is unsettled → nothing may be generated.
+    expect(await errorCode(() => generateSettlement(db, SHOP2_OWNER, "shop_2"))).toBe(
+      "INVALID_INPUT",
+    );
+    const clean = await completedLeg("var_8", "shop_2", 1);
+    const id = generateSettlement(db, SHOP2_OWNER, "shop_2");
+    const items = db
+      .select()
+      .from(settlementItems)
+      .where(eq(settlementItems.settlementId, id))
+      .all();
+    expect(items.map((i) => i.sellerOrderId)).toEqual([clean.id]);
+
+    // Once the refund completes the leg can settle — net reflects the clawback.
+    const pending = db.select().from(refunds).where(eq(refunds.status, "PENDING")).get()!;
+    db.transaction((tx) => {
+      tx.update(refunds).set({ status: "COMPLETED" }).where(eq(refunds.id, pending.id)).run();
+    });
+    const id2 = generateSettlement(db, SHOP2_OWNER, "shop_2");
+    const x = pending.amountVnd;
+    expect(settlement(id2)!.refundVnd).toBe(x);
+    expect(settlement(id2)!.netVnd).toBe(
+      so.subtotalVnd - comm(so.subtotalVnd) - (x - Math.floor((x * BPS) / 10_000)),
+    );
   });
 });
