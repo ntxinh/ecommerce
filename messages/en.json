@@ -403,6 +403,8 @@
     "colOrder": "Order",
     "colBuyer": "Buyer",
     "colTotal": "Total",
+    "colAttempt": "Attempt",
+    "colProviderRef": "Provider ref",
     "orderStatus": {
       "PENDING_PAYMENT": "Pending payment",
       "PAID": "Paid",

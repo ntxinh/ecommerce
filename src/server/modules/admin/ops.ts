@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, desc, eq, like, lt, or } from "drizzle-orm";
 import { ulid } from "ulidx";
+import { z } from "zod";
 import { AuthError } from "@/server/api/errors";
 import { type Actor, requirePermission } from "@/server/auth/permissions";
 import type { DB } from "@/server/db/client";
@@ -67,27 +68,33 @@ export function getSettings(db: DB, actor: Actor | null): Record<string, unknown
   return out;
 }
 
-/** Ops-tunable keys — anything else is refused before touching the table.
- *  Also the key list the settings page renders. */
-export const ADMIN_SETTING_KEYS: Record<string, true> = {
-  commission_rate_bps: true,
-  shipping_fees: true,
-  return_window_days: true,
-  auto_complete_days: true,
-  reservation_ttl_minutes: true,
+/** Ops-tunable keys and the shape each accepts — anything else is refused
+ *  before touching the table. Keys double as the settings-page row list. */
+const SETTING_VALUE_SCHEMAS: Record<string, z.ZodType> = {
+  commission_rate_bps: z.number().int().min(0).max(10_000),
+  return_window_days: z.number().int().positive(),
+  auto_complete_days: z.number().int().positive(),
+  reservation_ttl_minutes: z.number().int().positive(),
+  shipping_fees: z
+    .record(z.string(), z.number().int().min(0))
+    .refine((m) => Object.keys(m).length > 0),
 };
+export const ADMIN_SETTING_KEYS: Record<string, true> = Object.fromEntries(
+  Object.keys(SETTING_VALUE_SCHEMAS).map((k) => [k, true]),
+);
 
 /** Upsert `application_settings[key] = JSON.stringify(value)` + settings.update audit. */
 export function setSetting(db: DB, actor: Actor | null, key: string, value: unknown): void {
   const a = requirePermission(actor, "admin:*");
-  if (!ADMIN_SETTING_KEYS[key]) invalid(`unknown setting ${key}`);
+  const schema = SETTING_VALUE_SCHEMAS[key];
+  if (!schema) invalid(`unknown setting ${key}`);
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) invalid(`invalid value for ${key}`);
+  const json = JSON.stringify(parsed.data);
   db.transaction((tx) => {
     tx.insert(applicationSettings)
-      .values({ key, value: JSON.stringify(value) })
-      .onConflictDoUpdate({
-        target: applicationSettings.key,
-        set: { value: JSON.stringify(value) },
-      })
+      .values({ key, value: json })
+      .onConflictDoUpdate({ target: applicationSettings.key, set: { value: json } })
       .run();
     tx.insert(auditLogs)
       .values({
@@ -138,14 +145,15 @@ export function createPlatformVoucher(
   ) {
     invalid("endsAt must be after startsAt");
   }
-  for (const [name, n] of [
-    ["minSpendVnd", input.minSpendVnd],
-    ["maxDiscountVnd", input.maxDiscountVnd],
-    ["totalLimit", input.totalLimit],
-    ["perUserLimit", input.perUserLimit],
+  // minSpendVnd: 0 is a real value ("no minimum") — the column default.
+  for (const [name, n, min] of [
+    ["minSpendVnd", input.minSpendVnd, 0],
+    ["maxDiscountVnd", input.maxDiscountVnd, 1],
+    ["totalLimit", input.totalLimit, 1],
+    ["perUserLimit", input.perUserLimit, 1],
   ] as const) {
-    if (n !== undefined && (!Number.isInteger(n) || n < 1)) {
-      invalid(`${name} must be a positive integer`);
+    if (n !== undefined && (!Number.isInteger(n) || n < min)) {
+      invalid(`${name} must be an integer ≥ ${min}`);
     }
   }
   if (db.select({ id: vouchers.id }).from(vouchers).where(eq(vouchers.code, code)).get()) {

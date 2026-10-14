@@ -1,6 +1,6 @@
 export const instant = false;
 
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,7 @@ import { formatDate, formatVnd } from "@/lib/format";
 import { AuthError } from "@/server/api/errors";
 import { requireAdmin } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
-import { users } from "@/server/db/schema";
+import { paymentAttempts, users } from "@/server/db/schema";
 import { getAdminOrder } from "@/server/modules/admin/ops";
 import type { OrderDetail } from "@/server/modules/orders/service";
 
@@ -45,6 +45,14 @@ export default async function AdminOrderDetailPage({
     .from(users)
     .where(eq(users.id, order.userId))
     .get();
+  const attempts = payment
+    ? db
+        .select()
+        .from(paymentAttempts)
+        .where(eq(paymentAttempts.paymentId, payment.id))
+        .orderBy(desc(paymentAttempts.id))
+        .all()
+    : [];
   const t = await getTranslations({ locale, namespace: "admin" });
   const to = await getTranslations({ locale, namespace: "orders" });
   const address = JSON.parse(order.addressSnapshotJson) as Partial<{
@@ -197,8 +205,38 @@ export default async function AdminOrderDetailPage({
           <CardHeader>
             <CardTitle className="text-base">{to("payment")}</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm">
-            {payment.method} — {payment.status} — {formatVnd(payment.amountVnd, locale)}
+          <CardContent className="space-y-3 text-sm">
+            <p>
+              {payment.method} — {payment.status} — {formatVnd(payment.amountVnd, locale)}
+            </p>
+            {attempts.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("colAttempt")}</TableHead>
+                    <TableHead>{t("colStatus")}</TableHead>
+                    <TableHead>{t("colProviderRef")}</TableHead>
+                    <TableHead>{t("colCreated")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {attempts.map((a) => (
+                    <TableRow key={a.id}>
+                      <TableCell className="font-medium">{a.id}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{a.status}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {a.providerRef ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(a.createdAt, locale)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}

@@ -117,6 +117,26 @@ describe("admin settings", () => {
     expect(errorCode(() => setSetting(db, CUSTOMER, "commission_rate_bps", 900))).toBe("FORBIDDEN");
     expect(errorCode(() => setSetting(db, null, "commission_rate_bps", 900))).toBe("UNAUTHORIZED");
   });
+
+  it("validates value shape per key before upserting", () => {
+    expect(errorCode(() => setSetting(db, ADMIN, "commission_rate_bps", -5))).toBe("INVALID_INPUT");
+    expect(errorCode(() => setSetting(db, ADMIN, "commission_rate_bps", 10_001))).toBe(
+      "INVALID_INPUT",
+    );
+    expect(errorCode(() => setSetting(db, ADMIN, "return_window_days", 0))).toBe("INVALID_INPUT");
+    expect(errorCode(() => setSetting(db, ADMIN, "reservation_ttl_minutes", 2.5))).toBe(
+      "INVALID_INPUT",
+    );
+    expect(errorCode(() => setSetting(db, ADMIN, "shipping_fees", {}))).toBe("INVALID_INPUT");
+    expect(errorCode(() => setSetting(db, ADMIN, "shipping_fees", { standard: -1 }))).toBe(
+      "INVALID_INPUT",
+    );
+    // untouched by the rejected writes
+    expect(quoteShippingFee(db, "standard")).toBe(21000);
+    // valid roundtrip still works
+    setSetting(db, ADMIN, "commission_rate_bps", 700);
+    expect(getSettings(db, ADMIN).commission_rate_bps).toBe(700);
+  });
 });
 
 describe("admin platform vouchers", () => {
@@ -141,7 +161,6 @@ describe("admin platform vouchers", () => {
     expect(priced.appliedVouchers.map((v) => v.code)).toEqual(["ADMINTEST"]);
     expect(priced.platformDiscountVnd).toBe(10000);
   });
-
   it("rejects duplicates, bad input, and non-admin callers", () => {
     expect(errorCode(() => createPlatformVoucher(db, ADMIN, input))).toBe("INVALID_INPUT");
     expect(

@@ -403,6 +403,8 @@
     "colOrder": "Đơn hàng",
     "colBuyer": "Người mua",
     "colTotal": "Tổng",
+    "colAttempt": "Lần thử",
+    "colProviderRef": "Mã tham chiếu",
     "orderStatus": {
       "PENDING_PAYMENT": "Chờ thanh toán",
       "PAID": "Đã thanh toán",
