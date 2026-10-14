@@ -26,8 +26,11 @@ export const VariantInput = z
     basePriceVnd: z.coerce.number().int().min(0),
     // Sale price must not exceed the base price; an empty field clears it.
     salePriceVnd: opt(z.coerce.number().int().min(0)),
-    // Absolute on-hand count — setVariantStock-style set, not a delta.
+    // Desired on-hand. With `baseline` (the value the form loaded), the service
+    // writes the delta — concurrent order/reservation changes survive a save.
+    // Without a baseline it's an absolute set.
     stock: opt(z.coerce.number().int().min(0)),
+    baseline: opt(z.coerce.number().int().min(0)),
   })
   .refine((v) => v.salePriceVnd == null || v.salePriceVnd <= v.basePriceVnd, {
     message: "salePriceVnd must not exceed basePriceVnd",

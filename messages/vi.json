@@ -174,7 +174,7 @@
     "colName": "Tên",
     "colStatus": "Trạng thái",
     "colVariants": "Biến thể",
-    "colStock": "Tồn kho",
+    "colAvailable": "Còn hàng",
     "colPrice": "Giá từ",
     "colActions": "Thao tác",
     "status": {
@@ -259,6 +259,7 @@
       "rating": "Đánh giá cao",
       "newest": "Mới nhất",
       "popular": "Bán chạy"
-    }
+    },
+    "imageN": "Ảnh {n}"
   }
 }

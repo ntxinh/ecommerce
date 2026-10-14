@@ -14,6 +14,11 @@ import {
 export type SellerActionResult = { ok: true; productId?: string } | { ok: false; error: string };
 export type SellerActionState = SellerActionResult | null;
 
+function toResult(e: unknown): SellerActionResult {
+  if (e instanceof AuthError) return { ok: false, error: e.code };
+  throw e;
+}
+
 /**
  * Create or update a product plus its variants. `variants` arrives as a JSON
  * string (the form serializes the repeater); `id` set = update.
@@ -47,22 +52,31 @@ export async function saveProductAction(
     }
     return { ok: true, productId };
   } catch (e) {
-    if (e instanceof AuthError) return { ok: false, error: e.code };
-    throw e;
+    return toResult(e);
   }
 }
 
-/** Publish / unpublish / archive from the products table. Re-renders the page. */
-export async function setProductStatusAction(formData: FormData): Promise<void> {
-  const parsed = SetProductStatusInput.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return;
-  const actor = await getActor();
-  setProductStatus(getDb(), actor, parsed.data.productId, parsed.data.status);
+/** Publish / unpublish / archive from the products table; errors surface as toasts. */
+export async function setProductStatusAction(formData: FormData): Promise<SellerActionResult> {
+  try {
+    const parsed = SetProductStatusInput.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) return { ok: false, error: "INVALID_INPUT" };
+    const actor = await getActor();
+    setProductStatus(getDb(), actor, parsed.data.productId, parsed.data.status);
+    return { ok: true };
+  } catch (e) {
+    return toResult(e);
+  }
 }
 
-export async function duplicateProductAction(formData: FormData): Promise<void> {
-  const productId = String(formData.get("productId") ?? "");
-  if (!productId) return;
-  const actor = await getActor();
-  duplicateProduct(getDb(), actor, productId);
+export async function duplicateProductAction(formData: FormData): Promise<SellerActionResult> {
+  try {
+    const productId = String(formData.get("productId") ?? "");
+    if (!productId) return { ok: false, error: "INVALID_INPUT" };
+    const actor = await getActor();
+    duplicateProduct(getDb(), actor, productId);
+    return { ok: true };
+  } catch (e) {
+    return toResult(e);
+  }
 }

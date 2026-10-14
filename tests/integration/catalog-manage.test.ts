@@ -173,6 +173,38 @@ describe("catalog manage service", () => {
     expect(updated?.onHand).toBe(7);
   });
 
+  it("applies stock as a delta against the form baseline, not absolute", () => {
+    const id = createProduct(db, seller1, {
+      ...productInput,
+      nameEn: "Delta Stock",
+      variants: [{ ...variantInput, sku: "DELTA-1", stock: 10 }],
+    });
+    const variant = getSellerProduct(db, seller1, id).variants[0];
+    // An order consumed 2 between form load and save.
+    setVariantStock(db, seller1, variant.id, 8, "order-consume");
+    updateProduct(db, seller1, id, {
+      ...productInput,
+      // Seller submitted the unchanged value 10 with baseline 10 → no write.
+      variants: [{ ...variantInput, id: variant.id, sku: "DELTA-1", stock: 10, baseline: 10 }],
+    });
+    expect(getSellerProduct(db, seller1, id).variants[0].onHand).toBe(8);
+    // Seller bumps their copy 10 → 12 while the real onHand is 8 → 8 + 2 = 10.
+    updateProduct(db, seller1, id, {
+      ...productInput,
+      variants: [{ ...variantInput, id: variant.id, sku: "DELTA-1", stock: 12, baseline: 10 }],
+    });
+    expect(getSellerProduct(db, seller1, id).variants[0].onHand).toBe(10);
+    // Delta below current onHand → INVALID_INPUT, not silent negative stock.
+    expectErr(
+      () =>
+        updateProduct(db, seller1, id, {
+          ...productInput,
+          variants: [{ ...variantInput, id: variant.id, sku: "DELTA-1", stock: 0, baseline: 15 }],
+        }),
+      "INVALID_INPUT",
+    );
+  });
+
   it("duplicates a product as a DRAFT with -COPY skus and zeroed stock", () => {
     setVariantStock(db, seller1, "var_1", 10, "test");
     const copyId = duplicateProduct(db, seller1, "prod_1");
@@ -188,6 +220,8 @@ describe("catalog manage service", () => {
     expect(src.variants.map((v) => `${v.sku}-COPY`).sort()).toEqual(
       copy.variants.map((v) => v.sku).sort(),
     );
+    // A second duplicate collides on the -COPY skus → mapped INVALID_INPUT.
+    expectErr(() => duplicateProduct(db, seller1, "prod_1"), "INVALID_INPUT");
   });
 
   it("setVariantStock writes an absolute on-hand via the ledger", () => {

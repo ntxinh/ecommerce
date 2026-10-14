@@ -1,5 +1,5 @@
 import "server-only";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { ulid } from "ulidx";
 import type { z } from "zod";
 import type { ProductInput, ProductSaveInput, VariantInput } from "@/server/api/contracts/catalog";
@@ -30,7 +30,7 @@ export type SellerProductRow = {
   status: ProductStatus;
   categoryId: string;
   variantCount: number;
-  onHand: number;
+  available: number;
   minPriceVnd: number | null;
 };
 
@@ -88,12 +88,21 @@ function uniqueSlug(tx: Tx, nameEn: string): string {
   return slug;
 }
 
-/** SQLite reports constraint violations as message text only. */
-function isSkuConflict(e: unknown): boolean {
-  return e instanceof Error && e.message.includes("UNIQUE") && e.message.includes("sku");
+/** SQLite reports constraint violations as message text only; map the ones a
+ *  seller form can plausibly hit, rethrow everything else. */
+function mapConstraint(e: unknown): never {
+  if (e instanceof Error) {
+    if (e.message.includes("UNIQUE") && e.message.includes("sku")) {
+      throw new AuthError("INVALID_INPUT", 400, "SKU already in use");
+    }
+    if (e.message.includes("FOREIGN KEY")) {
+      throw new AuthError("INVALID_INPUT", 400, "referenced record does not exist");
+    }
+  }
+  throw e;
 }
 
-/** Adjust on_hand to an absolute value with a movement row; no-op when unchanged. */
+/** Absolute on-hand set inside a caller-owned tx, with a ledger row; no-op when unchanged. */
 function setStock(
   tx: Tx,
   variantId: string,
@@ -107,22 +116,36 @@ function setStock(
   if (!inv) {
     tx.insert(inventory).values({ variantId, onHand: 0, reserved: 0, updatedAt: Date.now() }).run();
   }
-  if (delta !== 0) {
-    tx.update(inventory)
-      .set({ onHand, updatedAt: Date.now() })
-      .where(eq(inventory.variantId, variantId))
-      .run();
-    tx.insert(inventoryMovements)
-      .values({
-        id: `mov_${ulid()}`,
-        variantId,
-        delta,
-        reason,
-        actorId,
-        createdAt: Date.now(),
-      })
-      .run();
+  if (delta !== 0) moveStock(tx, variantId, delta, reason, actorId);
+}
+
+/** Delta move inside a caller-owned tx — same atomic non-negative guard + ledger
+ *  row as adjustStock (which needs a DB handle, not a tx). */
+function moveStock(
+  tx: Tx,
+  variantId: string,
+  delta: number,
+  reason: string,
+  actorId: string,
+): void {
+  const res = tx
+    .update(inventory)
+    .set({ onHand: sql`${inventory.onHand} + ${delta}`, updatedAt: Date.now() })
+    .where(and(eq(inventory.variantId, variantId), sql`${inventory.onHand} + ${delta} >= 0`))
+    .run();
+  if (res.changes === 0) {
+    throw new AuthError("INVALID_INPUT", 400, "stock adjustment would make onHand negative");
   }
+  tx.insert(inventoryMovements)
+    .values({
+      id: `mov_${ulid()}`,
+      variantId,
+      delta,
+      reason,
+      actorId,
+      createdAt: Date.now(),
+    })
+    .run();
 }
 
 /** Insert-or-update a variant row inside a caller-owned tx; returns its id. */
@@ -145,10 +168,16 @@ function upsertVariantRow(tx: Tx, actor: Actor, productId: string, v: VariantIn)
         .where(eq(productVariants.id, v.id))
         .run();
     } catch (e) {
-      if (isSkuConflict(e)) throw new AuthError("INVALID_INPUT", 400, "SKU already in use");
-      throw e;
+      mapConstraint(e);
     }
-    if (v.stock != null) setStock(tx, v.id, v.stock, "seller-adjust", actor.userId);
+    if (v.stock != null) {
+      // Form submits a baseline (the onHand it loaded): write the delta so
+      // concurrent order/reservation movement isn't clobbered. No baseline →
+      // absolute set (e.g. API callers that mean "make it exactly this").
+      const delta = v.baseline == null ? null : v.stock - v.baseline;
+      if (delta == null) setStock(tx, v.id, v.stock, "seller-adjust", actor.userId);
+      else if (delta !== 0) moveStock(tx, v.id, delta, "seller-adjust", actor.userId);
+    }
     return v.id;
   }
   const id = `var_${ulid()}`;
@@ -167,8 +196,7 @@ function upsertVariantRow(tx: Tx, actor: Actor, productId: string, v: VariantIn)
       })
       .run();
   } catch (e) {
-    if (isSkuConflict(e)) throw new AuthError("INVALID_INPUT", 400, "SKU already in use");
-    throw e;
+    mapConstraint(e);
   }
   setStock(tx, id, v.stock ?? 0, "seller-adjust", actor.userId);
   return id;
@@ -191,7 +219,7 @@ export function listSellerProducts(
       status: products.status,
       categoryId: products.categoryId,
       variantCount: sql<number>`count(${productVariants.id})`,
-      onHand: availSql.mapWith(Number),
+      available: availSql.mapWith(Number),
       minPriceVnd: minPrice.mapWith((v) => (v == null ? null : Number(v))),
     })
     .from(products)
@@ -263,21 +291,25 @@ export function createProduct(db: DB, actor: Actor | null, input: ProductIn | Sa
   }
   return db.transaction((tx) => {
     const id = `prd_${ulid()}`;
-    tx.insert(products)
-      .values({
-        id,
-        shopId: input.shopId,
-        categoryId: input.categoryId,
-        brandId: input.brandId ?? null,
-        slug: uniqueSlug(tx, input.nameEn),
-        nameEn: input.nameEn,
-        nameVi: input.nameVi,
-        descriptionEn: input.descriptionEn,
-        descriptionVi: input.descriptionVi,
-        status: input.status,
-        createdAt: Date.now(),
-      })
-      .run();
+    try {
+      tx.insert(products)
+        .values({
+          id,
+          shopId: input.shopId,
+          categoryId: input.categoryId,
+          brandId: input.brandId ?? null,
+          slug: uniqueSlug(tx, input.nameEn),
+          nameEn: input.nameEn,
+          nameVi: input.nameVi,
+          descriptionEn: input.descriptionEn,
+          descriptionVi: input.descriptionVi,
+          status: input.status,
+          createdAt: Date.now(),
+        })
+        .run();
+    } catch (e) {
+      mapConstraint(e);
+    }
     for (const v of "variants" in input ? input.variants : []) {
       upsertVariantRow(tx, auth, id, v);
     }
@@ -294,17 +326,21 @@ export function createProduct(db: DB, actor: Actor | null, input: ProductIn | Sa
 export function updateProduct(db: DB, actor: Actor | null, productId: string, input: SaveIn): void {
   db.transaction((tx) => {
     const { actor: auth } = writeTarget(tx, actor, productId);
-    tx.update(products)
-      .set({
-        nameEn: input.nameEn,
-        nameVi: input.nameVi,
-        categoryId: input.categoryId,
-        brandId: input.brandId ?? null,
-        descriptionEn: input.descriptionEn,
-        descriptionVi: input.descriptionVi,
-      })
-      .where(eq(products.id, productId))
-      .run();
+    try {
+      tx.update(products)
+        .set({
+          nameEn: input.nameEn,
+          nameVi: input.nameVi,
+          categoryId: input.categoryId,
+          brandId: input.brandId ?? null,
+          descriptionEn: input.descriptionEn,
+          descriptionVi: input.descriptionVi,
+        })
+        .where(eq(products.id, productId))
+        .run();
+    } catch (e) {
+      mapConstraint(e);
+    }
     for (const v of input.variants) upsertVariantRow(tx, auth, productId, v);
   });
 }
@@ -356,15 +392,20 @@ export function duplicateProduct(db: DB, actor: Actor | null, productId: string)
     for (const v of srcVariants) {
       const newId = `var_${ulid()}`;
       idMap.set(v.id, newId);
-      tx.insert(productVariants)
-        .values({
-          ...v,
-          id: newId,
-          productId: id,
-          sku: `${v.sku}-COPY`,
-          createdAt: Date.now(),
-        })
-        .run();
+      try {
+        tx.insert(productVariants)
+          .values({
+            ...v,
+            id: newId,
+            productId: id,
+            sku: `${v.sku}-COPY`,
+            createdAt: Date.now(),
+          })
+          .run();
+      } catch (e) {
+        // A second duplicate hits UNIQUE(sku) on -COPY → INVALID_INPUT, not a 500.
+        mapConstraint(e);
+      }
       tx.insert(inventory)
         .values({ variantId: newId, onHand: 0, reserved: 0, updatedAt: Date.now() })
         .run();

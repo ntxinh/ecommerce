@@ -22,6 +22,8 @@ export type VariantDraft = {
   basePriceVnd: string;
   salePriceVnd: string;
   stock: string;
+  /** The on-hand value this row was loaded with — server writes delta vs it. */
+  baseline?: string;
 };
 
 export type ProductFormValues = {
@@ -70,6 +72,7 @@ function serializeVariants(rows: VariantDraft[]): string {
         basePriceVnd: v.basePriceVnd || undefined,
         salePriceVnd: v.salePriceVnd || undefined,
         stock: v.stock || undefined,
+        baseline: v.id ? v.baseline : undefined,
       };
     }),
   );

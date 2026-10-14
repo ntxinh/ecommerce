@@ -68,6 +68,7 @@ export default async function EditProductPage({
             basePriceVnd: String(v.basePriceVnd),
             salePriceVnd: v.salePriceVnd == null ? "" : String(v.salePriceVnd),
             stock: String(v.onHand),
+            baseline: String(v.onHand),
           })),
         }}
       />
