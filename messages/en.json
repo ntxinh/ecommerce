@@ -357,7 +357,8 @@
       "UNAUTHORIZED": "Please sign in",
       "FORBIDDEN": "Admin access required",
       "NOT_FOUND": "Record not found",
-      "INVALID_INPUT": "Action rejected — check the note or the item's current state"
+      "INVALID_INPUT": "Action rejected — check the note or the item's current state",
+      "INVALID_STATE": "That item was already decided"
     }
   },
   "storefront": {
@@ -541,6 +542,7 @@
     "apply": "Submit application",
     "applying": "Submitting…",
     "saveShop": "Save shop",
+    "saving": "Saving…",
     "status": {
       "PENDING": "Pending review",
       "APPROVED": "Approved",

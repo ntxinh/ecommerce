@@ -113,7 +113,7 @@ export function ShopProfileForm({
         />
       </div>
       <Button type="submit" disabled={pending}>
-        {pending ? t("applying") : t("saveShop")}
+        {pending ? t("saving") : t("saveShop")}
       </Button>
     </form>
   );

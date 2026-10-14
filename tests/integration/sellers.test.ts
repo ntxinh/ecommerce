@@ -119,7 +119,7 @@ describe("decideApplication", () => {
     expect(note?.title).toBe("seller_application.rejected");
   });
 
-  it("APPROVED creates shop + membership + SELLER role atomically; re-approve is idempotent", () => {
+  it("APPROVED creates shop + membership + SELLER role atomically; re-decide is INVALID_STATE", () => {
     decideApplication(db, ADMIN, appA, { decision: "APPROVED", note: "ok" });
 
     const mine = myApplication(db, CUSTOMER);
@@ -147,9 +147,10 @@ describe("decideApplication", () => {
         .all()
         .map((r) => r.role),
     ).toContain("SELLER");
-
-    // Idempotent re-approve: no second shop, no throw.
-    decideApplication(db, ADMIN, appA, { decision: "APPROVED" });
+    // Re-deciding a decided application is INVALID_STATE — no second shop.
+    expect(errorCode(() => decideApplication(db, ADMIN, appA, { decision: "APPROVED" }))).toBe(
+      "INVALID_STATE",
+    );
     expect(db.select().from(shops).where(eq(shops.name, "Hue Lanterns")).all()).toHaveLength(1);
   });
 

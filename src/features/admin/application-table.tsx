@@ -18,7 +18,13 @@ import { useRouter } from "@/i18n/navigation";
 import type { ApplicationRow } from "@/server/modules/sellers/service";
 import { decideApplicationAction, setShopStatusAction } from "./actions";
 
-const ERROR_KEYS = new Set(["UNAUTHORIZED", "FORBIDDEN", "NOT_FOUND", "INVALID_INPUT"]);
+const ERROR_KEYS = new Set([
+  "UNAUTHORIZED",
+  "FORBIDDEN",
+  "NOT_FOUND",
+  "INVALID_INPUT",
+  "INVALID_STATE",
+]);
 
 function Row({ row }: { row: ApplicationRow }) {
   const t = useTranslations("admin");

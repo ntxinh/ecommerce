@@ -357,7 +357,8 @@
       "UNAUTHORIZED": "Vui lòng đăng nhập",
       "FORBIDDEN": "Cần quyền quản trị",
       "NOT_FOUND": "Không tìm thấy bản ghi",
-      "INVALID_INPUT": "Thao tác bị từ chối — kiểm tra lý do hoặc trạng thái hiện tại"
+      "INVALID_INPUT": "Thao tác bị từ chối — kiểm tra lý do hoặc trạng thái hiện tại",
+      "INVALID_STATE": "Mục này đã được xử lý"
     }
   },
   "storefront": {
@@ -540,6 +541,7 @@
     "apply": "Gửi đơn đăng ký",
     "applying": "Đang gửi…",
     "saveShop": "Lưu cửa hàng",
+    "saving": "Đang lưu…",
     "status": {
       "PENDING": "Đang chờ duyệt",
       "APPROVED": "Đã duyệt",

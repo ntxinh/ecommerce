@@ -173,10 +173,11 @@ export function listApplications(
 }
 
 /**
- * Admin decision. Approving creates the applicant's shop (slug from shopName,
+ * Admin decision on a PENDING application — re-deciding a decided row is
+ * INVALID_STATE. Approving creates the applicant's shop (slug from shopName,
  * UNIQUE collisions get "-2", "-3", …), an OWNER membership and the SELLER
- * role — all in one tx. Re-deciding an APPROVED row skips provisioning so a
- * raced double-approve stays idempotent. Always audits and notifies.
+ * role — all in one tx; raced role grants stay safe via onConflictDoNothing.
+ * Always audits and notifies.
  */
 export function decideApplication(
   db: DB,
@@ -188,20 +189,21 @@ export function decideApplication(
   db.transaction((tx) => {
     const app = tx.select().from(sellerApplications).where(eq(sellerApplications.id, appId)).get();
     if (!app) throw new AuthError("NOT_FOUND", 404, "application not found");
-
-    if (app.status !== d.decision) {
-      tx.update(sellerApplications)
-        .set({
-          status: d.decision,
-          decidedBy: a.userId,
-          decidedAt: Date.now(),
-          decisionNote: d.note ?? null,
-        })
-        .where(eq(sellerApplications.id, appId))
-        .run();
+    if (app.status !== "PENDING") {
+      throw new AuthError("INVALID_STATE", 409, "application already decided");
     }
 
-    if (d.decision === "APPROVED" && app.status !== "APPROVED") {
+    tx.update(sellerApplications)
+      .set({
+        status: d.decision,
+        decidedBy: a.userId,
+        decidedAt: Date.now(),
+        decisionNote: d.note ?? null,
+      })
+      .where(eq(sellerApplications.id, appId))
+      .run();
+
+    if (d.decision === "APPROVED") {
       let info: Record<string, string> = {};
       try {
         info = JSON.parse(app.businessInfo);
