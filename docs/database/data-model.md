@@ -205,8 +205,9 @@ erDiagram
   }
 ```
 
-Written by `GET /api/v1/search` for authenticated users only — guests never
-write. Powers future "recent searches" UI (deferred).
+Written by search-mode `GET /api/v1/search` calls for authenticated users
+only — `mode=suggest` returns before recording, and guests never write.
+Powers future "recent searches" UI (deferred).
 
 
 ## Inventory

@@ -14,8 +14,8 @@ endpoints Planned**
 | `POST /api/v1/cart/items` | `{variantId, qty}` additive upsert → full cart view. |
 | `DELETE /api/v1/cart/items` | `{cartItemId}` remove one line → full cart view. |
 | `POST /api/v1/checkout` | Place an order (transactional; see `docs/workflows/checkout-and-inventory.md`). |
-| `GET /api/v1/search` | `?q=&sort=&cursor&limit` product search (`mode=suggest` → autocomplete names); records `search_history` for authed users. |
-| `GET /api/v1/products` | Public product cards: `?categoryId=&shopId=&minPriceVnd=&maxPriceVnd=&minRating=&inStock=&sort=&cursor=&limit` listing, or `?ids=a,b,c` for caller-ordered cards (recently-viewed rail). |
+| `GET /api/v1/search` | `?q=&sort=&cursor&limit` product search (`mode=suggest` → autocomplete names); search-mode calls record `search_history` for authed users. |
+| `GET /api/v1/products` | Public product cards: `?categoryId=&shopId=&q=&minPriceVnd=&maxPriceVnd=&minRating=&inStock=&sort=&cursor=&limit` listing, or `?ids=a,b,c` for caller-ordered cards (recently-viewed rail). |
 
 Full request/response schemas: `docs/api/openapi.yaml`, kept honest by
 `tests/integration/openapi-coverage.test.ts` (every `route.ts` method must be
