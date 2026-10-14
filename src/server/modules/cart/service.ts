@@ -5,6 +5,7 @@ import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
 import type { DB } from "@/server/db/client";
 import { cartItems, carts, products, productVariants, shops } from "@/server/db/schema";
+import { publicGate } from "@/server/modules/catalog/service";
 import { availableStock, sweepExpiredReservations } from "@/server/modules/inventory/service";
 
 /** Query surface shared by DB and a drizzle tx so mergeGuestCart can run atomically. */
@@ -76,13 +77,14 @@ function parseAttrs(json: string): Record<string, unknown> {
   }
 }
 
-/** Variant exists AND its product is sellable (ACTIVE). */
+/** Variant exists AND its product+shop are publicly purchasable. */
 function isSellable(db: CartStore, variantId: string) {
   return !!db
     .select({ id: productVariants.id })
     .from(productVariants)
     .innerJoin(products, eq(products.id, productVariants.productId))
-    .where(and(eq(productVariants.id, variantId), eq(products.status, "ACTIVE")))
+    .innerJoin(shops, and(eq(shops.id, products.shopId), eq(shops.status, "ACTIVE")))
+    .where(and(eq(productVariants.id, variantId), publicGate))
     .get();
 }
 
@@ -126,6 +128,7 @@ export function getCart(db: DB, userId: string): CartView {
       productId: products.id,
       productName: products.nameEn,
       productStatus: products.status,
+      productModeration: products.moderationStatus,
       variantName: productVariants.nameEn,
       sku: productVariants.sku,
       attrsJson: productVariants.attributesJson,
@@ -133,6 +136,7 @@ export function getCart(db: DB, userId: string): CartView {
       salePriceVnd: productVariants.salePriceVnd,
       shopId: shops.id,
       shopName: shops.name,
+      shopStatus: shops.status,
     })
     .from(cartItems)
     .innerJoin(productVariants, eq(productVariants.id, cartItems.variantId))
@@ -151,7 +155,11 @@ export function getCart(db: DB, userId: string): CartView {
     attrs: parseAttrs(r.attrsJson),
     unitPriceVnd: r.salePriceVnd ?? r.basePriceVnd,
     qty: r.qty,
-    available: r.productStatus === "ACTIVE" && availableStock(db, r.variantId) >= r.qty,
+    available:
+      r.productStatus === "ACTIVE" &&
+      ["NONE", "APPROVED"].includes(r.productModeration) &&
+      r.shopStatus === "ACTIVE" &&
+      availableStock(db, r.variantId) >= r.qty,
     shopId: r.shopId,
     shopName: r.shopName,
   }));

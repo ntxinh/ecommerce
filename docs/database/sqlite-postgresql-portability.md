@@ -33,3 +33,9 @@ written to port to PostgreSQL without redesign.
 6. Update `DATABASE_URL` handling in `src/env.ts` (strip `file:` prefix logic).
 7. Rate limiter: in-memory Map is single-instance — move to Redis/DB-backed
    limiter if running >1 replica (see known-limitations).
+8. Search: `ulower()` registered in `src/server/db/client.ts` is a JS
+   `toLowerCase` fold (SQLite `lower()` is ASCII-only, Vietnamese queries need
+   real folding) — on PG drop the registration and use `lower()` or `ILIKE`.
+   The LIKE tier heuristic in `modules/search` (name > sku/brand > description)
+   is the upgrade seam for real FTS: `tsvector` over weighted fields +
+   `ts_rank` ordering, same API shape.

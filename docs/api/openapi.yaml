@@ -155,6 +155,157 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+  /api/v1/search:
+    get:
+      summary: Search products or fetch autocomplete suggestions
+      description: >-
+        Public, ACTIVE products only. q matches name/sku/brand/description;
+        relevance sort ranks name > sku/brand > description (documented
+        heuristic). mode=suggest returns product names for autocomplete and
+        ignores filters/pagination. Authenticated calls write search_history.
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - in: query
+          name: mode
+          schema:
+            type: string
+            enum: [search, suggest]
+            default: search
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [relevance, price_asc, price_desc, rating, newest, popular]
+            default: relevance
+        - in: query
+          name: categoryId
+          schema:
+            type: string
+        - in: query
+          name: shopId
+          schema:
+            type: string
+        - in: query
+          name: minPriceVnd
+          schema:
+            type: integer
+            minimum: 0
+        - in: query
+          name: maxPriceVnd
+          schema:
+            type: integer
+            minimum: 0
+        - in: query
+          name: minRating
+          schema:
+            type: number
+            minimum: 0
+            maximum: 5
+        - in: query
+          name: inStock
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - in: query
+          name: cursor
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: >-
+            Search mode → {data: {items: ProductCard[], total, nextCursor}};
+            suggest mode → {data: {suggestions: string[]}}.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    oneOf:
+                      - type: object
+                        required: [items, total, nextCursor]
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              type: object
+                          total:
+                            type: integer
+                          nextCursor:
+                            type: string
+                            nullable: true
+                      - type: object
+                        required: [suggestions]
+                        properties:
+                          suggestions:
+                            type: array
+                            items:
+                              type: string
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+  /api/v1/products:
+    get:
+      summary: List product cards or fetch cards by ids
+      description: >-
+        Public, ACTIVE products only. `?ids=a,b,c` returns cards for exactly
+        those ids in the caller's order (max 50; used by the recently-viewed
+        rail). Without `ids`, the remaining params mirror listProducts
+        (categoryId includes descendants; price/rating apply to the min
+        effective variant price) for client-side cursor pagination.
+      parameters:
+        - in: query
+          name: ids
+          schema: { type: string, maxLength: 2000 }
+        - in: query
+          name: categoryId
+          schema: { type: string }
+        - in: query
+          name: shopId
+          schema: { type: string }
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 200 }
+        - in: query
+          name: minPriceVnd
+          schema: { type: integer, minimum: 0 }
+        - in: query
+          name: maxPriceVnd
+          schema: { type: integer, minimum: 0 }
+        - in: query
+          name: minRating
+          schema: { type: number, minimum: 0, maximum: 5 }
+        - in: query
+          name: inStock
+          schema: { type: string, enum: ["true", "false"] }
+        - in: query
+          name: sort
+          schema: { type: string, enum: [newest, price_asc, price_desc, rating], default: newest }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: "{data: {items: ProductCard[], nextCursor}} — nextCursor null in ids mode."
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+
 components:
   responses:
     Unauthorized:

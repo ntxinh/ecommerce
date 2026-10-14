@@ -1,9 +1,9 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { AuthError } from "@/server/api/errors";
 import type { DB } from "@/server/db/client";
-import { products, productVariants, promotions, vouchers } from "@/server/db/schema";
+import { products, productVariants, promotions, shops, vouchers } from "@/server/db/schema";
 import {
   type AppliedVoucher,
   type Voucher,
@@ -151,9 +151,14 @@ export function priceOrder(
       .select({ v: productVariants, p: products })
       .from(productVariants)
       .innerJoin(products, eq(productVariants.productId, products.id))
+      .innerJoin(shops, and(eq(shops.id, products.shopId), eq(shops.status, "ACTIVE")))
       .where(eq(productVariants.id, variantId))
       .get();
-    if (!row || row.p.status !== "ACTIVE") {
+    if (
+      !row ||
+      row.p.status !== "ACTIVE" ||
+      !["NONE", "APPROVED"].includes(row.p.moderationStatus)
+    ) {
       throw new AuthError("NOT_FOUND", 404, `variant ${variantId} not found or not sellable`);
     }
     const { v, p } = row;

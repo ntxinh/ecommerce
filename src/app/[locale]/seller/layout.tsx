@@ -25,6 +25,7 @@ export default async function SellerLayout({
     throw e;
   }
 
+  const tSeller = await getTranslations({ locale, namespace: "seller" });
   const tn = await getTranslations({ locale, namespace: "nav" });
   const ts = await getTranslations({ locale, namespace: "shell" });
 
@@ -35,11 +36,10 @@ export default async function SellerLayout({
           {tn("sellerCenter")}
         </Link>
         <nav className="mt-6 space-y-2 text-sm">
-          {[ts("productsPlanned"), ts("ordersPlanned")].map((label) => (
-            <p key={label} className="text-muted-foreground">
-              {label}
-            </p>
-          ))}
+          <Link href="/seller/products" className="block hover:underline">
+            {tSeller("productsTitle")}
+          </Link>
+          <p className="text-muted-foreground">{ts("ordersPlanned")}</p>
         </nav>
       </aside>
       <div className="flex flex-1 flex-col">

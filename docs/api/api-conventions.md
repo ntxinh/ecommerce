@@ -14,14 +14,16 @@ endpoints Planned**
 | `POST /api/v1/cart/items` | `{variantId, qty}` additive upsert → full cart view. |
 | `DELETE /api/v1/cart/items` | `{cartItemId}` remove one line → full cart view. |
 | `POST /api/v1/checkout` | Place an order (transactional; see `docs/workflows/checkout-and-inventory.md`). |
+| `GET /api/v1/search` | `?q=&sort=&cursor&limit` product search (`mode=suggest` → autocomplete names); search-mode calls record `search_history` for authed users. |
+| `GET /api/v1/products` | Public product cards: `?categoryId=&shopId=&q=&minPriceVnd=&maxPriceVnd=&minRating=&inStock=&sort=&cursor=&limit` listing, or `?ids=a,b,c` for caller-ordered cards (recently-viewed rail). |
 
 Full request/response schemas: `docs/api/openapi.yaml`, kept honest by
 `tests/integration/openapi-coverage.test.ts` (every `route.ts` method must be
 documented and every spec path must exist).
 
-Planned (design spec §7): auth, profile/addresses, catalog, search, orders,
-seller/*, admin/*, reviews, notifications, internal cron (auto-complete),
-`/api/v1/ready` (DB ping returning only `{status}`).
+Planned (design spec §7): auth, profile/addresses, orders, seller/*, admin/*,
+reviews, notifications, internal cron (auto-complete), `/api/v1/ready` (DB
+ping returning only `{status}`).
 
 ## Conventions (as implemented)
 
@@ -42,8 +44,9 @@ seller/*, admin/*, reviews, notifications, internal cron (auto-complete),
 - **Idempotency:** `POST /api/v1/checkout` requires an `Idempotency-Key`
   header (body `idempotencyKey` as fallback); records in
   `idempotency_records`, replays return the same `{orderId, sellerOrderIds}`.
-- **Pagination:** `?cursor&limit` cursor pagination, max limit 50. *(Planned —
-  the orders list uses `?cursor` internally via server-rendered pages.)*
+- **Pagination:** `?cursor&limit` cursor pagination, max limit 50 —
+  implemented on `/api/v1/search` and `/api/v1/products` (`nextCursor` null
+  ends the list).
 - **Admin:** `/api/v1/admin/*` will require the `ADMIN` role. *(Planned.)*
 - **Internal:** `/api/v1/internal/*` will be guarded by `INTERNAL_CRON_TOKEN`.
   *(Planned.)*

@@ -1,23 +1,23 @@
 import { ShoppingCartIcon, UserIcon } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { CartBadge } from "@/features/cart/cart-badge";
+import { SearchBox } from "@/features/catalog/search-box";
 import { Link } from "@/i18n/navigation";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
 import { getCart } from "@/server/modules/cart/service";
+import { listCategories } from "@/server/modules/catalog/service";
 import { LocaleSwitcher } from "./locale-switcher";
 import { ThemeSwitcher } from "./theme-switcher";
 
 export async function SiteHeader({ locale }: { locale: string }) {
   const tc = await getTranslations({ locale, namespace: "common" });
   const tn = await getTranslations({ locale, namespace: "nav" });
-  const ts = await getTranslations({ locale, namespace: "shell" });
 
   const actor = await getActor();
   const cartCount = actor ? getCart(getDb(), actor.userId).items.reduce((n, i) => n + i.qty, 0) : 0;
+  const topCategories = listCategories(getDb());
 
   return (
     <header className="border-b">
@@ -25,7 +25,8 @@ export async function SiteHeader({ locale }: { locale: string }) {
         <Link href="/" className="text-lg font-semibold">
           {tc("appName")}
         </Link>
-        <nav className="flex items-center gap-1 text-sm">
+        <SearchBox />
+        <nav className="hidden items-center gap-1 text-sm md:flex">
           <Link href="/seller" className={buttonVariants({ variant: "ghost", size: "sm" })}>
             {tn("sellerCenter")}
           </Link>
@@ -34,18 +35,6 @@ export async function SiteHeader({ locale }: { locale: string }) {
           </Link>
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <div className="relative hidden sm:block">
-            <Input
-              type="search"
-              placeholder={ts("searchPlaceholder")}
-              disabled
-              className="w-48"
-              aria-label={ts("searchPlaceholder")}
-            />
-            <Badge variant="secondary" className="absolute top-1/2 right-1 -translate-y-1/2">
-              {ts("planned")}
-            </Badge>
-          </div>
           <Link
             href="/cart"
             className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
@@ -70,6 +59,21 @@ export async function SiteHeader({ locale }: { locale: string }) {
           <ThemeSwitcher />
         </div>
       </div>
+      {topCategories.length > 0 && (
+        <nav className="border-t">
+          <div className="mx-auto flex max-w-5xl items-center gap-1 overflow-x-auto px-4 py-1 text-sm">
+            {topCategories.map((c) => (
+              <Link
+                key={c.id}
+                href={`/categories/${c.slug}`}
+                className="shrink-0 rounded-md px-2 py-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                {locale === "vi" ? c.nameVi : c.nameEn}
+              </Link>
+            ))}
+          </div>
+        </nav>
+      )}
     </header>
   );
 }

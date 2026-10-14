@@ -4,7 +4,7 @@ import { inArray } from "drizzle-orm";
 import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { redirect } from "@/i18n/navigation";
+import { Link, redirect } from "@/i18n/navigation";
 import { AuthError } from "@/server/api/errors";
 import { requireSeller } from "@/server/auth/actor";
 import type { Actor } from "@/server/auth/permissions";
@@ -27,6 +27,7 @@ export default async function SellerPage({ params }: { params: Promise<{ locale:
     shopIds.length > 0 ? getDb().select().from(shops).where(inArray(shops.id, shopIds)).all() : [];
 
   const tn = await getTranslations({ locale, namespace: "nav" });
+  const tSeller = await getTranslations({ locale, namespace: "seller" });
   const ts = await getTranslations({ locale, namespace: "shell" });
 
   return (
@@ -45,11 +46,10 @@ export default async function SellerPage({ params }: { params: Promise<{ locale:
         ))}
       </div>
       <div className="flex flex-wrap gap-4">
-        {[ts("productsPlanned"), ts("ordersPlanned")].map((label) => (
-          <Badge key={label} variant="outline">
-            {label}
-          </Badge>
-        ))}
+        <Badge variant="outline">
+          <Link href="/seller/products">{tSeller("productsTitle")}</Link>
+        </Badge>
+        <Badge variant="outline">{ts("ordersPlanned")}</Badge>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 # Implementation Plan
 
-**Status: In progress** — phases 0–2 complete. Phase numbers follow spec §26;
+**Status: In progress** — phases 0–2, 3 and 5 complete. Phase numbers follow spec §26;
 implementation order is risk-descending (0–2 → 5 → 6 → 7 → 3 → 4 → 8 → 9) per
 the design spec §11.
 
@@ -25,14 +25,19 @@ the design spec §11.
   fulfillment UI deferred to slice 3.)*
 - [ ] **Phase 7 — Returns and marketplace finance** — returns workflow,
   refunds, commission, ledger, settlements.
-- [ ] **Phase 3 — Catalog and discovery** — categories/brands/products/
+- [x] **Phase 3 — Catalog and discovery** — categories/brands/products/
   variants/images, search, filters, shop storefronts, product management,
-  moderation.
+  moderation. *(Shipped: homepage sections, category/shop/search pages,
+  `/api/v1/products` + `/api/v1/search` (incl. `mode=suggest`), seller
+  product CRUD + submit-for-review, admin moderation queue + category CRUD,
+  e2e coverage. Deferred: `product_attributes` management UI, search-history
+  UI, wishlists (Phase 4), reviews submission + moderation notifications
+  (Phase 8).)*
 - [ ] **Phase 4 — Cart, pricing, promotions** — ~~carts, server pricing
   engine, vouchers/promotions, checkout review screens.~~ *(Checkout-side
-  done: server cart + guest merge, pricing engine, vouchers at checkout,
-  review stepper. Standalone cart discovery/management UI remains with
-  Phase 3.)*
+  done: server cart + guest merge + cart page, pricing engine, vouchers at
+  checkout, review stepper. Remaining Phase 4 scope: promotions management
+  UI, wishlists.)*
 - [ ] **Phase 8 — Engagement and administration** — reviews, notifications,
   admin console, seller onboarding, analytics.
 - [ ] **Phase 9 — Quality and operational hardening** — coverage thresholds,
