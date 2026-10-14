@@ -302,6 +302,22 @@
       "NOT_FOUND": "Order not found",
       "INVALID_INPUT": "That action isn't allowed for the current status"
     },
+    "analyticsTitle": "Analytics",
+    "revenueTrendTitle": "Revenue (last 30 days)",
+    "bestSellersTitle": "Best sellers",
+    "bestSellersEmpty": "No sales yet.",
+    "colProduct": "Product",
+    "colUnits": "Units",
+    "metric": {
+      "gmvVnd": "Gross merchandise value",
+      "netSalesVnd": "Net sales",
+      "orderCount": "Orders",
+      "unitsSold": "Units sold",
+      "avgOrderValueVnd": "Avg order value",
+      "cancelRatePct": "Cancel rate",
+      "returnRatePct": "Return rate",
+      "lowStockCount": "Low-stock variants"
+    },
     "settingsTitle": "Shop settings",
     "errors": {
       "UNAUTHORIZED": "Please sign in",
@@ -643,6 +659,12 @@
       "FORBIDDEN": "You don't have access to this",
       "NOT_FOUND": "Not found",
       "INVALID_INPUT": "Please check the form fields"
+    }
+  },
+  "finance": {
+    "metric": {
+      "estimatedCommissionsVnd": "Estimated commissions",
+      "pendingSettlementVnd": "Pending settlement"
     }
   }
 }

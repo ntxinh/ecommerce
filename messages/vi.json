@@ -308,6 +308,22 @@
       "NOT_FOUND": "Không tìm thấy sản phẩm",
       "INVALID_INPUT": "Vui lòng kiểm tra lại — SKU trùng hoặc giá khuyến mãi cao hơn giá gốc"
     },
+    "analyticsTitle": "Phân tích",
+    "revenueTrendTitle": "Doanh thu (30 ngày qua)",
+    "bestSellersTitle": "Sản phẩm bán chạy",
+    "bestSellersEmpty": "Chưa có đơn bán.",
+    "colProduct": "Sản phẩm",
+    "colUnits": "Số lượng",
+    "metric": {
+      "gmvVnd": "Tổng giá trị hàng bán",
+      "netSalesVnd": "Doanh thu thuần",
+      "orderCount": "Đơn hàng",
+      "unitsSold": "Số lượng đã bán",
+      "avgOrderValueVnd": "Giá trị đơn trung bình",
+      "cancelRatePct": "Tỷ lệ hủy",
+      "returnRatePct": "Tỷ lệ trả hàng",
+      "lowStockCount": "Biến thể sắp hết hàng"
+    },
     "settingsTitle": "Cài đặt cửa hàng"
   },
   "admin": {
@@ -643,6 +659,12 @@
       "FORBIDDEN": "Bạn không có quyền truy cập",
       "NOT_FOUND": "Không tìm thấy",
       "INVALID_INPUT": "Vui lòng kiểm tra lại các trường"
+    }
+  },
+  "finance": {
+    "metric": {
+      "estimatedCommissionsVnd": "Hoa hồng ước tính",
+      "pendingSettlementVnd": "Đối soát đang chờ"
     }
   }
 }

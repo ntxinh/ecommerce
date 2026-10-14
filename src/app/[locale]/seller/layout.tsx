@@ -42,6 +42,9 @@ export default async function SellerLayout({
           <Link href="/seller/orders" className="block hover:underline">
             {tSeller("ordersTitle")}
           </Link>
+          <Link href="/seller/analytics" className="block hover:underline">
+            {tSeller("analyticsTitle")}
+          </Link>
           <Link href="/seller/returns" className="block hover:underline">
             {tr("queueTitle")}
           </Link>
