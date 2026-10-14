@@ -1,8 +1,10 @@
 import { mkdirSync, rmSync } from "node:fs";
+import { eq } from "drizzle-orm";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { AuthError } from "@/server/api/errors";
 import type { Actor } from "@/server/auth/permissions";
 import { type DB, getDb, migrateDb } from "@/server/db/client";
+import { promotions } from "@/server/db/schema";
 import { seedCatalog } from "@/server/db/seed/catalog";
 import { seedIdentity } from "@/server/db/seed/identity";
 import { createPromotion } from "@/server/modules/admin/ops";
@@ -107,6 +109,45 @@ describe("createPromotion permission gate", () => {
         }),
       ),
     ).toBe("NOT_FOUND");
+  });
+
+  it("enforces scope×kind, shop existence, and PRODUCT shop attribution", () => {
+    // C1: FLASH ⇔ FLASH_PRICE — every other combo would store but apply nothing.
+    expect(
+      errorCode(() =>
+        createPromotion(db, admin, { ...base, kind: "FLASH_PRICE", shopId: "shop_1" }),
+      ),
+    ).toBe("INVALID_INPUT");
+    expect(
+      errorCode(() =>
+        createPromotion(db, admin, {
+          scope: "FLASH",
+          kind: "PERCENT",
+          value: 500,
+          productId: "prod_1",
+          startsAt: base.startsAt,
+          endsAt: base.endsAt,
+        }),
+      ),
+    ).toBe("INVALID_INPUT");
+    // C3: nonexistent shopId is NOT_FOUND, not an FK 500.
+    expect(errorCode(() => createPromotion(db, admin, { ...base, shopId: "shop_nope" }))).toBe(
+      "NOT_FOUND",
+    );
+    // C2: PRODUCT promos are attributed to the product's own shop, so they list
+    // under the seller's /seller/promotions view.
+    const id = createPromotion(db, seller1, {
+      scope: "PRODUCT",
+      kind: "FIXED",
+      value: 1000,
+      productId: "prod_1", // prod_1 belongs to shop_1
+      shopId: "shop_2", // caller-supplied shop is ignored
+      startsAt: base.startsAt,
+      endsAt: base.endsAt,
+    });
+    const row = db.select().from(promotions).where(eq(promotions.id, id)).get();
+    expect(row?.shopId).toBe("shop_1");
+    expect(row?.productId).toBe("prod_1");
   });
 });
 

@@ -34,6 +34,10 @@ export function LoginForm({ next }: { next?: string }) {
       toast.warning(t("mergeFailed"));
     } else {
       guestClear();
+    }
+    if (state.wishlistMerged === false) {
+      toast.warning(t("wishlistMergeFailed"));
+    } else {
       wishlistClear();
     }
   }, [state, guestClear, wishlistClear, t]);

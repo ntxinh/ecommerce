@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,8 +31,14 @@ export function PromotionForm({
   const t = useTranslations("admin");
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [scope, setScope] = useState(scopes[0]);
+  const [kind, setKind] = useState<"PERCENT" | "FIXED" | "FLASH_PRICE">("PERCENT");
   const now = Date.now();
   const singleShop = shops?.length === 1;
+  // Mirrors the service guard: FLASH ⇔ FLASH_PRICE, else PERCENT/FIXED.
+  const kinds: readonly ("PERCENT" | "FIXED" | "FLASH_PRICE")[] =
+    scope === "FLASH" ? ["FLASH_PRICE"] : ["PERCENT", "FIXED"];
+  const effectiveKind = kinds.includes(kind) ? kind : kinds[0];
 
   return (
     <form
@@ -57,6 +63,7 @@ export function PromotionForm({
       <select
         name="scope"
         defaultValue={scopes[0]}
+        onChange={(e) => setScope(e.target.value as typeof scope)}
         className="h-9 rounded-md border bg-background px-2 text-sm"
         aria-label={t("promotions.fieldScope")}
       >
@@ -90,11 +97,12 @@ export function PromotionForm({
       ) : null}
       <select
         name="kind"
-        defaultValue="PERCENT"
+        value={effectiveKind}
+        onChange={(e) => setKind(e.target.value as typeof kind)}
         className="h-9 rounded-md border bg-background px-2 text-sm"
         aria-label={t("promotions.fieldKind")}
       >
-        {(["PERCENT", "FIXED", "FLASH_PRICE"] as const).map((k) => (
+        {kinds.map((k) => (
           <option key={k} value={k}>
             {t(`promotions.kind.${k}`)}
           </option>

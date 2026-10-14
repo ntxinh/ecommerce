@@ -12,6 +12,7 @@ import {
   orders,
   products,
   promotions,
+  shops,
   users,
   vouchers,
 } from "@/server/db/schema";
@@ -232,13 +233,36 @@ export function createPromotion(db: DB, actor: Actor | null, input: PromotionInp
     invalid("endsAt must be after startsAt");
   }
 
+  // Scope×kind contract: FLASH_PRICE only applies to FLASH rows, and FLASH rows
+  // discount nothing without it — every other combo would store as ACTIVE but
+  // never reduce a price.
+  if ((input.scope === "FLASH") !== (input.kind === "FLASH_PRICE")) {
+    invalid("FLASH scope requires FLASH_PRICE kind and vice versa");
+  }
+
   let a: Actor;
+  let resolvedShopId: string | null;
+  let resolvedProductId: string | null;
   if (input.scope === "FLASH") {
-    if (!input.productId) invalid("FLASH promotions need a productId");
+    const flashProductId: string = input.productId ?? "";
+    if (!flashProductId) invalid("FLASH promotions need a productId");
     a = requirePermission(actor, "admin:*");
+    const found = db
+      .select({ id: products.id })
+      .from(products)
+      .where(eq(products.id, flashProductId))
+      .get();
+    if (!found) throw new AuthError("NOT_FOUND", 404, "product not found");
+    resolvedShopId = null;
+    resolvedProductId = flashProductId;
   } else if (input.scope === "SHOP") {
-    if (!input.shopId) invalid("SHOP promotions need a shopId");
-    a = requirePermission(actor, "shop:manage", { shopId: input.shopId });
+    const shopId: string = input.shopId ?? "";
+    if (!shopId) invalid("SHOP promotions need a shopId");
+    const shop = db.select({ id: shops.id }).from(shops).where(eq(shops.id, shopId)).get();
+    if (!shop) throw new AuthError("NOT_FOUND", 404, "shop not found");
+    a = requirePermission(actor, "shop:manage", { shopId });
+    resolvedShopId = shopId;
+    resolvedProductId = null;
   } else {
     // PRODUCT
     const productId: string = input.productId ?? "";
@@ -250,15 +274,10 @@ export function createPromotion(db: DB, actor: Actor | null, input: PromotionInp
       .get();
     if (!product) throw new AuthError("NOT_FOUND", 404, "product not found");
     a = requirePermission(actor, "product:write", { shopId: product.shopId });
-  }
-
-  if (input.productId) {
-    const found = db
-      .select({ id: products.id })
-      .from(products)
-      .where(eq(products.id, input.productId))
-      .get();
-    if (!found) throw new AuthError("NOT_FOUND", 404, "product not found");
+    // Store the product's own shop so the row lists under /seller/promotions
+    // and can't be attributed to an unrelated shopId.
+    resolvedShopId = product.shopId;
+    resolvedProductId = productId;
   }
 
   const id = `prm_${ulid()}`;
@@ -267,8 +286,8 @@ export function createPromotion(db: DB, actor: Actor | null, input: PromotionInp
       .values({
         id,
         scope: input.scope,
-        shopId: input.shopId ?? null,
-        productId: input.productId ?? null,
+        shopId: resolvedShopId,
+        productId: resolvedProductId,
         kind: input.kind,
         value: input.value,
         startsAt: input.startsAt,
@@ -284,7 +303,7 @@ export function createPromotion(db: DB, actor: Actor | null, input: PromotionInp
         action: "promotion.create",
         targetType: "promotion",
         targetId: id,
-        metaJson: JSON.stringify({ scope: input.scope, shopId: input.shopId }),
+        metaJson: JSON.stringify({ scope: input.scope, shopId: resolvedShopId }),
         createdAt: Date.now(),
       })
       .run();

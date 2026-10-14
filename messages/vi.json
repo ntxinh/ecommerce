@@ -41,7 +41,8 @@
     "accountTitle": "Tài khoản",
     "wishlistLink": "Yêu thích của tôi",
     "toAccount": "Đi tới tài khoản",
-    "mergeFailed": "Không thể khôi phục giỏ hàng đã lưu"
+    "mergeFailed": "Không thể khôi phục giỏ hàng đã lưu",
+    "wishlistMergeFailed": "Không thể khôi phục danh sách yêu thích đã lưu"
   },
   "nav": {
     "storefront": "Cửa hàng",

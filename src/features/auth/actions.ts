@@ -30,7 +30,8 @@ export type ActionResult =
   | {
       ok: true;
       redirect?: string /** false ⇒ guest cart merge rejected; client keeps its cart */;
-      merged?: boolean;
+      merged?: boolean /** false ⇒ wishlist merge rejected; client keeps its list */;
+      wishlistMerged?: boolean;
     }
   | { ok: false; error: string; fieldErrors?: Record<string, string> };
 
@@ -99,6 +100,7 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
     }
   }
   // Guest-wishlist merge: same JSON-hidden-field contract as guestItems.
+  let wishlistMerged = true;
   const rawWl = String(formData.get("wishlistIds") ?? "");
   if (rawWl && rawWl !== "[]") {
     try {
@@ -108,10 +110,10 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
           mergeGuestWishlist(getDb(), user.id, wl.data.productIds);
         }
       } else {
-        merged = false;
+        wishlistMerged = false;
       }
     } catch {
-      merged = false;
+      wishlistMerged = false;
     }
   }
   // `next` is an internal path (e.g. /checkout) — reject anything else.
@@ -120,6 +122,7 @@ export async function loginAction(_prev: ActionState, formData: FormData): Promi
     ok: true,
     redirect: next.startsWith("/") && !next.startsWith("//") ? next : "/",
     merged,
+    wishlistMerged,
   };
 }
 

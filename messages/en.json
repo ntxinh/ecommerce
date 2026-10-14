@@ -41,7 +41,8 @@
     "accountTitle": "Account",
     "wishlistLink": "My wishlist",
     "toAccount": "Go to account",
-    "mergeFailed": "Your saved cart couldn't be restored"
+    "mergeFailed": "Your saved cart couldn't be restored",
+    "wishlistMergeFailed": "Your saved wishlist couldn't be restored"
   },
   "nav": {
     "storefront": "Shop",

@@ -344,7 +344,6 @@ export function ProductForm({
             <div className="space-y-1">
               <Label>{t("attributeName")}</Label>
               <Input
-                required
                 value={a.name}
                 onChange={(e) =>
                   setAttrs((rows) =>
@@ -356,7 +355,6 @@ export function ProductForm({
             <div className="space-y-1">
               <Label>{t("attributeValue")}</Label>
               <Input
-                required
                 value={a.value}
                 onChange={(e) =>
                   setAttrs((rows) =>
