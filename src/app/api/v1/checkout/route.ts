@@ -15,12 +15,17 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => {
       throw new AuthError("INVALID_INPUT", 400, "malformed JSON");
     });
-    const parsed = CheckoutInput.safeParse(body);
+    const raw = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+    // Idempotency-Key header wins; body field is the fallback. Either way it
+    // passes through the contract, so a short header fails the same validation.
+    const parsed = CheckoutInput.safeParse({
+      ...raw,
+      idempotencyKey: req.headers.get("Idempotency-Key") ?? raw.idempotencyKey,
+    });
     if (!parsed.success) throw new AuthError("INVALID_INPUT", 400);
-    const idempotencyKey = req.headers.get("Idempotency-Key") ?? parsed.data.idempotencyKey ?? "";
     const result = await placeOrder(getDb(), actor, {
       ...parsed.data,
-      idempotencyKey,
+      idempotencyKey: parsed.data.idempotencyKey ?? "",
     });
     return Response.json({ data: result }, { status: 201 });
   } catch (e) {

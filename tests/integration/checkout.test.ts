@@ -6,6 +6,7 @@ import type { AuthError } from "@/server/api/errors";
 import type { Actor } from "@/server/auth/permissions";
 import { type DB, getDb, migrateDb } from "@/server/db/client";
 import {
+  auditLogs,
   cartItems,
   inventory,
   orderItems,
@@ -21,14 +22,22 @@ import {
 import { seedCatalog } from "@/server/db/seed/catalog";
 import { SEEDED_AT, seedIdentity } from "@/server/db/seed/identity";
 import { addItem, updateQty } from "@/server/modules/cart/service";
+import { releaseReservation } from "@/server/modules/inventory/service";
 import { placeOrder } from "@/server/modules/orders/checkout";
 import { cancelOrder, getOrder, listOrders, retryPayment } from "@/server/modules/orders/service";
+import { transitionSellerOrder } from "@/server/modules/orders/transitions";
 import { priceOrder } from "@/server/modules/pricing/price-order";
 
 const PATH = "./tests/.tmp/checkout-test.db";
 const CUSTOMER: Actor = { userId: "usr_customer", roles: ["CUSTOMER"], memberships: [] };
 const OTHER: Actor = { userId: "usr_seller2", roles: ["CUSTOMER", "SELLER"], memberships: [] };
 const ADMIN: Actor = { userId: "usr_admin", roles: ["ADMIN"], memberships: [] };
+// var_6 lives in shop_2 — usr_seller2 owns it (SHOP1_OWNER belongs to shop_1).
+const SHOP2_OWNER: Actor = {
+  userId: "usr_seller2",
+  roles: ["SELLER"],
+  memberships: [{ shopId: "shop_2", role: "OWNER", permissions: [] }],
+};
 const ADDRESS = "addr_1"; // seeded default for usr_customer
 
 let db: DB;
@@ -300,5 +309,54 @@ describe("placeOrder", () => {
       expect(next.items.every((o) => !ids.has(o.id))).toBe(true);
     }
     expect(listOrders(db, OTHER, { limit: 50 }).items).toHaveLength(0);
+  });
+
+  it("cancels an unpaid wallet order even with seller_orders present, freeing reservations", async () => {
+    const id = cartItemId("var_6", 1);
+    const res = await placeOrder(
+      db,
+      CUSTOMER,
+      baseInput([id], { paymentMethod: "MOCK_WALLET", simulate: "failure" }),
+    );
+    // Seller confirm on the unpaid parent is gated (422) — so the seller side
+    // can never pin an unpaid order open.
+    const so = db.select().from(sellerOrders).where(eq(sellerOrders.orderId, res.orderId)).get()!;
+    expect(await errorCode(() => transitionSellerOrder(db, so.id, "CONFIRMED", SHOP2_OWNER))).toBe(
+      "INVALID_INPUT",
+    );
+
+    const canc = await cancelOrder(db, CUSTOMER, res.orderId);
+    expect(canc.status).toBe("CANCELLED");
+    const key = db.select().from(orders).where(eq(orders.id, res.orderId)).get()!.idempotencyKey;
+    expect(reservationsFor(key).every((r) => r.status === "RELEASED")).toBe(true);
+  });
+
+  it("retry after a swept reservation commits PAYMENT_FAILED instead of wedging", async () => {
+    // var_2's cart line accumulated across earlier tests — reset to qty 1.
+    for (const p of db.select().from(cartItems).where(eq(cartItems.variantId, "var_2")).all()) {
+      db.delete(cartItems).where(eq(cartItems.id, p.id)).run();
+    }
+    const id = cartItemId("var_2", 1);
+    const res = await placeOrder(
+      db,
+      CUSTOMER,
+      baseInput([id], { paymentMethod: "MOCK_WALLET", simulate: "failure" }),
+    );
+    // Simulate the sweep: reservation expires before the customer retries.
+    const key = db.select().from(orders).where(eq(orders.id, res.orderId)).get()!.idempotencyKey;
+    for (const r of reservationsFor(key)) {
+      releaseReservation(db, r.id, "sweep_test");
+    }
+    const out = await retryPayment(db, CUSTOMER, res.orderId, "success");
+    expect(out.status).toBe("PAYMENT_FAILED");
+    expect(db.select().from(orders).where(eq(orders.id, res.orderId)).get()!.status).toBe(
+      "PAYMENT_FAILED",
+    );
+    const audit = db
+      .select()
+      .from(auditLogs)
+      .where(and(eq(auditLogs.targetId, res.orderId), eq(auditLogs.action, "payment.stock_lost")))
+      .all();
+    expect(audit).toHaveLength(1);
   });
 });

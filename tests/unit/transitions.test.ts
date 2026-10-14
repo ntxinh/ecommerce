@@ -178,4 +178,25 @@ describe("transitionSellerOrder against a real DB", () => {
       "FORBIDDEN",
     );
   });
+
+  it("blocks forward fulfillment while the parent order is unpaid", () => {
+    const orderId = insertOrder("PENDING_PAYMENT");
+    const soId = insertSellerOrder(orderId, "NEW");
+    expect(errorCode(() => transitionSellerOrder(db, soId, "CONFIRMED", SHOP1_OWNER))).toBe(
+      "INVALID_INPUT",
+    );
+    // CANCELLED isn't a forward move — the parent's owner can still cancel it.
+    expect(transitionSellerOrder(db, soId, "CANCELLED", OWNER).status).toBe("CANCELLED");
+  });
+
+  it("honours covers() prefix grants: STAFF with order:* can progress a paid order", () => {
+    const staff: Actor = {
+      userId: "usr_seller",
+      roles: ["SELLER"],
+      memberships: [{ shopId: "shop_1", role: "STAFF", permissions: ["order:*"] }],
+    };
+    const orderId = insertOrder("PAID");
+    const soId = insertSellerOrder(orderId, "NEW");
+    expect(transitionSellerOrder(db, soId, "CONFIRMED", staff).status).toBe("CONFIRMED");
+  });
 });

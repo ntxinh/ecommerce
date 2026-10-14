@@ -3,7 +3,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
-import type { Actor } from "@/server/auth/permissions";
+import { type Actor, requirePermission } from "@/server/auth/permissions";
 import type { DB } from "@/server/db/client";
 import { auditLogs, orders, sellerOrders } from "@/server/db/schema";
 
@@ -54,6 +54,28 @@ export function canTransitionSellerOrder(from: SellerOrderStatus, to: SellerOrde
   return SELLER_ORDER_TRANSITIONS[from].includes(to);
 }
 
+/** Parent statuses that allow seller-fulfillment progress — anything where the
+ *  order has been paid or shipped (partners can't move an unpaid order). */
+const PAID_PARENT: ReadonlySet<OrderStatus> = new Set([
+  "PAID",
+  "PROCESSING",
+  "SHIPPED",
+  "DELIVERED",
+  "COMPLETED",
+  "PARTIALLY_REFUNDED",
+  "REFUNDED",
+]);
+
+/** Seller-order targets that move fulfillment forward; CANCELLED/RETURN_* are
+ *  excluded so owner-cancel and returns still work regardless of parent. */
+const FORWARD_SELLER: ReadonlySet<SellerOrderStatus> = new Set([
+  "CONFIRMED",
+  "PACKING",
+  "READY_TO_SHIP",
+  "SHIPPED",
+  "DELIVERED",
+  "COMPLETED",
+]);
 /**
  * Applies a parent-order transition inside the caller's store/tx: legality
  * check → status update → `audit_logs` row. `actor: null` marks system-initiated
@@ -104,16 +126,13 @@ export function transitionSellerOrder(
 ) {
   const so = tx.select().from(sellerOrders).where(eq(sellerOrders.id, sellerOrderId)).get();
   if (!so) throw new AuthError("NOT_FOUND", 404, "seller order not found");
+  const parent = tx.select().from(orders).where(eq(orders.id, so.orderId)).get();
   if (actor && !actor.roles.includes("ADMIN")) {
-    const m = actor.memberships.find((x) => x.shopId === so.shopId);
-    const allowed =
-      m?.role === "OWNER" || m?.permissions.some((g) => g === "*" || g === "order:write");
-    if (!allowed) {
+    try {
+      requirePermission(actor, "order:write", { shopId: so.shopId });
+    } catch (e) {
       // Only non-seller path: the parent order's owner cancelling their own.
-      const parent = tx.select().from(orders).where(eq(orders.id, so.orderId)).get();
-      if (!(to === "CANCELLED" && parent?.userId === actor.userId)) {
-        throw new AuthError("FORBIDDEN", 403);
-      }
+      if (!(to === "CANCELLED" && parent?.userId === actor.userId)) throw e;
     }
   }
   if (so.status === to) return so; // idempotent
@@ -122,6 +141,15 @@ export function transitionSellerOrder(
       "INVALID_INPUT",
       422,
       `seller order ${sellerOrderId} cannot transition ${so.status} → ${to}`,
+    );
+  }
+  // Seller fulfillment can't advance while the parent order is unpaid or
+  // dead — keeps unpaid orders cancellable and prevents orphan progress.
+  if (FORWARD_SELLER.has(to) && !(parent && PAID_PARENT.has(parent.status))) {
+    throw new AuthError(
+      "INVALID_INPUT",
+      422,
+      `cannot progress seller order ${sellerOrderId}: parent is ${parent?.status ?? "missing"}`,
     );
   }
   const now = Date.now();

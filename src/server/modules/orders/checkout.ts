@@ -132,7 +132,10 @@ export async function dispatchWalletPayment(
   const paymentStatus: "PAID" | "FAILED" =
     (await provider.confirm({ ref })) === "PAID" ? "PAID" : "FAILED";
 
-  db.transaction((tx) => {
+  // A reservation gone non-ACTIVE (swept/expired/released while the payment
+  // was pending) means the stock is lost — the order must still commit a
+  // terminal-for-now state, never roll back into a stuck PENDING_PAYMENT.
+  const outcome = db.transaction((tx): "PAID" | "PAYMENT_FAILED" => {
     const now = Date.now();
     tx.update(paymentAttempts)
       .set({ status: paymentStatus })
@@ -142,33 +145,57 @@ export async function dispatchWalletPayment(
       .set({ status: paymentStatus, updatedAt: now })
       .where(eq(payments.id, paymentId))
       .run();
-    if (paymentStatus === "PAID") {
-      transitionOrder(tx, orderId, "PAID", null);
-      const orderKey = tx
-        .select({ k: orders.idempotencyKey })
-        .from(orders)
-        .where(eq(orders.id, orderId))
-        .get()!.k;
-      for (const line of tx
-        .select({ variantId: orderItems.variantId })
-        .from(orderItems)
-        .where(eq(orderItems.orderId, orderId))
-        .all()) {
-        const res = tx
-          .select({ id: stockReservations.id })
-          .from(stockReservations)
-          .where(eq(stockReservations.idempotencyKey, lineKey(orderKey, line.variantId)))
-          .get();
-        // Expired/non-ACTIVE reservation → rollback; order stays PENDING_PAYMENT.
-        if (res) consumeReservation(tx, res.id);
-      }
-    } else {
+    if (paymentStatus !== "PAID") {
       transitionOrder(tx, orderId, "PAYMENT_FAILED", null);
+      return "PAYMENT_FAILED";
     }
+    const orderKey = tx
+      .select({ k: orders.idempotencyKey })
+      .from(orders)
+      .where(eq(orders.id, orderId))
+      .get()!.k;
+    let stockLost: string | null = null;
+    for (const line of tx
+      .select({ variantId: orderItems.variantId })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId))
+      .all()) {
+      const res = tx
+        .select()
+        .from(stockReservations)
+        .where(eq(stockReservations.idempotencyKey, lineKey(orderKey, line.variantId)))
+        .get();
+      // CONSUMED is fine (already converted); RELEASED/EXPIRED/missing → stock lost.
+      if (!res || res.status === "RELEASED" || res.status === "EXPIRED") {
+        stockLost = `${line.variantId} reservation ${res?.id ?? "missing"} (${res?.status ?? "none"})`;
+        break;
+      }
+      if (res.status === "ACTIVE") consumeReservation(tx, res.id);
+    }
+    if (stockLost) {
+      // Payment captured but stock is gone — flag PAYMENT_FAILED so the order
+      // is retryable/cancellable instead of wedged (payment stays PAID; cancel
+      // refunds it via the adapter).
+      transitionOrder(tx, orderId, "PAYMENT_FAILED", null);
+      tx.insert(auditLogs)
+        .values({
+          id: `aud_${ulid()}`,
+          actorId: null,
+          action: "payment.stock_lost",
+          targetType: "order",
+          targetId: orderId,
+          metaJson: JSON.stringify({ detail: stockLost }),
+          createdAt: now,
+        })
+        .run();
+      return "PAYMENT_FAILED";
+    }
+    transitionOrder(tx, orderId, "PAID", null);
+    return "PAID";
   });
   return {
     paymentStatus,
-    orderStatus: paymentStatus === "PAID" ? "PAID" : "PAYMENT_FAILED",
+    orderStatus: outcome,
   };
 }
 
