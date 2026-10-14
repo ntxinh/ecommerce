@@ -163,7 +163,13 @@ function encodeCursor(c: Cursor): string {
 function decodeCursor(raw: string, sort: ProductSort): Cursor {
   try {
     const c = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as Cursor;
-    if (c.s !== sort || typeof c.i !== "string") throw new Error("bad cursor");
+    const num = (x: unknown) => typeof x === "number" && Number.isFinite(x);
+    const ok =
+      c.s === sort &&
+      typeof c.i === "string" &&
+      c.i.length > 0 &&
+      (sort === "newest" ? num(c.c) : sort === "rating" ? num(c.v) && num(c.c) : num(c.v));
+    if (!ok) throw new Error("bad cursor");
     return c;
   } catch {
     throw new AuthError("INVALID_INPUT", 400, "invalid cursor");
@@ -336,7 +342,7 @@ export function listProducts(
   if (opts.minPriceVnd != null) having.push(gte(minPrice, opts.minPriceVnd));
   if (opts.maxPriceVnd != null) having.push(lte(minPrice, opts.maxPriceVnd));
   if (opts.inStock != null) {
-    having.push(opts.inStock ? gt(availSql, 0) : eq(availSql, 0));
+    having.push(opts.inStock ? gt(availSql, 0) : lte(availSql, 0));
   }
   if (opts.cursor) {
     const p = afterPredicate(sort, decodeCursor(opts.cursor, sort));
@@ -424,10 +430,12 @@ export function getProductBySlug(db: DB, slug: string): ProductDetail {
     .where(
       and(
         eq(promotions.scope, "FLASH"),
+        // FLASH_PRICE only — a FLASH-scoped PERCENT promo stores bps, not VND.
+        eq(promotions.kind, "FLASH_PRICE"),
         eq(promotions.productId, row.product.id),
         eq(promotions.status, "ACTIVE"),
         lte(promotions.startsAt, now),
-        gte(promotions.endsAt, now),
+        gt(promotions.endsAt, now),
       ),
     )
     .orderBy(asc(promotions.value))
@@ -528,16 +536,18 @@ export function getHomepageData(db: DB): HomepageData {
     .select({
       productId: products.id,
       flashPriceVnd: sql<number>`min(${promotions.value})`.mapWith(Number),
-      flashEndsAt: sql<number>`max(${promotions.endsAt})`.mapWith(Number),
+      // Earliest expiry among the product's active FLASH_PRICE promos.
+      flashEndsAt: sql<number>`min(${promotions.endsAt})`.mapWith(Number),
     })
     .from(promotions)
     .innerJoin(products, eq(products.id, promotions.productId))
     .where(
       and(
         eq(promotions.scope, "FLASH"),
+        eq(promotions.kind, "FLASH_PRICE"),
         eq(promotions.status, "ACTIVE"),
         lte(promotions.startsAt, now),
-        gte(promotions.endsAt, now),
+        gt(promotions.endsAt, now),
         eq(products.status, "ACTIVE"),
       ),
     )

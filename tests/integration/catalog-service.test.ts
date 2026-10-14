@@ -145,6 +145,26 @@ describe("listProducts", () => {
       listProducts(db, { sort: "price_asc", limit: 2, cursor: p1.nextCursor! }),
     ).toThrow();
   });
+
+  it("rejects malformed cursors instead of silently resetting to page 1", () => {
+    const encode = (o: unknown) => Buffer.from(JSON.stringify(o), "utf8").toString("base64url");
+    // missing sort key v for a price sort
+    expect(() =>
+      listProducts(db, { sort: "price_asc", cursor: encode({ s: "price_asc", i: "x" }) }),
+    ).toThrowError(expect.objectContaining({ code: "INVALID_INPUT" }));
+    // wrong-typed key for newest
+    expect(() =>
+      listProducts(db, { sort: "newest", cursor: encode({ s: "newest", c: "x", i: "p" }) }),
+    ).toThrowError(expect.objectContaining({ code: "INVALID_INPUT" }));
+    // garbage payload
+    expect(() => listProducts(db, { cursor: "!!!" })).toThrowError(
+      expect.objectContaining({ code: "INVALID_INPUT" }),
+    );
+    // missing rating key v
+    expect(() =>
+      listProducts(db, { sort: "rating", cursor: encode({ s: "rating", c: 1, i: "p" }) }),
+    ).toThrowError(expect.objectContaining({ code: "INVALID_INPUT" }));
+  });
 });
 
 describe("getProductBySlug", () => {
