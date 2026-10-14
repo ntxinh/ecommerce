@@ -14,6 +14,7 @@ import {
   promotions,
   reviews,
   shops,
+  users,
 } from "@/server/db/schema";
 
 export type CategoryNode = {
@@ -329,6 +330,16 @@ export function listCategories(db: DB): CategoryNode[] {
   return roots;
 }
 
+/** Flat category row by slug. NOT_FOUND on missing — categories have no status. */
+export function getCategoryBySlug(
+  db: DB,
+  slug: string,
+): { id: string; slug: string; nameEn: string; nameVi: string } {
+  const row = db.select().from(categories).where(eq(categories.slug, slug)).get();
+  if (!row) throw new AuthError("NOT_FOUND", 404, "category not found");
+  return row;
+}
+
 export function listProducts(
   db: DB,
   opts: ListProductsOpts,
@@ -521,8 +532,8 @@ export function listShopProducts(
   return listProducts(db, { ...opts, shopId });
 }
 
-/** Cards for known ids, preserving the caller's ordering. */
-function cardsForIds(db: DB, ids: string[]): ProductCard[] {
+/** Cards for known ACTIVE ids, preserving the caller's ordering. */
+export function cardsForIds(db: DB, ids: string[]): ProductCard[] {
   if (!ids.length) return [];
   const rows = db
     .select(cardSelect)
@@ -530,7 +541,7 @@ function cardsForIds(db: DB, ids: string[]): ProductCard[] {
     .innerJoin(shops, eq(shops.id, products.shopId))
     .innerJoin(productVariants, eq(productVariants.productId, products.id))
     .leftJoin(inventory, eq(inventory.variantId, productVariants.id))
-    .where(inArray(products.id, ids))
+    .where(and(inArray(products.id, ids), eq(products.status, "ACTIVE")))
     .groupBy(products.id, shops.id)
     .all() as CardRow[];
   const byId = new Map(toCards(db, rows).map((c) => [c.id, c]));
@@ -610,5 +621,69 @@ export function getHomepageData(db: DB): HomepageData {
       trendingIds.map((r) => r.id),
     ),
     newest: listProducts(db, { sort: "newest", limit: 8 }),
+  };
+}
+
+// --- reviews ---------------------------------------------------------------
+
+export type ReviewView = {
+  id: string;
+  rating: number;
+  title: string | null;
+  body: string | null;
+  authorName: string;
+  createdAt: number;
+};
+
+// Same cursor convention as listProducts: base64url {c: createdAt, i: id},
+// ordered newest-first.
+type ReviewCursor = { c: number; i: string };
+
+function decodeReviewCursor(raw: string): ReviewCursor {
+  try {
+    const c = JSON.parse(Buffer.from(raw, "base64url").toString("utf8"));
+    if (typeof c?.c === "number" && typeof c?.i === "string" && c.i) return c;
+  } catch {}
+  throw new AuthError("INVALID_INPUT", 400, "malformed cursor");
+}
+
+/** PUBLISHED reviews for a product, newest first, keyset-paginated. */
+export function listProductReviews(
+  db: DB,
+  productId: string,
+  opts: { cursor?: string; limit?: number } = {},
+): { items: ReviewView[]; nextCursor: string | null } {
+  const limit = opts.limit ?? 10;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    throw new AuthError("INVALID_INPUT", 400, "limit must be an integer in 1..50");
+  }
+  const where: SQL[] = [eq(reviews.productId, productId), eq(reviews.status, "PUBLISHED")];
+  if (opts.cursor) {
+    const c = decodeReviewCursor(opts.cursor);
+    where.push(
+      or(lt(reviews.createdAt, c.c), and(eq(reviews.createdAt, c.c), lt(reviews.id, c.i)))!,
+    );
+  }
+  const rows = db
+    .select({
+      id: reviews.id,
+      rating: reviews.rating,
+      title: reviews.title,
+      body: reviews.body,
+      authorName: users.name,
+      createdAt: reviews.createdAt,
+    })
+    .from(reviews)
+    .innerJoin(users, eq(users.id, reviews.userId))
+    .where(and(...where))
+    .orderBy(desc(reviews.createdAt), desc(reviews.id))
+    .limit(limit + 1)
+    .all();
+  const page = rows.slice(0, limit);
+  const last = page[page.length - 1];
+  return {
+    items: page,
+    nextCursor:
+      rows.length > limit && last ? encodeCursor({ c: last.createdAt, i: last.id }) : null,
   };
 }

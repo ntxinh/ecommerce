@@ -257,6 +257,55 @@ paths:
                               type: string
         "400":
           $ref: "#/components/responses/InvalidInput"
+  /api/v1/products:
+    get:
+      summary: List product cards or fetch cards by ids
+      description: >-
+        Public, ACTIVE products only. `?ids=a,b,c` returns cards for exactly
+        those ids in the caller's order (max 50; used by the recently-viewed
+        rail). Without `ids`, the remaining params mirror listProducts
+        (categoryId includes descendants; price/rating apply to the min
+        effective variant price) for client-side cursor pagination.
+      parameters:
+        - in: query
+          name: ids
+          schema: { type: string, maxLength: 2000 }
+        - in: query
+          name: categoryId
+          schema: { type: string }
+        - in: query
+          name: shopId
+          schema: { type: string }
+        - in: query
+          name: q
+          schema: { type: string, maxLength: 200 }
+        - in: query
+          name: minPriceVnd
+          schema: { type: integer, minimum: 0 }
+        - in: query
+          name: maxPriceVnd
+          schema: { type: integer, minimum: 0 }
+        - in: query
+          name: minRating
+          schema: { type: number, minimum: 0, maximum: 5 }
+        - in: query
+          name: inStock
+          schema: { type: string, enum: ["true", "false"] }
+        - in: query
+          name: sort
+          schema: { type: string, enum: [newest, price_asc, price_desc, rating], default: newest }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: "{data: {items: ProductCard[], nextCursor}} — nextCursor null in ids mode."
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+
 components:
   responses:
     Unauthorized:
