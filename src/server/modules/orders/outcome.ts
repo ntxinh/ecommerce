@@ -108,6 +108,10 @@ export function persistPaymentOutcome(
           createdAt: now,
         })
         .run();
+      // The money is real even though the order wedged — book recognition so
+      // the ledger reflects the capture and the cancel path's clawbacks close
+      // against it instead of over-drawing the accounts.
+      postOrderRecognition(tx, orderId);
       return "PAYMENT_FAILED";
     }
     transitionOrder(tx, orderId, "PAID", null);

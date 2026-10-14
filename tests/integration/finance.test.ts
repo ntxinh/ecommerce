@@ -20,6 +20,7 @@ import { seedCatalog } from "@/server/db/seed/catalog";
 import { seedIdentity } from "@/server/db/seed/identity";
 import { addItem, clearCart } from "@/server/modules/cart/service";
 import { balance, type LedgerAccount, postOrderRecognition } from "@/server/modules/finance/ledger";
+import { releaseOrderReservations } from "@/server/modules/inventory/service";
 import { placeOrder } from "@/server/modules/orders/checkout";
 import {
   confirmSellerOrder,
@@ -29,7 +30,7 @@ import {
 } from "@/server/modules/orders/fulfillment";
 import { persistPaymentOutcome } from "@/server/modules/orders/outcome";
 import { decideReturn, requestReturn } from "@/server/modules/orders/returns";
-import { cancelOrder } from "@/server/modules/orders/service";
+import { cancelOrder, retryPayment } from "@/server/modules/orders/service";
 import { issueReturnRefunds } from "@/server/modules/payments/refunds";
 
 const PATH = "./tests/.tmp/finance-test.db";
@@ -98,6 +99,21 @@ async function paidOrder(variantId: string, qty: number) {
     shippingByShop: {},
     voucherCodes: [],
     paymentMethod: "MOCK_WALLET",
+    idempotencyKey: nextKey(),
+  });
+  const payment = db.select().from(payments).where(eq(payments.orderId, res.orderId)).get()!;
+  const so = db.select().from(sellerOrders).where(eq(sellerOrders.orderId, res.orderId)).all()[0];
+  return { ...res, payment, so };
+}
+
+/** COD order variant (payment stays PENDING — nothing captured). */
+async function codOrder(variantId: string, qty: number) {
+  const res = await placeOrder(db, CUSTOMER, {
+    cartItemIds: [cartItemId(variantId, qty)],
+    addressId: ADDRESS,
+    shippingByShop: {},
+    voucherCodes: [],
+    paymentMethod: "COD",
     idempotencyKey: nextKey(),
   });
   const payment = db.select().from(payments).where(eq(payments.orderId, res.orderId)).get()!;
@@ -233,11 +249,28 @@ describe("return refunds", () => {
     expect(db.select().from(returnRequests).where(eq(returnRequests.id, rrId)).get()!.status).toBe(
       "REFUNDED",
     );
+    // Partial claim: the leg settles back to COMPLETED so the remaining unit
+    // can still be returned within the window.
     expect(db.select().from(sellerOrders).where(eq(sellerOrders.id, so.id)).get()!.status).toBe(
-      "RETURNED",
+      "COMPLETED",
     );
     expect(orderStatus(orderId)).toBe("PARTIALLY_REFUNDED"); // 1 of 2 units refunded
     expect(paymentStatus(payment.id)).toBe("PAID"); // partially refunded
+    expect(globalInvariant()).toBe(0);
+
+    // Second in-window request on the COMPLETED leg claims the last unit →
+    // fully claimed leg lands RETURNED, order REFUNDED.
+    const rr2 = requestReturn(db, CUSTOMER, retInput(so.id, [{ orderItemId: item.id, qty: 1 }]));
+    await decideReturn(db, SHOP1_OWNER, rr2, "APPROVED");
+    expect(db.select().from(returnRequests).where(eq(returnRequests.id, rr2)).get()!.status).toBe(
+      "REFUNDED",
+    );
+    expect(db.select().from(sellerOrders).where(eq(sellerOrders.id, so.id)).get()!.status).toBe(
+      "RETURNED",
+    );
+    expect(orderStatus(orderId)).toBe("REFUNDED");
+    // Both units' line totals refunded; shipping never is → payment still PAID.
+    expect(paymentStatus(payment.id)).toBe("PAID");
     expect(globalInvariant()).toBe(0);
   });
 
@@ -264,6 +297,45 @@ describe("return refunds", () => {
       .at(-1)!;
     expect(mov.reason).toBe("return_restock");
     expect(mov.delta).toBe(1);
+    expect(mov.actorId).toBe(SHOP1_OWNER.userId);
+
+    // A repeat issue is a pure no-op: no second restock, no second row.
+    const again = db.transaction((tx) => issueReturnRefunds(tx, rrId, SHOP1_OWNER.userId));
+    expect(again).toHaveLength(0);
+    expect(onHand()).toBe(before + 1);
+  });
+
+  it("COD return settles in-tx: marker row, restock, request REFUNDED, no provider call needed", async () => {
+    const res = await codOrder("var_1", 1);
+    const so = db.select().from(sellerOrders).where(eq(sellerOrders.orderId, res.orderId)).all()[0];
+    confirmSellerOrder(db, SHOP1_OWNER, so.id);
+    packSellerOrder(db, SHOP1_OWNER, so.id);
+    shipSellerOrder(db, SHOP1_OWNER, so.id, { carrier: "ghn", trackingNumber: nextKey() });
+    deliverSellerOrder(db, SHOP1_OWNER, so.id);
+    const item = db.select().from(orderItems).where(eq(orderItems.sellerOrderId, so.id)).all()[0];
+    const onHand = () =>
+      db.select().from(inventory).where(eq(inventory.variantId, item.variantId)).get()!.onHand;
+    const before = onHand();
+
+    const rrId = requestReturn(
+      db,
+      CUSTOMER,
+      retInput(so.id, [{ orderItemId: item.id, qty: 1, restock: true }]),
+    );
+    await decideReturn(db, SHOP1_OWNER, rrId, "APPROVED");
+
+    expect(db.select().from(returnRequests).where(eq(returnRequests.id, rrId)).get()!.status).toBe(
+      "REFUNDED",
+    );
+    expect(db.select().from(sellerOrders).where(eq(sellerOrders.id, so.id)).get()!.status).toBe(
+      "RETURNED",
+    );
+    expect(onHand()).toBe(before + 1);
+    const rows = db.select().from(refunds).where(eq(refunds.paymentId, res.payment.id)).all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("COMPLETED"); // zero-amount marker — nothing captured
+    expect(rows[0].amountVnd).toBe(0);
+    expect(globalInvariant()).toBe(0); // COD: no recognition postings, nothing to claw back
   });
 
   it("duplicate issueReturnRefunds issues only one refunds row", async () => {
@@ -319,6 +391,49 @@ describe("cancellation refunds", () => {
     );
     expect(scopedSum(scoped, "REFUNDS_PAYABLE")).toBe(0);
     expect(paymentStatus(payment.id)).toBe("REFUNDED");
+    expect(globalInvariant()).toBe(0);
+  });
+});
+
+describe("stock-lost wedge", () => {
+  it("PAID capture with lost stock still posts recognition so the later cancel's clawbacks balance", async () => {
+    // Fail the first attempt → PAYMENT_FAILED, then free the reservations so
+    // the retry's successful capture wedges on missing stock.
+    const res = await placeOrder(db, CUSTOMER, {
+      cartItemIds: [cartItemId("var_2", 1)],
+      addressId: ADDRESS,
+      shippingByShop: {},
+      voucherCodes: [],
+      paymentMethod: "MOCK_WALLET",
+      idempotencyKey: nextKey(),
+      simulate: "failure",
+    });
+    const order = db.select().from(orders).where(eq(orders.id, res.orderId)).get()!;
+    const variantIds = db
+      .select({ variantId: orderItems.variantId })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, res.orderId))
+      .all()
+      .map((l) => l.variantId);
+    db.transaction((tx) =>
+      releaseOrderReservations(tx, order.idempotencyKey, variantIds, undefined, "test_release"),
+    );
+
+    const retry = await retryPayment(db, CUSTOMER, res.orderId, "success");
+    expect(retry.status).toBe("PAYMENT_FAILED"); // captured but stock gone
+    const payment = db.select().from(payments).where(eq(payments.orderId, res.orderId)).get()!;
+    expect(payment.status).toBe("PAID");
+
+    // Recognition posted despite the wedge — CP/SP/PR reflect the capture.
+    expect(orderEntries(res.orderId).filter((e) => e.refType === "ORDER").length).toBeGreaterThan(
+      0,
+    );
+
+    await cancelOrder(db, CUSTOMER, res.orderId);
+    const scoped = orderEntries(res.orderId);
+    expect(scopedSum(scoped, "CUSTOMER_PAYABLE")).toBe(0);
+    expect(scopedSum(scoped, "REFUNDS_PAYABLE")).toBe(0);
+    expect(scopedSum(scoped, "SELLER_PAYABLE") + scopedSum(scoped, "PLATFORM_REVENUE")).toBe(0);
     expect(globalInvariant()).toBe(0);
   });
 });

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { ulid } from "ulidx";
 import { AuthError } from "@/server/api/errors";
 import type { DB } from "@/server/db/client";
@@ -22,18 +22,25 @@ import {
   transitionSellerOrder,
 } from "@/server/modules/orders/transitions";
 
+/** Same holding statuses as requestReturn's gate: a live claim still counts
+ *  against the leg's returnable qty. */
+const QTY_HOLDING = ["PENDING", "APPROVED", "REFUNDED", "DISPUTED"] as const;
+
 /**
- * Inside the APPROVED-decision tx: books a PENDING refunds row per return item
- * of `returnRequestId` and posts its initiation entries. The UNIQUE index on
- * `refunds.return_item_id` is the dup-refund guard — a conflicting insert is
- * skipped and earns no postings. `restock` items go back on_hand immediately
- * with a `return_restock` movement. Money only moves when the order's payment
- * is PAID; COD/unpaid returns restock only. Returns the issued refunds so the
- * caller can dispatch provider refunds + completeRefund post-commit.
+ * Inside the APPROVED-decision tx: books a refunds row per return item of
+ * `returnRequestId`. Items whose payment never captured (COD/unpaid) or that
+ * refund nothing get a zero-amount COMPLETED marker — the UNIQUE index on
+ * `refunds.return_item_id` is the dup guard for rows AND restock, so a repeat
+ * issue is a pure no-op. `restock` items go back on_hand (movement actor =
+ * the deciding user). Money only moves on PAID payments. Returns the PENDING
+ * refunds so the caller dispatches provider refunds + completeRefund
+ * post-commit; a request whose items all settle without provider money
+ * (pure COD/zero) finalizes in-tx via settleReturnRequest.
  */
 export function issueReturnRefunds(
   tx: Tx,
   returnRequestId: string,
+  actorId?: string,
 ): { refundId: string; paymentId: string; amountVnd: number }[] {
   const request = tx
     .select()
@@ -49,37 +56,45 @@ export function issueReturnRefunds(
     .from(returnItems)
     .where(eq(returnItems.returnRequestId, returnRequestId))
     .all()) {
+    const needsRefund = payment?.status === "PAID" && item.refundVnd > 0;
+    let refundId: string | undefined;
+    if (payment) {
+      refundId = `rfd_${ulid()}`;
+      const res = tx
+        .insert(refunds)
+        .values({
+          id: refundId,
+          paymentId: payment.id,
+          returnItemId: item.id,
+          amountVnd: needsRefund ? item.refundVnd : 0,
+          // Marker rows settle in place: no money moved, nothing to dispatch.
+          status: needsRefund ? "PENDING" : "COMPLETED",
+          reason: needsRefund ? "return_approved" : "return_settled_no_payment",
+          createdAt: Date.now(),
+        })
+        .onConflictDoNothing({ target: refunds.returnItemId })
+        .run();
+      if (res.changes === 0) continue; // already issued — no restock, no postings
+    }
     if (item.restock) {
       const line = tx
         .select({ variantId: orderItems.variantId })
         .from(orderItems)
         .where(eq(orderItems.id, item.orderItemId))
         .get()!;
-      adjustStockTx(tx, line.variantId, item.qty, "return_restock");
+      adjustStockTx(tx, line.variantId, item.qty, "return_restock", actorId);
     }
-    if (!payment || payment.status !== "PAID" || item.refundVnd <= 0) continue;
-    const refundId = `rfd_${ulid()}`;
-    const res = tx
-      .insert(refunds)
-      .values({
-        id: refundId,
-        paymentId: payment.id,
-        returnItemId: item.id,
+    if (needsRefund && refundId) {
+      postRefundInitiation(tx, {
+        refundId,
+        sellerOrderId: request.sellerOrderId,
         amountVnd: item.refundVnd,
-        status: "PENDING",
-        reason: "return_approved",
-        createdAt: Date.now(),
-      })
-      .onConflictDoNothing({ target: refunds.returnItemId })
-      .run();
-    if (res.changes === 0) continue; // already refunded for this line — no double postings
-    postRefundInitiation(tx, {
-      refundId,
-      sellerOrderId: request.sellerOrderId,
-      amountVnd: item.refundVnd,
-    });
-    pending.push({ refundId, paymentId: payment.id, amountVnd: item.refundVnd });
+      });
+      pending.push({ refundId, paymentId: payment!.id, amountVnd: item.refundVnd });
+    }
   }
+  // Nothing pending (pure COD / zero-amount request) → settle immediately.
+  if (pending.length === 0) settleReturnRequest(tx, request);
   return pending;
 }
 
@@ -137,6 +152,70 @@ export function markPaymentRefundedIfComplete(tx: Tx, paymentId: string): void {
 }
 
 /**
+ * Once every item of an APPROVED request has a COMPLETED refunds row (real or
+ * zero-amount marker): request → REFUNDED, and the leg lands RETURNED when
+ * its purchased qty is fully claimed by holding requests, else COMPLETED so
+ * the remaining qty can still be returned inside the window.
+ */
+function settleReturnRequest(tx: Tx, request: typeof returnRequests.$inferSelect): void {
+  const items = tx
+    .select({ id: returnItems.id })
+    .from(returnItems)
+    .where(eq(returnItems.returnRequestId, request.id))
+    .all();
+  const done = items.every(
+    (ri) =>
+      tx
+        .select({ status: refunds.status })
+        .from(refunds)
+        .where(eq(refunds.returnItemId, ri.id))
+        .get()?.status === "COMPLETED",
+  );
+  if (!done) return;
+  tx.update(returnRequests)
+    .set({ status: "REFUNDED" })
+    .where(eq(returnRequests.id, request.id))
+    .run();
+
+  const so = tx.select().from(sellerOrders).where(eq(sellerOrders.id, request.sellerOrderId)).get();
+  if (!so) return;
+  // The leg is done returning only when nothing sellable remains — count qty
+  // claimed by all holding requests, not just this one.
+  const holdingIds = tx
+    .select({ id: returnRequests.id })
+    .from(returnRequests)
+    .where(
+      and(
+        eq(returnRequests.sellerOrderId, so.id),
+        inArray(returnRequests.status, [...QTY_HOLDING]),
+      ),
+    )
+    .all()
+    .map((r) => r.id);
+  const claimed: Record<string, number> = {};
+  if (holdingIds.length) {
+    for (const l of tx
+      .select({ orderItemId: returnItems.orderItemId, qty: returnItems.qty })
+      .from(returnItems)
+      .where(inArray(returnItems.returnRequestId, holdingIds))
+      .all()) {
+      claimed[l.orderItemId] = (claimed[l.orderItemId] ?? 0) + l.qty;
+    }
+  }
+  const fullyClaimed = tx
+    .select({ id: orderItems.id, qty: orderItems.qty })
+    .from(orderItems)
+    .where(eq(orderItems.sellerOrderId, so.id))
+    .all()
+    .every((l) => (claimed[l.id] ?? 0) >= l.qty);
+  if (so.status === "RETURN_REQUESTED") {
+    transitionSellerOrder(tx, so.id, fullyClaimed ? "RETURNED" : "COMPLETED", null);
+  } else if (fullyClaimed && so.status === "COMPLETED") {
+    transitionSellerOrder(tx, so.id, "RETURNED", null);
+  }
+}
+
+/**
  * After the provider confirms the money returned: PENDING → COMPLETED, closing
  * postings (REFUNDS_PAYABLE −x, CUSTOMER_PAYABLE −x), payment → REFUNDED when
  * its completed refunds cover the captured amount, return request → REFUNDED
@@ -169,33 +248,7 @@ export function completeRefund(db: DB, refundId: string): void {
       .from(returnRequests)
       .where(eq(returnRequests.id, item.returnRequestId))
       .get()!;
-    const siblings = tx
-      .select({ returnItemId: returnItems.id })
-      .from(returnItems)
-      .where(eq(returnItems.returnRequestId, request.id))
-      .all();
-    const requestDone = siblings.every(
-      (ri) =>
-        tx
-          .select({ status: refunds.status })
-          .from(refunds)
-          .where(eq(refunds.returnItemId, ri.returnItemId))
-          .get()?.status === "COMPLETED",
-    );
-    if (requestDone) {
-      tx.update(returnRequests)
-        .set({ status: "REFUNDED" })
-        .where(eq(returnRequests.id, request.id))
-        .run();
-      const so = tx
-        .select({ status: sellerOrders.status })
-        .from(sellerOrders)
-        .where(eq(sellerOrders.id, request.sellerOrderId))
-        .get();
-      if (so?.status === "RETURN_REQUESTED") {
-        transitionSellerOrder(tx, request.sellerOrderId, "RETURNED", null);
-      }
-    }
+    settleReturnRequest(tx, request);
 
     // Parent order: REFUNDED when completed refunds cover every order line's
     // purchased qty, else PARTIALLY_REFUNDED — only when a legal edge exists

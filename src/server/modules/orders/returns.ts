@@ -221,7 +221,7 @@ export async function decideReturn(
       .run();
 
     if (decision === "APPROVED") {
-      return issueReturnRefunds(tx, id);
+      return issueReturnRefunds(tx, id, actor.userId);
     }
     if (so.status === "RETURN_REQUESTED") {
       transitionSellerOrder(tx, so.id, "COMPLETED", actor);
@@ -237,13 +237,17 @@ export async function decideReturn(
       .from(payments)
       .where(eq(payments.id, p.paymentId))
       .get()!.method;
-    await paymentProviderFor(method).refund({
+    // Only a provider-confirmed REFUNDED closes the booking — anything else
+    // leaves the refund PENDING and the earmark open for a later retry.
+    const status = await paymentProviderFor(method).refund({
       ref: settledPaymentRef(db, p.paymentId),
       amountVnd: p.amountVnd,
+      refundId: p.refundId,
     });
-    completeRefund(db, p.refundId);
+    if (status === "REFUNDED") completeRefund(db, p.refundId);
   }
 }
+
 /** Buyer escalates a REJECTED request to DISPUTED for admin adjudication. */
 export function disputeReturn(db: DB, actor: Actor, id: string): void {
   db.transaction((tx) => {

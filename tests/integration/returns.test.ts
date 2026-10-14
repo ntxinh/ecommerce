@@ -285,7 +285,7 @@ describe("decideReturn / disputeReturn", () => {
       "INVALID_STATE",
     );
     decideReturn(db, ADMIN, id, "APPROVED", "evidence accepted");
-    expect(rr(id).status).toBe("APPROVED");
+    expect(rr(id).status).toBe("REFUNDED"); // COD: marker row completes immediately
     expect(rr(id).decidedBy).toBe(ADMIN.userId);
   });
 
@@ -299,7 +299,7 @@ describe("decideReturn / disputeReturn", () => {
     }
 
     decideReturn(db, SHOP1_OWNER, id, "APPROVED");
-    expect(rr(id).status).toBe("APPROVED");
+    expect(rr(id).status).toBe("REFUNDED"); // COD: marker row completes immediately
     expect(await errorCode(() => decideReturn(db, SHOP1_OWNER, id, "REJECTED"))).toBe(
       "INVALID_STATE",
     );
