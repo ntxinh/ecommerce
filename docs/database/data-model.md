@@ -1,9 +1,9 @@
 # Data Model
 
 **Status: Partially implemented** — identity, sellers, settings, addresses,
-catalog (+ images/attributes), reviews, inventory, pricing, cart,
-orders/payments/shipments, idempotency and audit tables exist
-(`drizzle/0000_*.sql` … `0005_*.sql`). Remaining groups (returns,
+catalog (+ images/attributes/moderation), reviews, search history, inventory,
+pricing, cart, orders/payments/shipments, idempotency and audit tables exist
+(`drizzle/0000_*.sql` … `0007_*.sql`). Remaining groups (returns,
 notifications, ledger/settlements, wishlists) are Planned per the roadmap.
 
 ## Conventions
@@ -114,6 +114,7 @@ erDiagram
   products ||--o{ product_images : has
   product_variants ||--o{ product_images : "variant_id (nullable)"
   products ||--o{ product_attributes : has
+  products ||--o{ product_moderations : audited
   products ||--o{ reviews : rated
   order_items |o--o| reviews : "order_item_id UK (nullable)"
   users ||--o{ reviews : writes
@@ -140,7 +141,8 @@ erDiagram
     text name_vi
     text description_en
     text description_vi
-    text status "DRAFT|ACTIVE|ARCHIVED"
+    text status "DRAFT|ACTIVE|ARCHIVED — seller-facing lifecycle"
+    text moderation_status "NONE|SUBMITTED|APPROVED|REJECTED|SUSPENDED — admin gate, default NONE"
     integer created_at
   }
   product_variants {
@@ -181,6 +183,31 @@ erDiagram
     integer created_at
   }
 ```
+`product_moderations(id, product_id→products cascade, actor_id, action
+"SUBMIT|APPROVE|REJECT|SUSPEND", note, created_at)` is an append-only audit
+trail — every seller submission and admin decision lands a row. Public reads
+require `products.status='ACTIVE'` AND `moderation_status IN (NONE,APPROVED)`
+(`publicGate` in `catalog/service.ts`): seeded/legacy products never entered
+review and stay publishable, while everything that touched the pipeline is
+gated on a decision.
+
+## Search history
+
+```mermaid
+erDiagram
+  users ||--o{ search_history : queries
+
+  search_history {
+    text id PK
+    text user_id FK "cascade"
+    text query
+    integer created_at "indexed (user_id, created_at)"
+  }
+```
+
+Written by `GET /api/v1/search` for authenticated users only — guests never
+write. Powers future "recent searches" UI (deferred).
+
 
 ## Inventory
 
@@ -404,7 +431,7 @@ erDiagram
 ## Planned entity groups
 
 Per design spec §3: returns, notifications, financial_ledger_entries
-+ seller_settlements, wishlists, product moderations, search indexes.
++ seller_settlements, wishlists, search indexes.
 
 ## Migrations
 
