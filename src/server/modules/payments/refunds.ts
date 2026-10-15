@@ -21,6 +21,7 @@ import {
   transitionOrder,
   transitionSellerOrder,
 } from "@/server/modules/orders/transitions";
+import { trace } from "@/server/observability/trace";
 
 /** Same holding statuses as requestReturn's gate: a live claim still counts
  *  against the leg's returnable qty. */
@@ -37,7 +38,7 @@ const QTY_HOLDING = ["PENDING", "APPROVED", "REFUNDED", "DISPUTED"] as const;
  * post-commit; a request whose items all settle without provider money
  * (pure COD/zero) finalizes in-tx via settleReturnRequest.
  */
-export function issueReturnRefunds(
+function issueReturnRefundsImpl(
   tx: Tx,
   returnRequestId: string,
   actorId?: string,
@@ -97,6 +98,8 @@ export function issueReturnRefunds(
   if (pending.length === 0) settleReturnRequest(tx, request);
   return pending;
 }
+
+export const issueReturnRefunds = trace("returns.issueReturnRefunds", issueReturnRefundsImpl);
 
 /**
  * Books a PENDING cancellation refund (`returnItemId` null — the UNIQUE index

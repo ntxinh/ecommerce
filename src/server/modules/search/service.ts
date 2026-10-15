@@ -283,3 +283,32 @@ export function recordSearch(db: DB, userId: string, q: string) {
     .values({ id: `sh_${ulid()}`, userId, query: q.trim(), createdAt: Date.now() })
     .run();
 }
+
+/**
+ * Most-recent distinct queries for the header dropdown (up to `limit`).
+ * Two passes per row over history is fine — rows are few and the index is
+ * (userId, createdAt); ponytail: cap table growth upstream if this gets slow.
+ */
+export function listRecentSearches(db: DB, userId: string, limit = 8): string[] {
+  const rows = db
+    .select({ query: searchHistory.query })
+    .from(searchHistory)
+    .where(eq(searchHistory.userId, userId))
+    .orderBy(desc(searchHistory.createdAt), desc(searchHistory.id))
+    .limit(limit * 4)
+    .all();
+  const seen: Record<string, true> = {};
+  const out: string[] = [];
+  for (const r of rows) {
+    if (seen[r.query]) continue;
+    seen[r.query] = true;
+    out.push(r.query);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/** Deletes all search_history rows for the user ("clear recent searches"). */
+export function clearSearchHistory(db: DB, userId: string): void {
+  db.delete(searchHistory).where(eq(searchHistory.userId, userId)).run();
+}

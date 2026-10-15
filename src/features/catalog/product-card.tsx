@@ -1,6 +1,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { Card, CardContent } from "@/components/ui/card";
 import { RatingStars } from "@/features/catalog/rating-stars";
+import { WishlistButton } from "@/features/wishlist/wishlist-button";
 import { Link } from "@/i18n/navigation";
 import { formatVnd } from "@/lib/format";
 import type { ProductCard as ProductCardT } from "@/server/modules/catalog/service";
@@ -17,7 +18,8 @@ export function ProductCard({
   const t = useTranslations("storefront");
   const name = locale === "vi" ? product.nameVi : product.nameEn;
   return (
-    <Card className="overflow-hidden pt-0">
+    <Card className="relative overflow-hidden pt-0">
+      <WishlistButton productId={product.id} />
       <Link href={`/products/${product.slug}`} className="block">
         {product.imageUrl ? (
           <img

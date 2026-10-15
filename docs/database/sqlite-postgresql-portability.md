@@ -39,3 +39,13 @@ written to port to PostgreSQL without redesign.
    The LIKE tier heuristic in `modules/search` (name > sku/brand > description)
    is the upgrade seam for real FTS: `tsvector` over weighted fields +
    `ts_rank` ordering, same API shape.
+
+## Phase 9 additions
+
+- `sessions_expires_idx` (`sessions.expires_at`, migration 0011) — plain B-tree,
+  portable verbatim.
+- `refunds.return_item_id` is a nullable UNIQUE column — both SQLite and
+  Postgres treat NULLs as distinct, so multiple cancellation refunds per
+  payment stay allowed; no semantic change on port.
+- Branch grep: no `strftime`/`AUTOINCREMENT`/`julianday`/`unixepoch()` SQL in
+  new code; timestamps remain integer unixepoch ms.

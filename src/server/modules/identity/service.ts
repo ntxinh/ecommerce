@@ -8,6 +8,7 @@ import { revokeAllSessions } from "@/server/auth/sessions";
 import { generateToken, hashToken } from "@/server/auth/tokens";
 import type { DB } from "@/server/db/client";
 import { passwordResetTokens, userRoles, users } from "@/server/db/schema";
+import { notify } from "@/server/modules/notifications/service";
 
 export type User = typeof users.$inferSelect;
 
@@ -37,6 +38,7 @@ export async function register(
       .returning()
       .get();
     tx.insert(userRoles).values({ userId: user.id, role: "CUSTOMER" }).run();
+    notify(tx, user.id, "account", { title: "account.welcome" });
     return user;
   });
 }

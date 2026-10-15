@@ -39,13 +39,16 @@
     "verifyStatus": "Email status",
     "verifyPending": "Not verified",
     "accountTitle": "Account",
+    "wishlistLink": "My wishlist",
     "toAccount": "Go to account",
-    "mergeFailed": "Your saved cart couldn't be restored"
+    "mergeFailed": "Your saved cart couldn't be restored",
+    "wishlistMergeFailed": "Your saved wishlist couldn't be restored"
   },
   "nav": {
     "storefront": "Shop",
     "sellerCenter": "Seller Center",
     "admin": "Admin",
+    "sell": "Sell",
     "cart": "Cart",
     "account": "Account"
   },
@@ -57,15 +60,18 @@
   "shell": {
     "planned": "Planned",
     "searchPlaceholder": "Search products",
+    "clearHistory": "Clear history",
     "footerTagline": "Buy and sell anything",
     "catalogPlanned": "Planned: product catalog",
-    "metricsPlanned": "Planned: dashboard metrics",
-    "productsPlanned": "Planned: products",
-    "ordersPlanned": "Planned: orders",
-    "usersPlanned": "Planned: users",
     "moderationPlanned": "Planned: seller applications",
     "moderation": "Moderation queue",
-    "categories": "Categories"
+    "categories": "Categories",
+    "applications": "Applications",
+    "users": "Users",
+    "audit": "Audit log",
+    "orders": "Orders",
+    "settings": "Settings",
+    "vouchers": "Vouchers"
   },
   "catalog": {
     "fromPrice": "From",
@@ -199,7 +205,8 @@
       "RETURN_REQUESTED": "Return requested",
       "RETURNED": "Returned"
     },
-    "nextPage": "Older orders"
+    "nextPage": "Older orders",
+    "writeReview": "Write a review"
   },
   "seller": {
     "productsTitle": "Products",
@@ -249,6 +256,12 @@
     "variantSalePrice": "Sale price (₫)",
     "variantStock": "Stock",
     "variantAttrs": "Attributes (JSON)",
+    "attributes": "Specifications",
+    "attributesHint": "Spec-sheet rows shown on the product page (material, origin, …).",
+    "addAttribute": "Add attribute",
+    "removeAttribute": "Remove",
+    "attributeName": "Name",
+    "attributeValue": "Value",
     "save": "Save product",
     "saving": "Saving…",
     "ordersTitle": "Orders",
@@ -298,6 +311,37 @@
       "NOT_FOUND": "Order not found",
       "INVALID_INPUT": "That action isn't allowed for the current status"
     },
+    "analyticsTitle": "Analytics",
+    "revenueTrendTitle": "Revenue (last 30 days)",
+    "bestSellersTitle": "Best sellers",
+    "bestSellersEmpty": "No sales yet.",
+    "colProduct": "Product",
+    "colUnits": "Units",
+    "metric": {
+      "gmvVnd": "Gross merchandise value",
+      "netSalesVnd": "Net sales",
+      "orderCount": "Orders",
+      "unitsSold": "Units sold",
+      "avgOrderValueVnd": "Avg order value",
+      "cancelRatePct": "Cancel rate",
+      "returnRatePct": "Return rate",
+      "lowStockCount": "Low-stock variants"
+    },
+    "settingsTitle": "Shop settings",
+    "promotionsTitle": "Promotions",
+    "promotions": {
+      "title": "Shop promotions",
+      "empty": "No promotions yet.",
+      "colKind": "Kind",
+      "fieldValue": "Value (bps for PERCENT, VND otherwise)",
+      "colWindow": "Window",
+      "colStatus": "Status",
+      "kind": {
+        "PERCENT": "Percent",
+        "FIXED": "Fixed amount",
+        "FLASH_PRICE": "Flash price"
+      }
+    },
     "errors": {
       "UNAUTHORIZED": "Please sign in",
       "FORBIDDEN": "You can't manage products for this shop",
@@ -331,11 +375,141 @@
     "fieldSlug": "slug",
     "createCategory": "Create category",
     "queueEmpty": "Nothing awaiting review.",
+    "applicationsTitle": "Seller applications",
+    "applicationsHint": "Approve provisions the applicant's shop, OWNER membership, and SELLER role in one step.",
+    "appsEmpty": "No applications.",
+    "filterAll": "All",
+    "nextPage": "Next page",
+    "requestChanges": "Request changes",
+    "reactivate": "Reactivate",
+    "colStatus": "Status",
+    "appStatus": {
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "CHANGES_REQUESTED": "Changes requested"
+    },
+    "shopStatus": {
+      "ACTIVE": "Shop active",
+      "SUSPENDED": "Shop suspended"
+    },
     "errors": {
       "UNAUTHORIZED": "Please sign in",
       "FORBIDDEN": "Admin access required",
       "NOT_FOUND": "Record not found",
-      "INVALID_INPUT": "Action rejected — check the note or the item's current state"
+      "INVALID_INPUT": "Action rejected — check the note or the item's current state",
+      "INVALID_STATE": "That item was already decided"
+    },
+    "metric": {
+      "ordersToday": "Orders today",
+      "gmvVnd": "GMV (VND)",
+      "customers": "Customers",
+      "sellers": "Sellers",
+      "pendingApplications": "Pending applications",
+      "moderationQueue": "Moderation queue",
+      "pendingReturns": "Pending returns",
+      "lowStock": "Low stock variants"
+    },
+    "usersTitle": "Users",
+    "usersEmpty": "No users match.",
+    "searchUsers": "Search email or name",
+    "search": "Search",
+    "filter": "Filter",
+    "view": "View",
+    "colUser": "User",
+    "colRoles": "Roles",
+    "colCreated": "Created",
+    "colWhen": "When",
+    "colAction": "Action",
+    "colActor": "Actor",
+    "colTarget": "Target",
+    "colMeta": "Meta",
+    "revokeSessions": "Revoke sessions",
+    "memberships": "Shop memberships",
+    "noMemberships": "No shop memberships.",
+    "recentAudit": "Recent audit activity",
+    "auditTitle": "Audit log",
+    "auditEmpty": "No audit rows.",
+    "targetType": "Target type",
+    "targetId": "Target id",
+    "userStatus": {
+      "ACTIVE": "Active",
+      "SUSPENDED": "Suspended"
+    },
+    "ordersTitle": "Orders",
+    "ordersEmpty": "No orders match.",
+    "searchOrders": "Search order id or buyer email",
+    "colOrder": "Order",
+    "colBuyer": "Buyer",
+    "colTotal": "Total",
+    "colAttempt": "Attempt",
+    "colProviderRef": "Provider ref",
+    "orderStatus": {
+      "PENDING_PAYMENT": "Pending payment",
+      "PAID": "Paid",
+      "PROCESSING": "Processing",
+      "SHIPPED": "Shipped",
+      "DELIVERED": "Delivered",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled",
+      "PAYMENT_FAILED": "Payment failed",
+      "PARTIALLY_REFUNDED": "Partially refunded",
+      "REFUNDED": "Refunded"
+    },
+    "settingsTitle": "Platform settings",
+    "settingsHint": "Values are JSON — numbers, or objects like {\"standard\":15000}.",
+    "colKey": "Key",
+    "colValue": "Value",
+    "settingsSaved": "Setting saved",
+    "vouchersTitle": "Platform vouchers",
+    "vouchersEmpty": "No vouchers yet.",
+    "createVoucher": "Create voucher",
+    "fieldCode": "Code",
+    "fieldKind": "Kind",
+    "fieldValue": "Value (bps for PERCENT, VND otherwise)",
+    "fieldMinSpend": "Min spend (VND)",
+    "fieldMaxDiscount": "Max discount (VND)",
+    "fieldStarts": "Starts",
+    "fieldEnds": "Ends",
+    "fieldTotalLimit": "Total limit",
+    "fieldPerUserLimit": "Per-user limit",
+    "colCode": "Code",
+    "colKind": "Kind",
+    "colUsed": "Used",
+    "colWindow": "Window",
+    "voucherKind": {
+      "PERCENT": "Percent",
+      "FIXED": "Fixed amount",
+      "SHIPPING": "Shipping"
+    },
+    "voucherCreated": "Voucher created",
+    "promotions": {
+      "title": "Promotions",
+      "empty": "No promotions yet.",
+      "create": "Create promotion",
+      "created": "Promotion created",
+      "fieldScope": "Scope",
+      "fieldShop": "Shop id",
+      "fieldProduct": "Product id",
+      "fieldKind": "Kind",
+      "fieldValue": "Value (bps for PERCENT, VND otherwise)",
+      "fieldStarts": "Starts",
+      "fieldEnds": "Ends",
+      "colScope": "Scope",
+      "colTarget": "Target",
+      "colKind": "Kind",
+      "colWindow": "Window",
+      "colStatus": "Status",
+      "scope": {
+        "PRODUCT": "Product",
+        "SHOP": "Shop",
+        "FLASH": "Flash sale"
+      },
+      "kind": {
+        "PERCENT": "Percent",
+        "FIXED": "Fixed amount",
+        "FLASH_PRICE": "Flash price"
+      }
     }
   },
   "storefront": {
@@ -384,6 +558,171 @@
       "newest": "Newest",
       "popular": "Best sellers"
     },
-    "imageN": "Image {n}"
+    "imageN": "Image {n}",
+    "wishlist": {
+      "title": "My wishlist",
+      "empty": "Nothing saved yet — tap the heart on a product to keep it here.",
+      "add": "Save to wishlist",
+      "remove": "Remove from wishlist",
+      "toggleFailed": "Could not update the wishlist"
+    }
+  },
+  "returns": {
+    "requestReturn": "Request a return",
+    "requestSubmit": "Submit return request",
+    "requestsTitle": "Return requests",
+    "reason": "Reason",
+    "reasonPlaceholder": "Why are you returning this?",
+    "evidence": "Evidence URLs (optional)",
+    "evidencePlaceholder": "https://…, https://… (max 5)",
+    "qty": "Qty",
+    "restock": "Restock",
+    "dispute": "Dispute decision",
+    "queueTitle": "Return requests",
+    "queueEmpty": "No return requests.",
+    "filterPending": "Pending",
+    "filterAll": "All",
+    "nextPage": "Older",
+    "colRequest": "Request",
+    "colItems": "Items",
+    "colStatus": "Status",
+    "colRefund": "Refund",
+    "colActions": "Actions",
+    "colRefundId": "Refund",
+    "colPayment": "Payment",
+    "colReturnItem": "Return item",
+    "colAmount": "Amount",
+    "colDate": "Date",
+    "notePlaceholder": "Decision note (optional)",
+    "approve": "Approve",
+    "reject": "Reject",
+    "refundsTitle": "Refunds",
+    "refundsEmpty": "No refunds recorded.",
+    "disputedTitle": "Disputed returns",
+    "disputedHint": "Escalated requests awaiting admin adjudication — approve or reject.",
+    "disputedEmpty": "No disputed returns.",
+    "status": {
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "REFUNDED": "Refunded",
+      "DISPUTED": "Disputed"
+    },
+    "refundStatus": {
+      "PENDING": "Pending",
+      "COMPLETED": "Completed",
+      "FAILED": "Failed"
+    },
+    "errors": {
+      "UNAUTHORIZED": "Please sign in",
+      "FORBIDDEN": "You can't manage this return",
+      "NOT_FOUND": "Return request not found",
+      "INVALID_INPUT": "Check the quantities and reason",
+      "INVALID_STATE": "That action isn't allowed for the current status",
+      "RETURN_WINDOW_EXPIRED": "The return window has expired"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "empty": "No notifications yet.",
+    "account": {
+      "welcome": "Welcome to Marketflow — your account is ready."
+    },
+    "order": {
+      "created": "Order {orderId} placed — complete payment to confirm.",
+      "cancelled": "Order {orderId} was cancelled."
+    },
+    "payment": {
+      "paid": "Payment for order {orderId} confirmed.",
+      "failed": "Payment for order {orderId} failed — you can retry."
+    },
+    "shipment": {
+      "shipped": "Order {orderId} shipped (tracking {trackingNumber}).",
+      "delivered": "Order {orderId} was delivered."
+    },
+    "return": {
+      "approved": "Your return for order {orderId} was approved.",
+      "rejected": "Your return for order {orderId} was rejected."
+    },
+    "seller_application": {
+      "approved": "Your seller application for {shopName} was approved — your shop is live.",
+      "rejected": "Your seller application for {shopName} was rejected.",
+      "changes_requested": "Your seller application for {shopName} needs changes."
+    }
+  },
+  "reviews": {
+    "rating": "Rating",
+    "stars": "{count, plural, one {# star} other {# stars}}",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Summarize your experience",
+    "bodyLabel": "Review",
+    "bodyPlaceholder": "What did you like or dislike?",
+    "images": "Image URLs (optional)",
+    "imagesPlaceholder": "https://…, https://… (max 10)",
+    "submit": "Submit review",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "moderationTitle": "Review moderation",
+    "moderationHint": "Hide or restore reviews. Hidden reviews stop counting toward product ratings.",
+    "moderationEmpty": "No reviews yet.",
+    "notePlaceholder": "Moderation note (optional)",
+    "hide": "Hide",
+    "unhide": "Unhide",
+    "colProduct": "Product",
+    "colAuthor": "Author",
+    "colRating": "Rating",
+    "colReview": "Review",
+    "colStatus": "Status",
+    "colDate": "Date",
+    "colActions": "Actions",
+    "status": {
+      "PUBLISHED": "Published",
+      "HIDDEN": "Hidden"
+    },
+    "errors": {
+      "UNAUTHORIZED": "Please sign in",
+      "FORBIDDEN": "You can't review this item",
+      "NOT_FOUND": "Review not found",
+      "INVALID_INPUT": "Check the rating and fields — or the item was already reviewed"
+    }
+  },
+  "sellers": {
+    "title": "Become a seller",
+    "currentStatus": "Your application",
+    "decisionNote": "Reviewer note",
+    "fieldShopName": "Shop name",
+    "fieldDescription": "Description",
+    "fieldRegistration": "Business registration / tax ID",
+    "apply": "Submit application",
+    "applying": "Submitting…",
+    "saveShop": "Save shop",
+    "saving": "Saving…",
+    "status": {
+      "PENDING": "Pending review",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected",
+      "CHANGES_REQUESTED": "Changes requested"
+    },
+    "statusHint": {
+      "PENDING": "We're reviewing your application.",
+      "APPROVED": "Your shop is live — manage it from the Seller Center.",
+      "REJECTED": "Your application was rejected. You can update and apply again.",
+      "CHANGES_REQUESTED": "Update your application below and resubmit."
+    },
+    "errors": {
+      "UNAUTHORIZED": "Please sign in",
+      "FORBIDDEN": "You don't have access to this",
+      "NOT_FOUND": "Not found",
+      "INVALID_INPUT": "Please check the form fields"
+    }
+  },
+  "finance": {
+    "metric": {
+      "estimatedCommissionsVnd": "Estimated commissions",
+      "pendingSettlementVnd": "Pending settlement"
+    }
   }
 }

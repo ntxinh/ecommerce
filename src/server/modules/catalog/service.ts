@@ -637,6 +637,8 @@ export function getHomepageData(db: DB): HomepageData {
 
 export type ReviewView = {
   id: string;
+  /** Exposed so owner edit/delete affordances can gate on authorship. */
+  userId: string;
   rating: number;
   title: string | null;
   body: string | null;
@@ -678,6 +680,7 @@ export function listProductReviews(
   const rows = db
     .select({
       id: reviews.id,
+      userId: reviews.userId,
       rating: reviews.rating,
       title: reviews.title,
       body: reviews.body,

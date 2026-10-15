@@ -1,23 +1,9 @@
-import { expect, type Page, test } from "@playwright/test";
-
-const PASSWORD = "Marketflow123!";
+import { expect, test } from "@playwright/test";
+import { fillField, login, selectOption, signOut, submitForUrl, tap, tapToUrl } from "./helpers";
 
 // The cross-role journey publishes a product into shop_1 — serial keeps the
 // read-only tests' shop/category assertions immune to that write.
 test.describe.configure({ mode: "serial" });
-async function login(page: Page, email: string) {
-  await page.goto("/en/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(PASSWORD);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL("**/en");
-}
-
-async function logout(page: Page) {
-  await page.goto("/en/account");
-  await page.getByRole("button", { name: "Sign out" }).click();
-  await page.waitForURL("**/en/login");
-}
 
 test("homepage renders catalog sections", async ({ page }) => {
   await page.goto("/en");
@@ -43,17 +29,21 @@ test("search: autocomplete → results → product page", async ({ page }) => {
   // match, so the term must prefix "Ceramic Teapot").
   await expect(async () => {
     await box.fill("ceramic");
-    await expect(page.getByRole("option", { name: /Teapot/ })).toBeVisible({ timeout: 1500 });
-  }).toPass({ timeout: 20_000 });
+    await expect(page.getByRole("option", { name: /Teapot/ })).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 120_000 });
 
-  await page.getByRole("button", { name: "Search", exact: true }).click();
-  await page.waitForURL("**/en/search?q=ceramic**");
+  await tapToUrl(
+    page.getByRole("button", { name: "Search", exact: true }),
+    /\/en\/search\?q=ceramic/,
+  );
   await expect(page.getByRole("heading", { name: /Results for .ceramic./ })).toBeVisible();
   await expect(page.getByRole("link", { name: "Ceramic Teapot" }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Cotton Scarf" })).toBeHidden();
 
-  await page.getByRole("link", { name: "Ceramic Teapot" }).first().click();
-  await page.waitForURL("**/en/products/ceramic-teapot");
+  await tapToUrl(
+    page.getByRole("link", { name: "Ceramic Teapot" }).first(),
+    /\/en\/products\/ceramic-teapot/,
+  );
   await expect(page.getByRole("heading", { name: "Ceramic Teapot" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Saigon Crafts" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Reviews" })).toBeVisible();
@@ -68,9 +58,12 @@ test("category browse + price filter", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Straw Hat" }).first()).toBeVisible();
 
   // Max price 130000₫ hides Linen Shirt (from 299000₫), keeps scarf + hat.
-  await page.getByPlaceholder("Max").fill("130000");
-  await page.getByRole("button", { name: "Apply", exact: true }).click();
-  await page.waitForURL("**/en/categories/fashion?maxPriceVnd=130000**");
+  // FiltersBar submits a client navigation — retry until the URL lands.
+  await fillField(page.getByPlaceholder("Max"), "130000");
+  await tapToUrl(
+    page.getByRole("button", { name: "Apply", exact: true }),
+    /\/en\/categories\/fashion\?maxPriceVnd=130000/,
+  );
 
   await expect(page.getByRole("link", { name: "Cotton Scarf" }).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Straw Hat" }).first()).toBeVisible();
@@ -99,54 +92,57 @@ test("seller draft → submit → admin approve → publish → publicly visible
   await page.goto("/en/seller/products/new");
   await expect(page.getByRole("heading", { name: "New product" })).toBeVisible();
 
-  await page.getByLabel("Name (English)").fill(name);
-  await page.getByLabel("Name (Vietnamese)").fill("Đèn lồng E2E");
-  await page.getByLabel("Category").selectOption({ label: "Handicrafts" });
-  await page.getByLabel("Description (English)").fill("Paper lantern for e2e.");
+  await fillField(page.getByLabel("Name (English)"), name);
+  await fillField(page.getByLabel("Name (Vietnamese)"), "Đèn lồng E2E");
+  await selectOption(page.getByLabel("Category"), { label: "Handicrafts" });
+  await fillField(page.getByLabel("Description (English)"), "Paper lantern for e2e.");
 
-  await page.getByRole("button", { name: "Add variant" }).click();
+  const fields = page.locator("form .grid.gap-3 input");
+  await tap(page.getByRole("button", { name: "Add variant" }), () =>
+    expect(fields.nth(0)).toBeVisible({ timeout: 5_000 }),
+  );
   // Variant repeater inputs are unlabeled — order is
   // sku, nameEn, nameVi, basePrice, salePrice, stock, attrsJson.
-  const fields = page.locator("form .grid.gap-3 input");
-  await fields.nth(0).fill(`LNT-${Date.now()}`);
-  await fields.nth(1).fill("Standard");
-  await fields.nth(2).fill("Tiêu chuẩn");
-  await fields.nth(3).fill("50000");
-  await fields.nth(5).fill("25");
+  await fillField(fields.nth(0), `LNT-${Date.now()}`);
+  await fillField(fields.nth(1), "Standard");
+  await fillField(fields.nth(2), "Tiêu chuẩn");
+  await fillField(fields.nth(3), "50000");
+  await fillField(fields.nth(5), "25");
 
-  await page.getByRole("button", { name: "Save product" }).click();
-  await page.waitForURL("**/en/seller/products");
+  await submitForUrl(page.getByRole("button", { name: "Save product" }), /\/en\/seller\/products/);
 
   const row = page.getByRole("row", { name });
   await expect(row).toBeVisible();
   await expect(row.getByText("Draft")).toBeVisible();
 
   // --- seller: submit for review ---
-  await row.getByRole("button", { name: "Submit for review" }).click();
-  await expect(row.getByText("In review")).toBeVisible();
-  await logout(page);
+  await tap(row.getByRole("button", { name: "Submit for review" }), () =>
+    expect(row.getByText("In review")).toBeVisible({ timeout: 10_000 }),
+  );
+  await signOut(page);
 
   // --- admin: approve in the moderation queue ---
   await login(page, "admin@marketflow.dev");
   await page.goto("/en/admin/moderation");
   await expect(page.getByRole("heading", { name: "Product moderation" })).toBeVisible();
-  await page.getByRole("row", { name }).getByRole("button", { name: "Approve" }).click();
-  await expect(page.getByText("Nothing awaiting review.")).toBeVisible();
+  await tap(page.getByRole("row", { name }).getByRole("button", { name: "Approve" }), () =>
+    expect(page.getByText("Nothing awaiting review.")).toBeVisible({ timeout: 10_000 }),
+  );
 
   // Approved ≠ public: the DRAFT stays hidden until the seller publishes it.
   await page.goto(`/en/search?q=${encodeURIComponent(name)}`);
   await expect(page.getByRole("link", { name }).first()).toBeHidden();
-  await logout(page);
+  await signOut(page);
 
   // --- seller: publish the approved draft ---
   await login(page, "seller@marketflow.dev");
   await page.goto("/en/seller/products");
-  await page.getByRole("row", { name }).getByRole("button", { name: "Publish" }).click();
-  await expect(row.getByText("Active")).toBeVisible();
+  await tap(page.getByRole("row", { name }).getByRole("button", { name: "Publish" }), () =>
+    expect(row.getByText("Active")).toBeVisible({ timeout: 10_000 }),
+  );
 
   // --- customer-facing: findable via search and the product page renders ---
   await page.goto(`/en/search?q=${encodeURIComponent(name)}`);
-  await page.getByRole("link", { name }).first().click();
-  await page.waitForURL("**/en/products/**");
+  await tapToUrl(page.getByRole("link", { name }).first(), /\/en\/products\//);
   await expect(page.getByRole("heading", { name })).toBeVisible();
 });

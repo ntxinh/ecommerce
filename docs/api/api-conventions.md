@@ -49,7 +49,7 @@ ping returning only `{status}`).
   implemented on `/api/v1/search` and `/api/v1/products` (`nextCursor` null
   ends the list).
 - **Admin:** `/api/v1/admin/*` will require the `ADMIN` role. *(Planned.)*
-- **Internal:** `/api/v1/internal/*` will be guarded by `INTERNAL_CRON_TOKEN`.
-  *(Planned.)*
+- **Internal:** `/api/v1/internal/*` guarded by `INTERNAL_CRON_TOKEN`.
 - **OpenAPI:** hand-maintained `docs/api/openapi.yaml` + the coverage test
-  above. Scalar UI at `/api/docs` behind `API_DOCS_ENABLED=true`. *(UI Planned.)*
+  above. Served at `/api/v1/openapi.yaml`; Scalar UI at `/api/docs` behind
+  `API_DOCS_ENABLED=true`.

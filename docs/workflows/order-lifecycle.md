@@ -47,6 +47,7 @@ stateDiagram-v2
   DELIVERED --> RETURN_REQUESTED: returns
   RETURN_REQUESTED --> RETURNED
   RETURN_REQUESTED --> COMPLETED
+  COMPLETED --> RETURNED: fully claimed return
 ```
 
 ### Who acts
@@ -58,7 +59,10 @@ stateDiagram-v2
 | `SHIPPED → DELIVERED` | Seller marks delivery (auto-complete cron deferred) | `deliverOrderAction` — flips the shipment to `DELIVERED` and logs the `DELIVERED` event |
 | `DELIVERED → COMPLETED` | Seller confirms completion (no return raised) | `completeOrderAction` |
 | `NEW|CONFIRMED → CANCELLED` | Seller or the order owner; refunds the leg's share when the parent is `PAID` | `cancelOrderAction` |
-| `DELIVERED → RETURN_REQUESTED` | Customer (return flow is Phase 7) | — |
+| `DELIVERED → RETURN_REQUESTED` | Customer files a return inside `return_window_days` | `requestReturnAction` on the order page → `requestReturn` (`returns.ts`) |
+| `RETURN_REQUESTED → RETURNED` | Seller/admin approves the return and its refunds settle | `decideReturnAction` on `/seller/returns` (`/admin/refunds` for DISPUTED) → `decideReturn` → `settleReturnRequest`; only when every item's qty is claimed |
+| `RETURN_REQUESTED|COMPLETED → COMPLETED` | Return rejected (or partially claimed) — remaining qty stays sellable | `decideReturnAction` → `decideReturn`/`settleReturnRequest` |
+| `COMPLETED → RETURNED` | Return filed on a completed leg fully claims its qty | Same decide path |
 
 All seller moves run through server actions in
 `src/features/seller/order-actions.ts` (session actor →

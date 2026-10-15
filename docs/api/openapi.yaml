@@ -249,6 +249,27 @@ paths:
           description: Signature verification failed.
         "404":
           description: Finix webhook not configured on this deployment.
+  /api/v1/me/wishlist:
+    get:
+      summary: Product ids on the current user's wishlist
+      responses:
+        "200":
+          description: Wishlist product ids, oldest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [productIds]
+                    properties:
+                      productIds:
+                        type: array
+                        items: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/v1/search:
     get:
       summary: Search products or fetch autocomplete suggestions
@@ -399,6 +420,240 @@ paths:
           description: "{data: {items: ProductCard[], nextCursor}} — nextCursor null in ids mode."
         "400":
           $ref: "#/components/responses/InvalidInput"
+
+  /api/v1/notifications:
+    get:
+      summary: List the session user's notifications
+      description: >-
+        Newest first, ULID-desc keyset cursor (max 50). Returns
+        {data: {items, nextCursor, unread}}. Item `title` is an i18n key under
+        the `notifications` namespace and `body` its JSON interpolation params;
+        `href` is a locale-free path — clients prepend the locale.
+      parameters:
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        "200":
+          description: Notification page + unread count.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [items, nextCursor, unread]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          required: [id, type, title, body, href, readAt, createdAt]
+                          properties:
+                            id: { type: string }
+                            type:
+                              type: string
+                              enum: [account, seller_application, order, payment, shipment, return, voucher]
+                            title: { type: string }
+                            body: { type: string }
+                            href: { type: string, nullable: true }
+                            readAt: { type: integer, nullable: true }
+                            createdAt: { type: integer }
+                      nextCursor:
+                        type: string
+                        nullable: true
+                      unread:
+                        type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    patch:
+      summary: Mark notifications read
+      description: "{id} marks one (owner only); {} marks all. Returns {data: {marked}}."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  minLength: 1
+      responses:
+        "200":
+          description: "{data: {marked}} — count of notifications marked read."
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Notification belongs to a different user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: Notification id not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /api/v1/reviews:
+    post:
+      summary: Create a review for a purchased order item
+      description: >-
+        Session auth required. The item's parent order must belong to the
+        caller and be in DELIVERED, COMPLETED, or PARTIALLY_REFUNDED; one
+        review per order item (UNIQUE order_item_id). Members of the product's
+        shop can't review it (ADMIN exempt). Returns {data: {id}} with 201.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderItemId, rating]
+              properties:
+                orderItemId: { type: string, minLength: 1 }
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                title: { type: string, maxLength: 200 }
+                body: { type: string, maxLength: 5000 }
+                images:
+                  type: array
+                  maxItems: 10
+                  items: { type: string, format: uri }
+      responses:
+        "201":
+          description: 'Created — {data: {id: "rev_…"}}.'
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Not the order's buyer, or the product's own shop.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: Order item not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "422":
+          description: Order not yet fulfilled (PENDING_PAYMENT…SHIPPED, CANCELLED, REFUNDED).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /api/v1/reviews/[id]:
+    patch:
+      summary: Update a review (author) or moderate it (admin)
+      description: >-
+        Two modes in one body. Author mode: {rating?, title?, body?} — at
+        least one field required; empty string clears title/body. Admin mode:
+        {action: "HIDE"|"UNHIDE", note?} flips status PUBLISHED↔HIDDEN and
+        appends a "review.moderate" audit row. Hidden reviews are excluded
+        from product lists and rating aggregates.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                title: { type: string, maxLength: 200, nullable: true }
+                body: { type: string, maxLength: 5000, nullable: true }
+                action: { type: string, enum: [HIDE, UNHIDE] }
+                note: { type: string, maxLength: 500 }
+      responses:
+        "200":
+          description: "{data: {id}} — updated or moderated."
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Author-edit by another user, or moderation by a non-admin.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: Review not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+    delete:
+      summary: Delete a review (author or admin)
+      description: >-
+        Removes the row; the order item becomes reviewable again. Admins may
+        delete any review.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: "{data: {deleted: true}}"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Not the review author or an admin.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: Review not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /api/docs:
+    get:
+      summary: Scalar API reference UI
+      description: >-
+        HTML page embedding @scalar/api-reference pointed at
+        /api/v1/openapi.yaml. 404 {error: "NOT_FOUND"} unless
+        API_DOCS_ENABLED="true".
+      responses:
+        "200":
+          description: Scalar UI HTML.
+          content:
+            text/html:
+              schema:
+                type: string
+        "404":
+          description: Docs disabled on this deployment.
+  /api/v1/openapi.yaml:
+    get:
+      summary: This OpenAPI document
+      description: Serves docs/api/openapi.yaml verbatim as application/yaml.
+      responses:
+        "200":
+          description: OpenAPI spec YAML.
+          content:
+            application/yaml:
+              schema:
+                type: string
 
 components:
   responses:

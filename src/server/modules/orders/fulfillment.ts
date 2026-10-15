@@ -16,6 +16,7 @@ import {
   trackingEvents,
 } from "@/server/db/schema";
 import { releaseOrderReservations } from "@/server/modules/inventory/service";
+import { notify } from "@/server/modules/notifications/service";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
 import { completeRefund, insertCancellationRefund } from "@/server/modules/payments/refunds";
 import { settledPaymentRef } from "./outcome";
@@ -65,9 +66,17 @@ export function shipSellerOrder(
     throw new AuthError("INVALID_INPUT", 400, "carrier and tracking number required");
   }
   return db.transaction((tx) => {
-    const { so } = leg(tx, actor, sellerOrderId);
+    const { so, order } = leg(tx, actor, sellerOrderId);
     if (so.status === "PACKING") transitionSellerOrder(tx, sellerOrderId, "READY_TO_SHIP", actor);
     const next = transitionSellerOrder(tx, sellerOrderId, "SHIPPED", actor);
+    // Idempotent re-call returns the already-SHIPPED leg — don't re-notify.
+    if (so.status !== "SHIPPED") {
+      notify(tx, order.userId, "shipment", {
+        title: "shipment.shipped",
+        body: { orderId: order.id, trackingNumber: input.trackingNumber },
+        href: `/account/orders/${order.id}`,
+      });
+    }
     if (!tx.select().from(shipments).where(eq(shipments.sellerOrderId, sellerOrderId)).get()) {
       // shipments.trackingNumber is globally unique — pre-check so a recycled
       // number surfaces as INVALID_INPUT instead of a raw constraint 500.
@@ -128,8 +137,16 @@ export function shipSellerOrder(
 /** SHIPPED → DELIVERED; marks the shipment + logs the DELIVERED event once. */
 export function deliverSellerOrder(db: DB, actor: Actor, sellerOrderId: string): SellerOrder {
   return db.transaction((tx) => {
-    leg(tx, actor, sellerOrderId);
+    const { so, order } = leg(tx, actor, sellerOrderId);
     const next = transitionSellerOrder(tx, sellerOrderId, "DELIVERED", actor);
+    // Idempotent re-call returns the already-DELIVERED leg — don't re-notify.
+    if (so.status !== "DELIVERED") {
+      notify(tx, order.userId, "shipment", {
+        title: "shipment.delivered",
+        body: { orderId: order.id },
+        href: `/account/orders/${order.id}`,
+      });
+    }
     const shipment = tx
       .select()
       .from(shipments)

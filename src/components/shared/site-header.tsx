@@ -3,11 +3,14 @@ import { getTranslations } from "next-intl/server";
 import { buttonVariants } from "@/components/ui/button";
 import { CartBadge } from "@/features/cart/cart-badge";
 import { SearchBox } from "@/features/catalog/search-box";
+import { NotificationBell } from "@/features/notifications/bell";
 import { Link } from "@/i18n/navigation";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
 import { getCart } from "@/server/modules/cart/service";
 import { listCategories } from "@/server/modules/catalog/service";
+import { listNotifications } from "@/server/modules/notifications/service";
+import { listRecentSearches } from "@/server/modules/search/service";
 import { LocaleSwitcher } from "./locale-switcher";
 import { ThemeSwitcher } from "./theme-switcher";
 
@@ -17,7 +20,9 @@ export async function SiteHeader({ locale }: { locale: string }) {
 
   const actor = await getActor();
   const cartCount = actor ? getCart(getDb(), actor.userId).items.reduce((n, i) => n + i.qty, 0) : 0;
+  const unread = actor ? listNotifications(getDb(), actor, { limit: 1 }).unread : 0;
   const topCategories = listCategories(getDb());
+  const recentSearches = actor ? listRecentSearches(getDb(), actor.userId) : undefined;
 
   return (
     <header className="border-b">
@@ -25,8 +30,13 @@ export async function SiteHeader({ locale }: { locale: string }) {
         <Link href="/" className="text-lg font-semibold">
           {tc("appName")}
         </Link>
-        <SearchBox />
+        <SearchBox recent={recentSearches} />
         <nav className="hidden items-center gap-1 text-sm md:flex">
+          {actor?.roles.includes("CUSTOMER") ? (
+            <Link href="/sell" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+              {tn("sell")}
+            </Link>
+          ) : null}
           <Link href="/seller" className={buttonVariants({ variant: "ghost", size: "sm" })}>
             {tn("sellerCenter")}
           </Link>
@@ -35,6 +45,7 @@ export async function SiteHeader({ locale }: { locale: string }) {
           </Link>
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          {actor && <NotificationBell initialUnread={unread} />}
           <Link
             href="/cart"
             className={buttonVariants({ variant: "ghost", size: "icon-sm" })}

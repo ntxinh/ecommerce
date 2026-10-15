@@ -70,6 +70,7 @@ export default async function EditProductPage({
             stock: String(v.onHand),
             baseline: String(v.onHand),
           })),
+          attributes: product.attributes,
         }}
       />
     </div>

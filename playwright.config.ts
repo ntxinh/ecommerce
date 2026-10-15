@@ -20,6 +20,9 @@ export default defineConfig({
   // parallel workers knock each other over mid-click. The seeded SQLite e2e
   // DB is single-writer anyway.
   workers: 1,
+  // Generous test budget: first-hit Turbopack compiles and hydration-retry
+  // loops on controlled inputs can stall a test for tens of seconds.
+  timeout: 120_000,
   testDir: "./tests/e2e",
   globalSetup: "./tests/e2e/global-setup.ts",
   use: { baseURL: `http://localhost:${PORT}` },

@@ -27,6 +27,7 @@ import {
   reserveStock,
   sweepExpiredReservations,
 } from "@/server/modules/inventory/service";
+import { notify } from "@/server/modules/notifications/service";
 import { finixCheckoutLink, getFinix } from "@/server/modules/payments/finix";
 import { paymentProviderFor } from "@/server/modules/payments/providers";
 import { getStripe } from "@/server/modules/payments/stripe";
@@ -37,6 +38,7 @@ import {
 } from "@/server/modules/pricing/price-order";
 import { consumeRedemptions } from "@/server/modules/pricing/vouchers";
 import { quoteShippingFee } from "@/server/modules/shipping/providers";
+import { trace } from "@/server/observability/trace";
 import { type PaymentOutcome, persistPaymentOutcome } from "./outcome";
 import type { OrderStatus } from "./transitions";
 
@@ -201,7 +203,7 @@ export function requestOrigin(headers: Headers): string {
  * rows → post-commit payment dispatch (mock confirm, or a Stripe Checkout
  * Session the browser is redirected to).
  */
-export async function placeOrder(
+async function placeOrderImpl(
   db: DB,
   actor: Actor,
   input: CheckoutInput,
@@ -463,6 +465,12 @@ export async function placeOrder(
         })
         .run();
 
+      notify(tx, actor.userId, "order", {
+        title: "order.created",
+        body: { orderId },
+        href: `/account/orders/${orderId}`,
+      });
+
       // Record inserted COMPLETED inside the tx: SQLite serializes writers, so no
       // observable IN_PROGRESS window; a failed tx leaves no record → retry-allowed.
       tx.insert(idempotencyRecords)
@@ -513,3 +521,5 @@ export async function placeOrder(
   }
   return { orderId, sellerOrderIds, status };
 }
+
+export const placeOrder = trace("orders.placeOrder", placeOrderImpl);

@@ -43,6 +43,7 @@ export const sessions = sqliteTable(
   (t) => [
     uniqueIndex("sessions_token_hash_unique").on(t.tokenHash),
     index("sessions_user_idx").on(t.userId),
+    index("sessions_expires_idx").on(t.expiresAt),
   ],
 );
 

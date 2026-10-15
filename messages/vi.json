@@ -39,13 +39,16 @@
     "verifyStatus": "Trạng thái email",
     "verifyPending": "Chưa xác minh",
     "accountTitle": "Tài khoản",
+    "wishlistLink": "Yêu thích của tôi",
     "toAccount": "Đi tới tài khoản",
-    "mergeFailed": "Không thể khôi phục giỏ hàng đã lưu"
+    "mergeFailed": "Không thể khôi phục giỏ hàng đã lưu",
+    "wishlistMergeFailed": "Không thể khôi phục danh sách yêu thích đã lưu"
   },
   "nav": {
     "storefront": "Cửa hàng",
     "sellerCenter": "Kênh Người Bán",
     "admin": "Quản trị",
+    "sell": "Bán hàng",
     "cart": "Giỏ hàng",
     "account": "Tài khoản"
   },
@@ -57,15 +60,18 @@
   "shell": {
     "planned": "Dự kiến",
     "searchPlaceholder": "Tìm sản phẩm",
+    "clearHistory": "Xóa lịch sử",
     "footerTagline": "Mua bán mọi thứ",
     "catalogPlanned": "Dự kiến: danh mục sản phẩm",
-    "metricsPlanned": "Dự kiến: chỉ số tổng quan",
-    "productsPlanned": "Dự kiến: sản phẩm",
-    "ordersPlanned": "Dự kiến: đơn hàng",
-    "usersPlanned": "Dự kiến: người dùng",
     "moderationPlanned": "Dự kiến: đơn đăng ký bán hàng",
     "moderation": "Hàng chờ kiểm duyệt",
-    "categories": "Danh mục"
+    "categories": "Danh mục",
+    "applications": "Đơn đăng ký bán",
+    "users": "Người dùng",
+    "audit": "Nhật ký kiểm toán",
+    "orders": "Đơn hàng",
+    "settings": "Cài đặt",
+    "vouchers": "Voucher"
   },
   "catalog": {
     "fromPrice": "Từ",
@@ -199,7 +205,8 @@
       "RETURN_REQUESTED": "Yêu cầu trả hàng",
       "RETURNED": "Đã trả hàng"
     },
-    "nextPage": "Đơn cũ hơn"
+    "nextPage": "Đơn cũ hơn",
+    "writeReview": "Viết đánh giá"
   },
   "seller": {
     "productsTitle": "Sản phẩm",
@@ -249,6 +256,12 @@
     "variantSalePrice": "Giá khuyến mãi (₫)",
     "variantStock": "Tồn kho",
     "variantAttrs": "Thuộc tính (JSON)",
+    "attributes": "Thông số",
+    "attributesHint": "Các dòng thông số hiển thị trên trang sản phẩm (chất liệu, xuất xứ, …).",
+    "addAttribute": "Thêm thuộc tính",
+    "removeAttribute": "Xóa",
+    "attributeName": "Tên",
+    "attributeValue": "Giá trị",
     "save": "Lưu sản phẩm",
     "saving": "Đang lưu…",
     "ordersTitle": "Đơn hàng",
@@ -303,7 +316,38 @@
       "FORBIDDEN": "Bạn không thể quản lý sản phẩm của cửa hàng này",
       "NOT_FOUND": "Không tìm thấy sản phẩm",
       "INVALID_INPUT": "Vui lòng kiểm tra lại — SKU trùng hoặc giá khuyến mãi cao hơn giá gốc"
-    }
+    },
+    "analyticsTitle": "Phân tích",
+    "revenueTrendTitle": "Doanh thu (30 ngày qua)",
+    "bestSellersTitle": "Sản phẩm bán chạy",
+    "bestSellersEmpty": "Chưa có đơn bán.",
+    "colProduct": "Sản phẩm",
+    "colUnits": "Số lượng",
+    "metric": {
+      "gmvVnd": "Tổng giá trị hàng bán",
+      "netSalesVnd": "Doanh thu thuần",
+      "orderCount": "Đơn hàng",
+      "unitsSold": "Số lượng đã bán",
+      "avgOrderValueVnd": "Giá trị đơn trung bình",
+      "cancelRatePct": "Tỷ lệ hủy",
+      "returnRatePct": "Tỷ lệ trả hàng",
+      "lowStockCount": "Biến thể sắp hết hàng"
+    },
+    "promotionsTitle": "Khuyến mãi",
+    "promotions": {
+      "title": "Khuyến mãi của shop",
+      "empty": "Chưa có khuyến mãi nào.",
+      "colKind": "Loại",
+      "fieldValue": "Giá trị (bps cho PERCENT, VND cho loại khác)",
+      "colWindow": "Thời hạn",
+      "colStatus": "Trạng thái",
+      "kind": {
+        "PERCENT": "Phần trăm",
+        "FIXED": "Số tiền cố định",
+        "FLASH_PRICE": "Giá chớp nhoáng"
+      }
+    },
+    "settingsTitle": "Cài đặt cửa hàng"
   },
   "admin": {
     "moderationTitle": "Kiểm duyệt sản phẩm",
@@ -331,11 +375,141 @@
     "fieldSlug": "slug",
     "createCategory": "Tạo danh mục",
     "queueEmpty": "Không có sản phẩm chờ duyệt.",
+    "applicationsTitle": "Đơn đăng ký bán hàng",
+    "applicationsHint": "Duyệt sẽ tạo cửa hàng, quyền sở hữu và vai trò SELLER trong một bước.",
+    "appsEmpty": "Không có đơn nào.",
+    "filterAll": "Tất cả",
+    "nextPage": "Trang sau",
+    "requestChanges": "Yêu cầu sửa",
+    "reactivate": "Kích hoạt lại",
+    "colStatus": "Trạng thái",
+    "appStatus": {
+      "PENDING": "Chờ duyệt",
+      "APPROVED": "Đã duyệt",
+      "REJECTED": "Bị từ chối",
+      "CHANGES_REQUESTED": "Yêu cầu sửa"
+    },
+    "shopStatus": {
+      "ACTIVE": "Cửa hàng đang hoạt động",
+      "SUSPENDED": "Cửa hàng bị đình chỉ"
+    },
     "errors": {
       "UNAUTHORIZED": "Vui lòng đăng nhập",
       "FORBIDDEN": "Cần quyền quản trị",
       "NOT_FOUND": "Không tìm thấy bản ghi",
-      "INVALID_INPUT": "Thao tác bị từ chối — kiểm tra lý do hoặc trạng thái hiện tại"
+      "INVALID_INPUT": "Thao tác bị từ chối — kiểm tra lý do hoặc trạng thái hiện tại",
+      "INVALID_STATE": "Mục này đã được xử lý"
+    },
+    "metric": {
+      "ordersToday": "Đơn hôm nay",
+      "gmvVnd": "GMV (VND)",
+      "customers": "Khách hàng",
+      "sellers": "Người bán",
+      "pendingApplications": "Đơn đăng ký chờ",
+      "moderationQueue": "Chờ kiểm duyệt",
+      "pendingReturns": "Trả hàng chờ xử lý",
+      "lowStock": "Biến thể sắp hết hàng"
+    },
+    "usersTitle": "Người dùng",
+    "usersEmpty": "Không có người dùng phù hợp.",
+    "searchUsers": "Tìm theo email hoặc tên",
+    "search": "Tìm",
+    "filter": "Lọc",
+    "view": "Xem",
+    "colUser": "Người dùng",
+    "colRoles": "Vai trò",
+    "colCreated": "Ngày tạo",
+    "colWhen": "Thời gian",
+    "colAction": "Hành động",
+    "colActor": "Người thực hiện",
+    "colTarget": "Đối tượng",
+    "colMeta": "Chi tiết",
+    "revokeSessions": "Thu hồi phiên",
+    "memberships": "Thành viên cửa hàng",
+    "noMemberships": "Không thuộc cửa hàng nào.",
+    "recentAudit": "Hoạt động kiểm toán gần đây",
+    "auditTitle": "Nhật ký kiểm toán",
+    "auditEmpty": "Không có bản ghi nào.",
+    "targetType": "Loại đối tượng",
+    "targetId": "Mã đối tượng",
+    "userStatus": {
+      "ACTIVE": "Đang hoạt động",
+      "SUSPENDED": "Bị đình chỉ"
+    },
+    "ordersTitle": "Đơn hàng",
+    "ordersEmpty": "Không có đơn nào khớp.",
+    "searchOrders": "Tìm theo mã đơn hoặc email người mua",
+    "colOrder": "Đơn hàng",
+    "colBuyer": "Người mua",
+    "colTotal": "Tổng",
+    "colAttempt": "Lần thử",
+    "colProviderRef": "Mã tham chiếu",
+    "orderStatus": {
+      "PENDING_PAYMENT": "Chờ thanh toán",
+      "PAID": "Đã thanh toán",
+      "PROCESSING": "Đang xử lý",
+      "SHIPPED": "Đã giao vận",
+      "DELIVERED": "Đã giao",
+      "COMPLETED": "Hoàn tất",
+      "CANCELLED": "Đã hủy",
+      "PAYMENT_FAILED": "Thanh toán thất bại",
+      "PARTIALLY_REFUNDED": "Hoàn một phần",
+      "REFUNDED": "Đã hoàn tiền"
+    },
+    "settingsTitle": "Cài đặt nền tảng",
+    "settingsHint": "Giá trị là JSON — số, hoặc object như {\"standard\":15000}.",
+    "colKey": "Khóa",
+    "colValue": "Giá trị",
+    "settingsSaved": "Đã lưu cài đặt",
+    "vouchersTitle": "Voucher nền tảng",
+    "vouchersEmpty": "Chưa có voucher nào.",
+    "createVoucher": "Tạo voucher",
+    "fieldCode": "Mã",
+    "fieldKind": "Loại",
+    "fieldValue": "Giá trị (bps cho PERCENT, VND cho loại khác)",
+    "fieldMinSpend": "Đơn tối thiểu (VND)",
+    "fieldMaxDiscount": "Giảm tối đa (VND)",
+    "fieldStarts": "Bắt đầu",
+    "fieldEnds": "Kết thúc",
+    "fieldTotalLimit": "Giới hạn tổng",
+    "fieldPerUserLimit": "Giới hạn mỗi người",
+    "colCode": "Mã",
+    "colKind": "Loại",
+    "colUsed": "Đã dùng",
+    "colWindow": "Thời hạn",
+    "voucherKind": {
+      "PERCENT": "Phần trăm",
+      "FIXED": "Số tiền cố định",
+      "SHIPPING": "Vận chuyển"
+    },
+    "voucherCreated": "Đã tạo voucher",
+    "promotions": {
+      "title": "Khuyến mãi",
+      "empty": "Chưa có khuyến mãi nào.",
+      "create": "Tạo khuyến mãi",
+      "created": "Đã tạo khuyến mãi",
+      "fieldScope": "Phạm vi",
+      "fieldShop": "Mã shop",
+      "fieldProduct": "Mã sản phẩm",
+      "fieldKind": "Loại",
+      "fieldValue": "Giá trị (bps cho PERCENT, VND cho loại khác)",
+      "fieldStarts": "Bắt đầu",
+      "fieldEnds": "Kết thúc",
+      "colScope": "Phạm vi",
+      "colTarget": "Áp dụng cho",
+      "colKind": "Loại",
+      "colWindow": "Thời hạn",
+      "colStatus": "Trạng thái",
+      "scope": {
+        "PRODUCT": "Sản phẩm",
+        "SHOP": "Shop",
+        "FLASH": "Chớp nhoáng"
+      },
+      "kind": {
+        "PERCENT": "Phần trăm",
+        "FIXED": "Số tiền cố định",
+        "FLASH_PRICE": "Giá chớp nhoáng"
+      }
     }
   },
   "storefront": {
@@ -384,6 +558,171 @@
       "newest": "Mới nhất",
       "popular": "Bán chạy"
     },
-    "imageN": "Ảnh {n}"
+    "imageN": "Ảnh {n}",
+    "wishlist": {
+      "title": "Yêu thích của tôi",
+      "empty": "Chưa có gì — chạm trái tim trên sản phẩm để lưu lại.",
+      "add": "Lưu vào yêu thích",
+      "remove": "Bỏ yêu thích",
+      "toggleFailed": "Không thể cập nhật yêu thích"
+    }
+  },
+  "returns": {
+    "requestReturn": "Yêu cầu trả hàng",
+    "requestSubmit": "Gửi yêu cầu trả hàng",
+    "requestsTitle": "Yêu cầu trả hàng",
+    "reason": "Lý do",
+    "reasonPlaceholder": "Tại sao bạn muốn trả hàng?",
+    "evidence": "Link minh chứng (không bắt buộc)",
+    "evidencePlaceholder": "https://…, https://… (tối đa 5)",
+    "qty": "Số lượng",
+    "restock": "Nhập lại kho",
+    "dispute": "Khiếu nại quyết định",
+    "queueTitle": "Yêu cầu trả hàng",
+    "queueEmpty": "Chưa có yêu cầu trả hàng nào.",
+    "filterPending": "Đang chờ",
+    "filterAll": "Tất cả",
+    "nextPage": "Cũ hơn",
+    "colRequest": "Yêu cầu",
+    "colItems": "Sản phẩm",
+    "colStatus": "Trạng thái",
+    "colRefund": "Hoàn tiền",
+    "colActions": "Thao tác",
+    "colRefundId": "Hoàn tiền",
+    "colPayment": "Thanh toán",
+    "colReturnItem": "Mục trả hàng",
+    "colAmount": "Số tiền",
+    "colDate": "Ngày",
+    "notePlaceholder": "Ghi chú quyết định (không bắt buộc)",
+    "approve": "Duyệt",
+    "reject": "Từ chối",
+    "refundsTitle": "Hoàn tiền",
+    "refundsEmpty": "Chưa có giao dịch hoàn tiền.",
+    "disputedTitle": "Trả hàng đang khiếu nại",
+    "disputedHint": "Các yêu cầu được khiếu nại chờ quản trị viên phán quyết — duyệt hoặc từ chối.",
+    "disputedEmpty": "Không có trả hàng nào đang khiếu nại.",
+    "status": {
+      "PENDING": "Đang chờ",
+      "APPROVED": "Đã duyệt",
+      "REJECTED": "Bị từ chối",
+      "REFUNDED": "Đã hoàn tiền",
+      "DISPUTED": "Đang khiếu nại"
+    },
+    "refundStatus": {
+      "PENDING": "Đang chờ",
+      "COMPLETED": "Hoàn tất",
+      "FAILED": "Thất bại"
+    },
+    "errors": {
+      "UNAUTHORIZED": "Vui lòng đăng nhập",
+      "FORBIDDEN": "Bạn không thể quản lý yêu cầu trả hàng này",
+      "NOT_FOUND": "Không tìm thấy yêu cầu trả hàng",
+      "INVALID_INPUT": "Kiểm tra lại số lượng và lý do",
+      "INVALID_STATE": "Thao tác không hợp lệ với trạng thái hiện tại",
+      "RETURN_WINDOW_EXPIRED": "Đã quá thời hạn trả hàng"
+    }
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "markAllRead": "Đánh dấu tất cả đã đọc",
+    "empty": "Chưa có thông báo nào.",
+    "account": {
+      "welcome": "Chào mừng bạn đến với Marketflow — tài khoản đã sẵn sàng."
+    },
+    "order": {
+      "created": "Đã đặt đơn hàng {orderId} — hoàn tất thanh toán để xác nhận.",
+      "cancelled": "Đơn hàng {orderId} đã bị hủy."
+    },
+    "payment": {
+      "paid": "Đã xác nhận thanh toán cho đơn hàng {orderId}.",
+      "failed": "Thanh toán cho đơn hàng {orderId} thất bại — bạn có thể thử lại."
+    },
+    "shipment": {
+      "shipped": "Đơn hàng {orderId} đã được giao cho vận chuyển (mã {trackingNumber}).",
+      "delivered": "Đơn hàng {orderId} đã được giao."
+    },
+    "return": {
+      "approved": "Yêu cầu trả hàng cho đơn {orderId} đã được chấp nhận.",
+      "rejected": "Yêu cầu trả hàng cho đơn {orderId} đã bị từ chối."
+    },
+    "seller_application": {
+      "approved": "Đơn đăng ký bán hàng {shopName} đã được duyệt — cửa hàng của bạn đã hoạt động.",
+      "rejected": "Đơn đăng ký bán hàng {shopName} đã bị từ chối.",
+      "changes_requested": "Đơn đăng ký bán hàng {shopName} cần chỉnh sửa."
+    }
+  },
+  "reviews": {
+    "rating": "Đánh giá",
+    "stars": "{count} sao",
+    "titleLabel": "Tiêu đề",
+    "titlePlaceholder": "Tóm tắt trải nghiệm của bạn",
+    "bodyLabel": "Nội dung đánh giá",
+    "bodyPlaceholder": "Bạn thích hay không thích điều gì?",
+    "images": "URL hình ảnh (tuỳ chọn)",
+    "imagesPlaceholder": "https://…, https://… (tối đa 10)",
+    "submit": "Gửi đánh giá",
+    "edit": "Sửa",
+    "delete": "Xoá",
+    "save": "Lưu",
+    "cancel": "Huỷ",
+    "moderationTitle": "Kiểm duyệt đánh giá",
+    "moderationHint": "Ẩn hoặc khôi phục đánh giá. Đánh giá bị ẩn không còn tính vào điểm sản phẩm.",
+    "moderationEmpty": "Chưa có đánh giá nào.",
+    "notePlaceholder": "Ghi chú kiểm duyệt (tuỳ chọn)",
+    "hide": "Ẩn",
+    "unhide": "Hiện lại",
+    "colProduct": "Sản phẩm",
+    "colAuthor": "Tác giả",
+    "colRating": "Đánh giá",
+    "colReview": "Nội dung",
+    "colStatus": "Trạng thái",
+    "colDate": "Ngày",
+    "colActions": "Thao tác",
+    "status": {
+      "PUBLISHED": "Đã đăng",
+      "HIDDEN": "Đã ẩn"
+    },
+    "errors": {
+      "UNAUTHORIZED": "Vui lòng đăng nhập",
+      "FORBIDDEN": "Bạn không thể đánh giá sản phẩm này",
+      "NOT_FOUND": "Không tìm thấy đánh giá",
+      "INVALID_INPUT": "Kiểm tra điểm đánh giá và các trường — hoặc sản phẩm đã được đánh giá"
+    }
+  },
+  "sellers": {
+    "title": "Trở thành người bán",
+    "currentStatus": "Đơn của bạn",
+    "decisionNote": "Ghi chú của quản trị",
+    "fieldShopName": "Tên cửa hàng",
+    "fieldDescription": "Mô tả",
+    "fieldRegistration": "Mã đăng ký kinh doanh / mã số thuế",
+    "apply": "Gửi đơn đăng ký",
+    "applying": "Đang gửi…",
+    "saveShop": "Lưu cửa hàng",
+    "saving": "Đang lưu…",
+    "status": {
+      "PENDING": "Đang chờ duyệt",
+      "APPROVED": "Đã duyệt",
+      "REJECTED": "Bị từ chối",
+      "CHANGES_REQUESTED": "Yêu cầu sửa"
+    },
+    "statusHint": {
+      "PENDING": "Chúng tôi đang xem xét đơn của bạn.",
+      "APPROVED": "Cửa hàng đã hoạt động — quản lý tại Kênh Người Bán.",
+      "REJECTED": "Đơn bị từ chối. Bạn có thể chỉnh sửa và gửi lại.",
+      "CHANGES_REQUESTED": "Cập nhật đơn bên dưới và gửi lại."
+    },
+    "errors": {
+      "UNAUTHORIZED": "Vui lòng đăng nhập",
+      "FORBIDDEN": "Bạn không có quyền truy cập",
+      "NOT_FOUND": "Không tìm thấy",
+      "INVALID_INPUT": "Vui lòng kiểm tra lại các trường"
+    }
+  },
+  "finance": {
+    "metric": {
+      "estimatedCommissionsVnd": "Hoa hồng ước tính",
+      "pendingSettlementVnd": "Đối soát đang chờ"
+    }
   }
 }

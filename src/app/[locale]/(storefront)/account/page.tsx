@@ -29,6 +29,9 @@ export default async function AccountPage({ params }: { params: Promise<{ locale
       <Link href="/account/orders" className="block text-sm underline underline-offset-2">
         {to("title")}
       </Link>
+      <Link href="/account/wishlist" className="block text-sm underline underline-offset-2">
+        {t("wishlistLink")}
+      </Link>
       {!user?.emailVerifiedAt ? <VerifyEmailButton /> : null}
       <LogoutButton />
     </section>

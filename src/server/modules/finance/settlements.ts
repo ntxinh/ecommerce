@@ -35,6 +35,9 @@ export function generateSettlement(db: DB, actor: Actor | null, shopId: string):
   }
 
   return db.transaction((tx) => {
+    // Legs with a PENDING return-linked refund are excluded entirely: settling
+    // now would lock in refundVnd=0 while the ledger already clawed the
+    // seller's share back, leaving a permanent payable leak.
     const legs = tx
       .select()
       .from(sellerOrders)
@@ -46,6 +49,15 @@ export function generateSettlement(db: DB, actor: Actor | null, shopId: string):
             sellerOrders.id,
             tx.select({ id: settlementItems.sellerOrderId }).from(settlementItems),
           ),
+          notInArray(
+            sellerOrders.id,
+            tx
+              .select({ id: returnRequests.sellerOrderId })
+              .from(refunds)
+              .innerJoin(returnItems, eq(refunds.returnItemId, returnItems.id))
+              .innerJoin(returnRequests, eq(returnItems.returnRequestId, returnRequests.id))
+              .where(eq(refunds.status, "PENDING")),
+          ),
         ),
       )
       .all();
@@ -55,15 +67,20 @@ export function generateSettlement(db: DB, actor: Actor | null, shopId: string):
 
     // COMPLETED refunds on those legs (return-linked only; cancellation
     // refunds have returnItemId NULL and belong to legs that never complete).
-    const refundsByLeg = new Map<string, number>();
+    // Per leg: r = gross refunded, rebate = Σ floor(x·bps/10000) — the
+    // commission slice refunded initiation already credited back to
+    // PLATFORM_REVENUE, so net deducts r − rebate to match SELLER_PAYABLE.
+    const refundsByLeg = new Map<string, { r: number; rebate: number }>();
     for (const row of tx
       .select({
         sellerOrderId: returnRequests.sellerOrderId,
         amountVnd: refunds.amountVnd,
+        rateBps: sellerOrders.commissionRateBps,
       })
       .from(refunds)
       .innerJoin(returnItems, eq(refunds.returnItemId, returnItems.id))
       .innerJoin(returnRequests, eq(returnItems.returnRequestId, returnRequests.id))
+      .innerJoin(sellerOrders, eq(returnRequests.sellerOrderId, sellerOrders.id))
       .where(
         and(
           eq(refunds.status, "COMPLETED"),
@@ -74,26 +91,29 @@ export function generateSettlement(db: DB, actor: Actor | null, shopId: string):
         ),
       )
       .all()) {
-      refundsByLeg.set(
-        row.sellerOrderId,
-        (refundsByLeg.get(row.sellerOrderId) ?? 0) + row.amountVnd,
-      );
+      const acc = refundsByLeg.get(row.sellerOrderId) ?? { r: 0, rebate: 0 };
+      acc.r += row.amountVnd;
+      acc.rebate += commission(row.amountVnd, row.rateBps);
+      refundsByLeg.set(row.sellerOrderId, acc);
     }
 
     let grossVnd = 0;
     let commissionVnd = 0;
     let refundVnd = 0;
+    let netVnd = 0;
     const items = legs.map((so) => {
       const c = commission(so.subtotalVnd, so.commissionRateBps);
-      const r = refundsByLeg.get(so.id) ?? 0;
+      const { r, rebate } = refundsByLeg.get(so.id) ?? { r: 0, rebate: 0 };
+      const net = so.subtotalVnd - c - (r - rebate);
       grossVnd += so.subtotalVnd;
       commissionVnd += c;
       refundVnd += r;
+      netVnd += net;
       return {
         sellerOrderId: so.id,
         grossVnd: so.subtotalVnd,
         commissionVnd: c,
-        netVnd: so.subtotalVnd - c - r,
+        netVnd: net,
       };
     });
 
@@ -106,7 +126,7 @@ export function generateSettlement(db: DB, actor: Actor | null, shopId: string):
         grossVnd,
         commissionVnd,
         refundVnd,
-        netVnd: grossVnd - commissionVnd - refundVnd,
+        netVnd,
         createdAt: Date.now(),
       })
       .run();

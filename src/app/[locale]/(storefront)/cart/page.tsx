@@ -11,24 +11,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { removeCartItemAction, updateCartItemAction } from "@/features/cart/actions";
+import { CartLineControls } from "@/features/cart/cart-line-controls";
 import { GuestCart } from "@/features/cart/guest-cart";
 import { Link } from "@/i18n/navigation";
 import { formatVnd } from "@/lib/format";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
 import { getCart } from "@/server/modules/cart/service";
-
-// form action props must return void; wrap the state-shaped cart actions.
-async function setQty(formData: FormData) {
-  "use server";
-  await updateCartItemAction(null, formData);
-}
-
-async function removeLine(formData: FormData) {
-  "use server";
-  await removeCartItemAction(null, formData);
-}
 
 export default async function CartPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -62,7 +51,6 @@ export default async function CartPage({ params }: { params: Promise<{ locale: s
                     <TableHead>{t("item")}</TableHead>
                     <TableHead>{t("price")}</TableHead>
                     <TableHead>{t("quantity")}</TableHead>
-                    <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -77,41 +65,7 @@ export default async function CartPage({ params }: { params: Promise<{ locale: s
                       </TableCell>
                       <TableCell>{formatVnd(item.unitPriceVnd, locale)}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          <form action={setQty}>
-                            <input type="hidden" name="cartItemId" value={item.cartItemId} />
-                            <input type="hidden" name="qty" value={item.qty - 1} />
-                            <Button
-                              type="submit"
-                              variant="outline"
-                              size="icon-sm"
-                              aria-label={t("decrease")}
-                            >
-                              −
-                            </Button>
-                          </form>
-                          <span className="w-8 text-center">{item.qty}</span>
-                          <form action={setQty}>
-                            <input type="hidden" name="cartItemId" value={item.cartItemId} />
-                            <input type="hidden" name="qty" value={item.qty + 1} />
-                            <Button
-                              type="submit"
-                              variant="outline"
-                              size="icon-sm"
-                              aria-label={t("increase")}
-                            >
-                              +
-                            </Button>
-                          </form>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <form action={removeLine}>
-                          <input type="hidden" name="cartItemId" value={item.cartItemId} />
-                          <Button type="submit" variant="ghost" size="sm">
-                            {t("remove")}
-                          </Button>
-                        </form>
+                        <CartLineControls cartItemId={item.cartItemId} qty={item.qty} />
                       </TableCell>
                     </TableRow>
                   ))}

@@ -26,6 +26,7 @@ export default async function AdminLayout({
 
   const tn = await getTranslations({ locale, namespace: "nav" });
   const ts = await getTranslations({ locale, namespace: "shell" });
+  const tr = await getTranslations({ locale, namespace: "returns" });
 
   return (
     <div className="flex min-h-screen">
@@ -40,7 +41,30 @@ export default async function AdminLayout({
           <Link href="/admin/categories" className="block hover:underline">
             {ts("categories")}
           </Link>
-          <p className="text-muted-foreground">{ts("usersPlanned")}</p>
+          <Link href="/admin/refunds" className="block hover:underline">
+            {tr("refundsTitle")}
+          </Link>
+          <Link href="/admin/applications" className="block hover:underline">
+            {ts("applications")}
+          </Link>
+          <Link href="/admin/users" className="block hover:underline">
+            {ts("users")}
+          </Link>
+          <Link href="/admin/audit" className="block hover:underline">
+            {ts("audit")}
+          </Link>
+          <Link href="/admin/orders" className="block hover:underline">
+            {ts("orders")}
+          </Link>
+          <Link href="/admin/vouchers" className="block hover:underline">
+            {ts("vouchers")}
+          </Link>
+          <Link href="/admin/promotions" className="block hover:underline">
+            {ts("promotions")}
+          </Link>
+          <Link href="/admin/settings" className="block hover:underline">
+            {ts("settings")}
+          </Link>
         </nav>
       </aside>
       <div className="flex flex-1 flex-col">

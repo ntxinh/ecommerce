@@ -27,9 +27,8 @@ import {
 } from "@/server/modules/orders/transitions";
 
 /** Seller-order target → the action button that performs it. RETURN_REQUESTED
- *  and RETURNED are return-flow states: RETURN_REQUESTED is customer-initiated
- *  (not a seller action) and the seller's accept-return action is Phase 7
- *  scope — deliberately unmapped here so nobody inherits the gap. */
+ *  and RETURNED are return-flow states, decided on /seller/returns — not
+ *  fulfillment buttons, deliberately unmapped here. */
 const TARGET_ACTION = {
   CONFIRMED: "confirm",
   PACKING: "pack",

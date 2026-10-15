@@ -1,6 +1,7 @@
 // Product reads the DB + session cookie at request time; block instead of instant-shell.
 export const instant = false;
 
+import { and, eq, inArray } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
@@ -13,10 +14,13 @@ import { Gallery } from "@/features/catalog/gallery";
 import { ProductCard } from "@/features/catalog/product-card";
 import { RatingStars } from "@/features/catalog/rating-stars";
 import { RecordView } from "@/features/catalog/record-view";
+import { ReviewOwnerActions } from "@/features/reviews/owner-actions";
+import { ReviewForm } from "@/features/reviews/review-form";
 import { Link } from "@/i18n/navigation";
 import { formatDate, formatVnd } from "@/lib/format";
 import { getActor } from "@/server/auth/actor";
 import { getDb } from "@/server/db/client";
+import { orderItems } from "@/server/db/schema";
 import {
   getProductBySlug,
   listProductReviews,
@@ -24,6 +28,7 @@ import {
   type ProductDetail,
   type ReviewView,
 } from "@/server/modules/catalog/service";
+import { listReviewableItems } from "@/server/modules/reviews/service";
 
 export default async function ProductPage({
   params,
@@ -71,6 +76,15 @@ export default async function ProductPage({
     .slice(0, 4);
   const actor = await getActor();
   const minPrice = Math.min(...product.variants.map((v) => v.priceVnd));
+  // The item the actor can still review on this product, if any.
+  const reviewableIds = actor ? listReviewableItems(db, actor).map((i) => i.orderItemId) : [];
+  const reviewable = reviewableIds.length
+    ? db
+        .select({ id: orderItems.id })
+        .from(orderItems)
+        .where(and(eq(orderItems.productId, product.id), inArray(orderItems.id, reviewableIds)))
+        .get()
+    : undefined;
 
   return (
     <article className="space-y-10">
@@ -160,6 +174,7 @@ export default async function ProductPage({
                   </div>
                   {r.title && <p className="font-medium text-sm">{r.title}</p>}
                   {r.body && <p className="text-muted-foreground text-sm">{r.body}</p>}
+                  {actor?.userId === r.userId && <ReviewOwnerActions review={r} />}
                 </CardContent>
               </Card>
             ))}
@@ -173,6 +188,7 @@ export default async function ProductPage({
             {t("moreReviews")}
           </Link>
         )}
+        {reviewable && <ReviewForm orderItemId={reviewable.id} productName={name} />}
       </section>
 
       <Card>
