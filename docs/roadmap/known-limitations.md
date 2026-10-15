@@ -60,5 +60,3 @@ the current implementation. Each entry names its ceiling and upgrade path.
 ## Deferred hardening (by phase)
 
 - CSP header + HSTS env flag (Phase 9).
-- OpenAPI contract test + Scalar UI (Phase 9).
-- Coverage thresholds on money/stock modules (after Phase 5).

@@ -19,7 +19,18 @@ export function trace<A extends unknown[], R>(
       try {
         const result = fn(...args);
         if (result instanceof Promise) {
-          return result.finally(() => span.end()) as R;
+          return result.then(
+            (value) => {
+              span.end();
+              return value;
+            },
+            (err: unknown) => {
+              span.recordException(err as Error);
+              span.setStatus({ code: SpanStatusCode.ERROR });
+              span.end();
+              throw err;
+            },
+          ) as R;
         }
         span.end();
         return result;
