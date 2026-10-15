@@ -530,7 +530,7 @@ paths:
                   items: { type: string, format: uri }
       responses:
         "201":
-          description: Created — {data: {id: "rev_…"}}.
+          description: 'Created — {data: {id: "rev_…"}}.'
         "400":
           $ref: "#/components/responses/InvalidInput"
         "401":
@@ -632,7 +632,7 @@ paths:
       summary: Scalar API reference UI
       description: >-
         HTML page embedding @scalar/api-reference pointed at
-        /api/v1/openapi.yaml. 404 (non-JSON, {error: "NOT_FOUND"}) unless
+        /api/v1/openapi.yaml. 404 {error: "NOT_FOUND"} unless
         API_DOCS_ENABLED="true".
       responses:
         "200":
