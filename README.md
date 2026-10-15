@@ -64,8 +64,8 @@ All server vars are Zod-validated in `src/env.ts`. `.env.example`:
 | `DATABASE_URL` | `file:./data/marketflow.db` | SQLite file path |
 | `APP_ENV` | `development` | `development`/`test`/`production`; Secure cookies in production |
 | `SESSION_COOKIE_NAME` | `marketflow_session` | |
-| `API_DOCS_ENABLED` | `false` | Planned: enables Scalar UI at `/api/docs` |
-| `INTERNAL_CRON_TOKEN` | `dev-cron-token` | Guards planned `/api/v1/internal/*` |
+| `API_DOCS_ENABLED` | `false` | Enables Scalar UI at `/api/docs` |
+| `INTERNAL_CRON_TOKEN` | `dev-cron-token` | Bearer for `/api/v1/internal/*` cron routes |
 | `LOG_LEVEL` | `info` | pino level — read from `process.env` directly, not schema-validated |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | unset | set to enable OTel export — read from `process.env` directly, not schema-validated |
 
@@ -90,8 +90,9 @@ Dependency direction: `app → features → server/modules → server/db`; every
 
 ## OpenAPI / Scalar
 
-Planned — `docs/api/openapi.yaml` + Scalar at `/api/docs` behind
-`API_DOCS_ENABLED=true` (see [api conventions](docs/api/api-conventions.md)).
+`docs/api/openapi.yaml` is served at `/api/v1/openapi.yaml`; Scalar UI at
+`/api/docs` behind `API_DOCS_ENABLED=true` (see
+[api conventions](docs/api/api-conventions.md)).
 
 ## Troubleshooting
 
