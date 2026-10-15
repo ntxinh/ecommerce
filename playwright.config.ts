@@ -20,9 +20,8 @@ export default defineConfig({
   // parallel workers knock each other over mid-click. The seeded SQLite e2e
   // DB is single-writer anyway.
   workers: 1,
-  // Generous test budget: first-hit Turbopack compiles and the auth rate
-  // limiter (5 logins/min per account — shared seeded emails legitimately
-  // exceed it across multi-role journeys) both stall tests for tens of seconds.
+  // Generous test budget: first-hit Turbopack compiles and hydration-retry
+  // loops on controlled inputs can stall a test for tens of seconds.
   timeout: 120_000,
   testDir: "./tests/e2e",
   globalSetup: "./tests/e2e/global-setup.ts",

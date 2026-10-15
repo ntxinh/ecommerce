@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { E2E_DB } from "../../playwright.config";
 
 export const PASSWORD = "Marketflow123!";
@@ -8,6 +8,72 @@ export const SELLER = "seller@marketflow.dev"; // shop_1 (Saigon Crafts) owner
 export const SELLER2 = "seller2@marketflow.dev"; // shop_2 (Danang Goods) owner
 
 const DB_PATH = E2E_DB.replace("file:", "");
+
+/* Dev-server turbulence: Turbopack keeps an in-flight "navigation" alive
+ * (Fast Refresh reloads on cold compile, watched-file churn), and every
+ * trusted interaction (.click/.check/.fill/.selectOption) stalls in
+ * Playwright's "waiting for navigation to finish" actionability step. The
+ * helpers below dispatch untrusted events — real React/DOM handlers still
+ * fire — inside expect().toPass retries, which also ride out pre-hydration
+ * no-ops on controlled inputs and Fast-Refresh DOM detaches. */
+
+/** Dispatch click + assert until, retried. `until` runs inside the retry. */
+export async function tap(locator: Locator, until?: () => Promise<void>, timeout = 60_000) {
+  await expect(async () => {
+    await locator.dispatchEvent("click");
+    if (until) await until();
+  }).toPass({ timeout });
+}
+
+/** Radio/checkbox: dispatch click (label wrapper flips the input), assert
+ *  checked inside the retry so a swallowed click just retries. */
+export async function checkRadio(locator: Locator, timeout = 60_000) {
+  await tap(locator, () => expect(locator).toBeChecked({ timeout: 3_000 }), timeout);
+}
+
+/** Fill a text input, asserting the value — controlled inputs swallow fills
+ *  before hydration. */
+export async function fillField(locator: Locator, value: string, timeout = 60_000) {
+  await expect(async () => {
+    await locator.fill(value);
+    await expect(locator).toHaveValue(value, { timeout: 3_000 });
+  }).toPass({ timeout });
+}
+
+/** Select an option on a controlled <select>, asserting the value or the
+ *  selected option's label. */
+export async function selectOption(
+  locator: Locator,
+  value: string | { label: string },
+  timeout = 60_000,
+) {
+  const want = typeof value === "string" ? value : value.label;
+  await expect(async () => {
+    await locator.selectOption(value);
+    await expect(locator).toEvaluate(
+      (el, want) =>
+        el instanceof HTMLSelectElement &&
+        el.selectedOptions.length > 0 &&
+        (el.value === want || el.selectedOptions[0].textContent === want),
+      want,
+      { timeout: 3_000 },
+    );
+  }).toPass({ timeout });
+}
+
+/** Dispatch click, then retry-wait for a URL (client-side SPA navigations). */
+export async function tapToUrl(locator: Locator, url: string | RegExp, timeout = 60_000) {
+  await tap(locator, () => expect(locator.page()).toHaveURL(url, { timeout: 15_000 }), timeout);
+}
+
+/** Non-retrying submit for create-type <form action={serverAction}> posts:
+ *  dispatch once (a native pre-hydration submit still runs the action), then
+ *  poll the URL. Retrying the click here could double-submit — unlike
+ *  tapToUrl, which only suits repeatable client navigations. */
+export async function submitForUrl(locator: Locator, url: string | RegExp, timeout = 90_000) {
+  await locator.dispatchEvent("click");
+  await expect(locator.page()).toHaveURL(url, { timeout });
+}
 
 /**
  * Sign in as an existing user. The login form is rate-limited (5/min per
@@ -23,8 +89,9 @@ export async function login(page: Page, email: string) {
     .context()
     .addCookies([{ name: "marketflow_session", value: token, domain: "localhost", path: "/" }]);
   await page.goto("/en");
-  // Signed-in marker the anonymous shell lacks.
-  await expect(page.getByRole("link", { name: "Account" })).toBeVisible();
+  // Actor-gated marker (the header renders the bell only for a signed-in
+  // user); the Account icon is unconditional, so it can't prove the session.
+  await expect(page.getByRole("button", { name: "Notifications" })).toBeVisible();
 }
 
 export async function signOut(page: Page) {
@@ -34,18 +101,22 @@ export async function signOut(page: Page) {
 /** Register through the storefront form — lands on /en already signed in. */
 export async function registerCustomer(page: Page, email: string) {
   await page.goto("/en/register");
-  await page.getByLabel("Name").fill("E2E User");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(PASSWORD);
-  await page.getByRole("button", { name: "Create account" }).click();
-  await page.waitForURL("**/en");
+  await page.waitForLoadState("domcontentloaded");
+  await fillField(page.getByLabel("Name"), "E2E User");
+  await fillField(page.getByLabel("Email"), email);
+  await fillField(page.getByLabel("Password"), PASSWORD);
+  // Registration creates the account server-side; only the URL is retried,
+  // not the submit — a timed-out create then a successful one in the same
+  // retry loop would land on the login page, not /en.
+  await tapToUrl(page.getByRole("button", { name: "Create account" }), /\/en$/, 90_000);
 }
 
 export async function addToCart(page: Page, slug: string, qty = 1) {
   await page.goto(`/en/products/${slug}`);
-  if (qty > 1) await page.getByLabel("Qty").fill(String(qty));
-  await page.getByRole("button", { name: "Add to cart" }).click();
-  await expect(page.getByText("Added to cart")).toBeVisible();
+  if (qty > 1) await fillField(page.getByLabel("Qty"), String(qty));
+  await tap(page.getByRole("button", { name: "Add to cart" }), () =>
+    expect(page.getByText("Added to cart")).toBeVisible({ timeout: 5_000 }),
+  );
 }
 
 /**
@@ -55,21 +126,31 @@ export async function addToCart(page: Page, slug: string, qty = 1) {
  */
 export async function checkout(page: Page, opts: { voucherCodes?: string } = {}) {
   await page.goto("/en/cart");
-  await page.getByRole("link", { name: "Proceed to checkout" }).click();
-  await page.waitForURL("**/en/checkout");
-  await page.getByRole("radio", { name: "Use a new address" }).check();
-  await page.getByLabel("Recipient name").fill("E2E Buyer");
-  await page.getByLabel("Phone").fill("0912345678");
-  await page.getByLabel("Address line").fill("9 Hai Ba Trung");
-  await page.getByLabel("Ward").fill("Ben Nghe");
-  await page.getByLabel("District").fill("District 1");
-  await page.getByLabel("City").fill("Ho Chi Minh City");
-  await page.getByRole("button", { name: /Payment/ }).click();
-  if (opts.voucherCodes) await page.getByLabel("Voucher codes").fill(opts.voucherCodes);
-  await page.getByRole("radio", { name: /Cash on delivery/ }).check();
-  await page.getByRole("button", { name: /Review/ }).click();
-  await page.getByRole("button", { name: "Place order" }).click();
-  await page.waitForURL("**/en/checkout/confirmation?order=**");
+  await tapToUrl(page.getByRole("link", { name: "Proceed to checkout" }), /\/en\/checkout/);
+  await checkRadio(page.getByRole("radio", { name: "Use a new address" }));
+  await fillField(page.getByLabel("Recipient name"), "E2E Buyer");
+  await fillField(page.getByLabel("Phone"), "0912345678");
+  await fillField(page.getByLabel("Address line"), "9 Hai Ba Trung");
+  await fillField(page.getByLabel("Ward"), "Ben Nghe");
+  await fillField(page.getByLabel("District"), "District 1");
+  await fillField(page.getByLabel("City"), "Ho Chi Minh City");
+  // Step nav is client state (Zustand): assert the next step's content
+  // appears rather than trusting the button press.
+  await tap(page.getByRole("button", { name: /Payment/ }), () =>
+    expect(page.getByRole("radio", { name: /Cash on delivery/ })).toBeVisible({
+      timeout: 5_000,
+    }),
+  );
+  if (opts.voucherCodes) await fillField(page.getByLabel("Voucher codes"), opts.voucherCodes);
+  await checkRadio(page.getByRole("radio", { name: /Cash on delivery/ }));
+  await tap(page.getByRole("button", { name: /Review/ }), () =>
+    expect(page.getByRole("button", { name: "Place order" })).toBeVisible({ timeout: 5_000 }),
+  );
+  await tapToUrl(
+    page.getByRole("button", { name: "Place order" }),
+    /\/en\/checkout\/confirmation\?order=/,
+    90_000,
+  );
   return new URL(page.url()).searchParams.get("order") as string;
 }
 

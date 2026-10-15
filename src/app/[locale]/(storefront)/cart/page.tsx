@@ -51,7 +51,6 @@ export default async function CartPage({ params }: { params: Promise<{ locale: s
                     <TableHead>{t("item")}</TableHead>
                     <TableHead>{t("price")}</TableHead>
                     <TableHead>{t("quantity")}</TableHead>
-                    <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
