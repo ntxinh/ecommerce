@@ -627,6 +627,34 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
 
+  /api/docs:
+    get:
+      summary: Scalar API reference UI
+      description: >-
+        HTML page embedding @scalar/api-reference pointed at
+        /api/v1/openapi.yaml. 404 (non-JSON, {error: "NOT_FOUND"}) unless
+        API_DOCS_ENABLED="true".
+      responses:
+        "200":
+          description: Scalar UI HTML.
+          content:
+            text/html:
+              schema:
+                type: string
+        "404":
+          description: Docs disabled on this deployment.
+  /api/v1/openapi.yaml:
+    get:
+      summary: This OpenAPI document
+      description: Serves docs/api/openapi.yaml verbatim as application/yaml.
+      responses:
+        "200":
+          description: OpenAPI spec YAML.
+          content:
+            application/yaml:
+              schema:
+                type: string
+
 components:
   responses:
     Unauthorized:
