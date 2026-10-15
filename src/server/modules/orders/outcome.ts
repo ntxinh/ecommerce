@@ -14,6 +14,7 @@ import {
 import { postOrderRecognition } from "@/server/modules/finance/ledger";
 import { consumeReservation } from "@/server/modules/inventory/service";
 import { notify } from "@/server/modules/notifications/service";
+import { trace } from "@/server/observability/trace";
 import { type OrderStatus, transitionOrder } from "./transitions";
 
 export type PaymentOutcome = {
@@ -30,7 +31,7 @@ const lineKey = (orderKey: string, variantId: string) => `${orderKey}:${variantI
  * payment PAID never downgrade, and a stale FAILED on an order that already
  * moved forward (a retry won) never rewinds the order.
  */
-export function persistPaymentOutcome(
+function persistPaymentOutcomeImpl(
   db: DB,
   paymentId: string,
   status: "PAID" | "FAILED",
@@ -138,6 +139,11 @@ export function persistPaymentOutcome(
   });
   return { paymentStatus: status, orderStatus };
 }
+
+export const persistPaymentOutcome = trace(
+  "payments.persistPaymentOutcome",
+  persistPaymentOutcomeImpl,
+);
 
 /**
  * The provider-side ref refunds must target: the latest PAID attempt's

@@ -10,6 +10,8 @@ import {
   stockReservations,
 } from "@/server/db/schema";
 
+import { trace } from "@/server/observability/trace";
+
 /** Query surface shared by the DB handle and a drizzle better-sqlite3 tx — lets
  *  reserveStock/consume/release run inside a caller-owned transaction. */
 export type Tx = Pick<DB, "select" | "insert" | "update">;
@@ -231,7 +233,7 @@ export function releaseOrderReservations(
 }
 
 /** Releases every ACTIVE reservation past expires_at (as EXPIRED) and returns how many. */
-export function sweepExpiredReservations(db: DB, now = Date.now()): number {
+function sweepExpiredReservationsImpl(db: DB, now = Date.now()): number {
   const expired = db
     .select()
     .from(stockReservations)
@@ -264,3 +266,8 @@ export function sweepExpiredReservations(db: DB, now = Date.now()): number {
   }
   return swept;
 }
+
+export const sweepExpiredReservations = trace(
+  "inventory.sweepExpiredReservations",
+  sweepExpiredReservationsImpl,
+);

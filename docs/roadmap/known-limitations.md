@@ -40,6 +40,22 @@ the current implementation. Each entry names its ceiling and upgrade path.
 10. **`lsp.json` omitted** — no documented consumer schema in this toolchain;
     decision recorded in `docs/operations/local-development.md`.
 11. **`/api/v1/ready` not implemented** — only liveness exists today.
+12. **Mock payment/shipping providers** — MOCK_WALLET/MOCK_BANK settle
+    synchronously; Stripe/Finix run in test mode; shipping quotes are flat
+    fees from settings (no real carrier rates). Upgrade: wire the
+    `paymentProviderFor`/shipping-provider seams to live credentials.
+13. **Scalar UI CDN dependency** — `/api/docs` loads
+    `@scalar/api-reference` from jsdelivr at page load; offline deployments
+    get no docs UI. Upgrade: self-host the bundle if air-gapped docs matter.
+14. **Settlements are single-shot** — `generateSettlement` books a leg once
+    (unique index on `settlement_items` is the guard); post-settlement
+    refunds/changes are not recomputed into the settled period — they appear
+    in the next settlement. Upgrade: adjustment legs or recompute if
+    back-dated corrections matter.
+15. **E2E runs against `pnpm dev`** — Playwright boots a dev server
+    (`reuseExistingServer: false`), so suite latency and occasional
+    dev-compile flakes are expected on this box; specs are retried via
+    `expect.poll`-style helpers rather than CI retries.
 
 ## Deferred hardening (by phase)
 

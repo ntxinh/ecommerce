@@ -90,10 +90,18 @@ export function PromotionForm({
           </select>
         )
       ) : (
-        <Input name="shopId" placeholder={t("promotions.fieldShop")} />
+        <Input
+          name="shopId"
+          placeholder={t("promotions.fieldShop")}
+          aria-label={t("promotions.fieldShop")}
+        />
       )}
       {scopes.includes("PRODUCT") || scopes.includes("FLASH") ? (
-        <Input name="productId" placeholder={t("promotions.fieldProduct")} />
+        <Input
+          name="productId"
+          placeholder={t("promotions.fieldProduct")}
+          aria-label={t("promotions.fieldProduct")}
+        />
       ) : null}
       <select
         name="kind"
@@ -108,7 +116,14 @@ export function PromotionForm({
           </option>
         ))}
       </select>
-      <Input name="value" type="number" min={1} placeholder={t("promotions.fieldValue")} required />
+      <Input
+        name="value"
+        type="number"
+        min={1}
+        placeholder={t("promotions.fieldValue")}
+        aria-label={t("promotions.fieldValue")}
+        required
+      />
       <Input
         name="startsAt"
         type="datetime-local"

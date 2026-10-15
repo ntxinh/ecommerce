@@ -38,6 +38,7 @@ import {
 } from "@/server/modules/pricing/price-order";
 import { consumeRedemptions } from "@/server/modules/pricing/vouchers";
 import { quoteShippingFee } from "@/server/modules/shipping/providers";
+import { trace } from "@/server/observability/trace";
 import { type PaymentOutcome, persistPaymentOutcome } from "./outcome";
 import type { OrderStatus } from "./transitions";
 
@@ -202,7 +203,7 @@ export function requestOrigin(headers: Headers): string {
  * rows → post-commit payment dispatch (mock confirm, or a Stripe Checkout
  * Session the browser is redirected to).
  */
-export async function placeOrder(
+async function placeOrderImpl(
   db: DB,
   actor: Actor,
   input: CheckoutInput,
@@ -520,3 +521,5 @@ export async function placeOrder(
   }
   return { orderId, sellerOrderIds, status };
 }
+
+export const placeOrder = trace("orders.placeOrder", placeOrderImpl);

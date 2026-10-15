@@ -50,14 +50,14 @@ export async function selectOption(
   const want = typeof value === "string" ? value : value.label;
   await expect(async () => {
     await locator.selectOption(value);
-    await expect(locator).toEvaluate(
-      (el, want) =>
+    const applied = await locator.evaluate(
+      (el: Element, want: string) =>
         el instanceof HTMLSelectElement &&
         el.selectedOptions.length > 0 &&
         (el.value === want || el.selectedOptions[0].textContent === want),
       want,
-      { timeout: 3_000 },
     );
+    expect(applied).toBe(true);
   }).toPass({ timeout });
 }
 

@@ -51,7 +51,7 @@ function SettingRow({ k, value }: { k: string; value: string }) {
             });
           }}
         />
-        <Input form={formId} name="value" defaultValue={value} disabled={pending} />
+        <Input form={formId} name="value" defaultValue={value} disabled={pending} aria-label={k} />
       </TableCell>
       <TableCell className="text-right">
         <Button type="submit" form={formId} variant="ghost" size="sm" disabled={pending}>

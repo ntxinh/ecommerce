@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fillField, selectOption, signOut, login, submitForUrl, tap, tapToUrl } from "./helpers";
+import { fillField, login, selectOption, signOut, submitForUrl, tap, tapToUrl } from "./helpers";
 
 // The cross-role journey publishes a product into shop_1 — serial keeps the
 // read-only tests' shop/category assertions immune to that write.
@@ -109,10 +109,7 @@ test("seller draft → submit → admin approve → publish → publicly visible
   await fillField(fields.nth(3), "50000");
   await fillField(fields.nth(5), "25");
 
-  await submitForUrl(
-    page.getByRole("button", { name: "Save product" }),
-    /\/en\/seller\/products/,
-  );
+  await submitForUrl(page.getByRole("button", { name: "Save product" }), /\/en\/seller\/products/);
 
   const row = page.getByRole("row", { name });
   await expect(row).toBeVisible();

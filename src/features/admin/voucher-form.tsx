@@ -43,8 +43,9 @@ export function VoucherForm() {
         });
       }}
     >
-      <Input name="code" placeholder={t("fieldCode")} required />
+      <Input name="code" placeholder={t("fieldCode")} aria-label={t("fieldCode")} required />
       <select
+        aria-label={t("fieldKind")}
         name="kind"
         defaultValue="PERCENT"
         className="h-9 rounded-md border bg-background px-2 text-sm"
@@ -55,9 +56,28 @@ export function VoucherForm() {
           </option>
         ))}
       </select>
-      <Input name="value" type="number" min={1} placeholder={t("fieldValue")} required />
-      <Input name="minSpendVnd" type="number" min={0} placeholder={t("fieldMinSpend")} />
-      <Input name="maxDiscountVnd" type="number" min={1} placeholder={t("fieldMaxDiscount")} />
+      <Input
+        name="value"
+        type="number"
+        min={1}
+        placeholder={t("fieldValue")}
+        aria-label={t("fieldValue")}
+        required
+      />
+      <Input
+        name="minSpendVnd"
+        type="number"
+        min={0}
+        placeholder={t("fieldMinSpend")}
+        aria-label={t("fieldMinSpend")}
+      />
+      <Input
+        name="maxDiscountVnd"
+        type="number"
+        min={1}
+        placeholder={t("fieldMaxDiscount")}
+        aria-label={t("fieldMaxDiscount")}
+      />
       <Input
         name="startsAt"
         type="datetime-local"
@@ -72,8 +92,20 @@ export function VoucherForm() {
         defaultValue={toLocalInput(now + 30 * 86_400_000)}
         required
       />
-      <Input name="totalLimit" type="number" min={1} placeholder={t("fieldTotalLimit")} />
-      <Input name="perUserLimit" type="number" min={1} placeholder={t("fieldPerUserLimit")} />
+      <Input
+        name="totalLimit"
+        type="number"
+        min={1}
+        placeholder={t("fieldTotalLimit")}
+        aria-label={t("fieldTotalLimit")}
+      />
+      <Input
+        name="perUserLimit"
+        type="number"
+        min={1}
+        placeholder={t("fieldPerUserLimit")}
+        aria-label={t("fieldPerUserLimit")}
+      />
       <Button type="submit" disabled={pending} className="col-span-2 md:col-span-1">
         {t("createVoucher")}
       </Button>
