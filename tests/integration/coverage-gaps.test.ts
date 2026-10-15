@@ -478,19 +478,16 @@ describe("payments/refunds guards", () => {
     expect(await errorCode(() => completeRefund(db, done.id))).toBe("INVALID_STATE");
   });
 
-  it("markPaymentRefundedIfComplete ignores non-PAID payments", () => {
+  it("markPaymentRefundedIfComplete ignores non-PAID payments", async () => {
     db.transaction((tx) => markPaymentRefundedIfComplete(tx, "pay_missing"));
-    const pending = db
-      .select()
-      .from(payments)
-      .all()
-      .find((p) => p.status === "PENDING");
-    if (pending) {
-      db.transaction((tx) => markPaymentRefundedIfComplete(tx, pending.id));
-      expect(db.select().from(payments).where(eq(payments.id, pending.id)).get()!.status).toBe(
-        "PENDING",
-      );
-    }
+    // Deterministic non-PAID row: reuse a real payment and flip it to PENDING.
+    const { orderId } = await paidOrder("var_4");
+    const payment = db.select().from(payments).where(eq(payments.orderId, orderId)).get()!;
+    db.update(payments).set({ status: "PENDING" }).where(eq(payments.id, payment.id)).run();
+    db.transaction((tx) => markPaymentRefundedIfComplete(tx, payment.id));
+    expect(db.select().from(payments).where(eq(payments.id, payment.id)).get()!.status).toBe(
+      "PENDING",
+    );
   });
 });
 
@@ -523,12 +520,15 @@ describe("inventory guards", () => {
       .where(eq(applicationSettings.key, "reservation_ttl_minutes"))
       .run();
     const a = db.transaction((tx) => reserveStock(tx, "var_6", 1, `gap_${nextKey()}`));
-    expect(a.expiresAt - a.createdAt).toBe(15 * 60 * 1000);
+    // Two Date.now() calls inside reserveStock can straddle a ms tick — bound, don't equal.
+    expect(a.expiresAt - a.createdAt).toBeGreaterThanOrEqual(15 * 60 * 1000 - 1);
+    expect(a.expiresAt - a.createdAt).toBeLessThanOrEqual(15 * 60 * 1000);
     db.insert(applicationSettings)
       .values({ key: "reservation_ttl_minutes", value: '"not-a-number"' })
       .run();
     const b = db.transaction((tx) => reserveStock(tx, "var_6", 1, `gap_${nextKey()}`));
-    expect(b.expiresAt - b.createdAt).toBe(15 * 60 * 1000);
+    expect(b.expiresAt - b.createdAt).toBeGreaterThanOrEqual(15 * 60 * 1000 - 1);
+    expect(b.expiresAt - b.createdAt).toBeLessThanOrEqual(15 * 60 * 1000);
     db.update(applicationSettings)
       .set({ value: "15" })
       .where(eq(applicationSettings.key, "reservation_ttl_minutes"))

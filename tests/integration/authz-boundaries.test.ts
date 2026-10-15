@@ -132,7 +132,7 @@ async function pendingReturn(variantId: string): Promise<string> {
 
 let pendingSettlementId: string;
 
-beforeAll(() => {
+beforeAll(async () => {
   for (const suffix of ["", "-wal", "-shm"]) rmSync(`${PATH}${suffix}`, { force: true });
   mkdirSync("./tests/.tmp", { recursive: true });
   db = getDb(PATH);
@@ -143,6 +143,10 @@ beforeAll(() => {
   // generateSettlement assertions below only see legs this file creates.
   generateSettlement(db, ADMIN, "shop_1");
   generateSettlement(db, ADMIN, "shop_2");
+  // One PENDING settlement for later markSettlementPaid assertions —
+  // created here, not inside an `it`, so tests don't depend on file order.
+  await completedLeg("var_5");
+  pendingSettlementId = generateSettlement(db, ADMIN, "shop_1");
 });
 
 describe("cross-seller boundary (SELLER_B acting on shop_1 resources)", () => {
@@ -180,7 +184,7 @@ describe("cross-seller boundary (SELLER_B acting on shop_1 resources)", () => {
   });
 
   it("markSettlementPaid → FORBIDDEN", async () => {
-    pendingSettlementId = generateSettlement(db, ADMIN, "shop_1");
+    // pendingSettlementId from beforeAll — no reassignment here (order-independent).
     expect(await errorCode(() => markSettlementPaid(db, SELLER_B, pendingSettlementId))).toBe(
       "FORBIDDEN",
     );
