@@ -1,4 +1,4 @@
-.PHONY: setup dev build lint format typecheck test test-unit test-integration test-e2e \
+.PHONY: setup dev build lint format typecheck test test-unit test-integration test-coverage test-e2e \
         db-generate db-migrate db-seed db-reset check verify
 
 
@@ -11,6 +11,7 @@ typecheck: ; pnpm next typegen && pnpm tsc --noEmit
 test: test-unit test-integration
 test-unit: ; pnpm vitest run tests/unit
 test-integration: ; pnpm vitest run tests/integration
+test-coverage: ; pnpm vitest run --coverage
 test-e2e: ; pnpm playwright test
 # NODE_OPTIONS: server-only resolves to an empty module under the react-server
 # condition, letting drizzle-kit/tsx load src/server/** files.
