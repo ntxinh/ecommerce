@@ -737,6 +737,129 @@ components:
           type: [string, "null"]
         items:
           type: array
+
+  /api/v1/reviews:
+    post:
+      summary: Create a review for a purchased order item
+      description: >-
+        Session auth required. The item's parent order must belong to the
+        caller and be in DELIVERED, COMPLETED, or PARTIALLY_REFUNDED; one
+        review per order item (UNIQUE order_item_id). Members of the product's
+        shop can't review it (ADMIN exempt). Returns {data: {id}} with 201.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderItemId, rating]
+              properties:
+                orderItemId: { type: string, minLength: 1 }
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                title: { type: string, maxLength: 200 }
+                body: { type: string, maxLength: 5000 }
+                images:
+                  type: array
+                  maxItems: 10
+                  items: { type: string, format: uri }
+      responses:
+        "201":
+          description: Created — {data: {id: "rev_…"}}.
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Not the order's buyer, or the product's own shop.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: Order item not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "422":
+          description: Order not yet fulfilled (PENDING_PAYMENT…SHIPPED, CANCELLED, REFUNDED).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /api/v1/reviews/[id]:
+    patch:
+      summary: Update a review (author) or moderate it (admin)
+      description: >-
+        Two modes in one body. Author mode: {rating?, title?, body?} — at
+        least one field required; empty string clears title/body. Admin mode:
+        {action: "HIDE"|"UNHIDE", note?} flips status PUBLISHED↔HIDDEN and
+        appends a "review.moderate" audit row. Hidden reviews are excluded
+        from product lists and rating aggregates.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                title: { type: string, maxLength: 200, nullable: true }
+                body: { type: string, maxLength: 5000, nullable: true }
+                action: { type: string, enum: [HIDE, UNHIDE] }
+                note: { type: string, maxLength: 500 }
+      responses:
+        "200":
+          description: "{data: {id}} — updated or moderated."
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Author-edit by another user, or moderation by a non-admin.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: Review not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+    delete:
+      summary: Delete a review (author or admin)
+      description: >-
+        Removes the row; the order item becomes reviewable again. Admins may
+        delete any review.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: "{data: {deleted: true}}"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Not the review author or an admin.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: Review not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
           items:
             $ref: "#/components/schemas/CartLine"
         byShop:
